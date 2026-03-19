@@ -1,0 +1,346 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+      - '!v*-pre*'
+      - '!v*-beta*'
+
+jobs:
+
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download base APK
+        run: |
+          gh release download base-apk --pattern "*.apk" -D base/ -R ${{ github.repository }}
+          ls base/
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install apktool
+        run: |
+          APKTOOL_VER=2.9.3
+          mkdir -p $HOME/bin
+          wget -q "https://github.com/iBotPeaches/Apktool/releases/download/v${APKTOOL_VER}/apktool_${APKTOOL_VER}.jar" -O $HOME/bin/apktool.jar
+          wget -q "https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool" -O $HOME/bin/apktool
+          chmod +x $HOME/bin/apktool
+          echo "$HOME/bin" >> $GITHUB_PATH
+          java -jar $HOME/bin/apktool.jar --version
+
+      - name: Decompile APK
+        run: |
+          APK=$(ls base/*.apk | head -1)
+          echo "Decompiling: $APK"
+          java -jar $HOME/bin/apktool.jar d "$APK" -o apktool_out -f
+
+      - name: Apply all patches
+        run: |
+          python3 << 'PYEOF'
+          import sys
+
+          def patch(path, old, new, label):
+              try:
+                  content = open(path, encoding='utf-8').read()
+              except UnicodeDecodeError:
+                  content = open(path, encoding='latin-1').read()
+              if old not in content:
+                  print(f"ERROR: anchor not found in {path} for: {label}")
+                  sys.exit(1)
+              open(path, 'w', encoding='utf-8').write(content.replace(old, new, 1))
+              print(f"OK: {label}")
+
+          # ── 1. AndroidManifest.xml: register activities + queries ─────────────
+          patch(
+              'apktool_out/AndroidManifest.xml',
+              '</application>',
+              '    <activity android:name="app.revanced.extension.gamehub.ComponentManagerActivity"'
+              ' android:label="Components" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.ComponentDownloadActivity"'
+              ' android:label="Download Components" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n    </application>',
+              'manifest: register ComponentManagerActivity + ComponentDownloadActivity'
+          )
+
+          patch(
+              'apktool_out/AndroidManifest.xml',
+              '    </queries>',
+              '        <package android:name="com.banner.inject" />\n    </queries>',
+              'manifest: add BCI to queries'
+          )
+
+          # ── 2. strings.xml: My Games rename ──────────────────────────────────
+          patch(
+              'apktool_out/res/values/strings.xml',
+              '<string name="llauncher_main_page_title_my">Dashboard</string>',
+              '<string name="llauncher_main_page_title_my">My Games</string>',
+              'strings.xml: My Games rename'
+          )
+
+          # ── 3. ids.xml: add new IDs ───────────────────────────────────────────
+          patch(
+              'apktool_out/res/values/ids.xml',
+              '</resources>',
+              '    <item type="id" name="iv_bci_launcher" />\n'
+              '    <item type="id" name="switch_sustained_perf" />\n'
+              '    <item type="id" name="switch_max_adreno_clocks" />\n'
+              '</resources>',
+              'ids.xml: add BCI + perf switch IDs'
+          )
+
+          # ── 4. HomeLeftMenuDialog.Z0(): inject Components menu item ──────────
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog.smali',
+              (
+                  '    if-eqz v3, :cond_1\n\n'
+                  '    iget-object v4, v0, Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog;->m:Ljava/util/List;\n\n'
+                  '    invoke-static {v3, v4}, Lcom/xj/common/view/adapter/MultiViewHolderAdapterKt;->f(Landroidx/recyclerview/widget/RecyclerView$Adapter;Ljava/util/List;)V\n'
+              ),
+              (
+                  '    if-eqz v3, :cond_1\n\n'
+                  '    iget-object v4, v0, Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog;->m:Ljava/util/List;\n'
+                  '    invoke-static {v4}, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->addComponentsMenuItem(Ljava/util/List;)V\n\n'
+                  '    iget-object v4, v0, Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog;->m:Ljava/util/List;\n\n'
+                  '    invoke-static {v3, v4}, Lcom/xj/common/view/adapter/MultiViewHolderAdapterKt;->f(Landroidx/recyclerview/widget/RecyclerView$Adapter;Ljava/util/List;)V\n'
+              ),
+              'HomeLeftMenuDialog.Z0(): addComponentsMenuItem injection'
+          )
+
+          # ── 5. HomeLeftMenuDialog$init$1$9$2.a(): intercept click ─────────────
+          inj = (
+              '    iget-object v0, p0, Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog$init$1$9$2;->a:Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog;\n'
+              '    iget-object v1, p0, Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog$init$1$9$2;->b:Landroidx/fragment/app/FragmentActivity;\n'
+              '    invoke-static {v0, p1, v1}, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->handleMenuItemClick(Ljava/lang/Object;Ljava/lang/Object;Landroid/app/Activity;)Z\n'
+              '    move-result v0\n'
+              '    if-eqz v0, :cond_bh_not_handled\n'
+              '    return-void\n'
+              '    :cond_bh_not_handled\n'
+          )
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog$init$1$9$2.smali',
+              '    const-string v0, "entity"\n',
+              inj + '    const-string v0, "entity"\n',
+              'HomeLeftMenuDialog$init$1$9$2: click intercept injection'
+          )
+
+          # ── 6. LandscapeLauncherMainActivity.initView(): setup BCI button ────
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity.smali',
+              (
+                  '    invoke-virtual/range {p0 .. p0}, Lcom/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity;->X2()V\n'
+                  '\n'
+                  '    return-void\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public final j3()V\n'
+              ),
+              (
+                  '    invoke-virtual/range {p0 .. p0}, Lcom/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity;->X2()V\n'
+                  '\n'
+                  '    invoke-static {p0}, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->setupBciButton(Landroid/app/Activity;)V\n'
+                  '\n'
+                  '    return-void\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public final j3()V\n'
+              ),
+              'LandscapeLauncherMainActivity.initView(): setupBciButton injection'
+          )
+
+          # ── 7. SteamGameByPcEmuLaunchStrategy: offline Steam skip ─────────────
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/launcher/strategy/SteamGameByPcEmuLaunchStrategy$launch$1$3.smali',
+              (
+                  '    invoke-interface {p1}, Lcom/xj/common/service/ISteamGameService;->l()Z\n'
+                  '\n'
+                  '    move-result v1\n'
+                  '\n'
+                  '    if-nez v1, :cond_8\n'
+              ),
+              (
+                  '    invoke-interface {p1}, Lcom/xj/common/service/ISteamGameService;->l()Z\n'
+                  '\n'
+                  '    move-result v1\n'
+                  '\n'
+                  '    # BannerHub Lite patch: if not logged in but offline, skip login screen\n'
+                  '    if-nez v1, :cond_8\n'
+                  '    invoke-static {}, Lcom/blankj/utilcode/util/NetworkUtils;->r()Z\n'
+                  '    move-result v1\n'
+                  '    if-eqz v1, :cond_8\n'
+              ),
+              'SteamGameByPcEmuLaunchStrategy: offline Steam skip injection'
+          )
+
+          print("\nAll patches applied successfully.")
+          PYEOF
+
+      - name: Apply resource patches
+        run: |
+          if [ -d "patches" ] && [ "$(ls -A patches)" ]; then
+            echo "Applying resource patches..."
+            cp -r patches/. apktool_out/
+            echo "Done."
+          fi
+
+      - name: Remove problematic res entries
+        run: |
+          # Remove firebase_common_keep / firebase_crashlytics_keep (break aapt2)
+          sed -i '/firebase_common_keep\|firebase_crashlytics_keep/d' apktool_out/res/values/public.xml || true
+
+      - name: Upload patched source
+        uses: actions/upload-artifact@v4
+        with:
+          name: apktool_out_base
+          path: apktool_out/
+          retention-days: 1
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - apk: Bannerhub-Lite-5.1.4-Normal.apk
+            package: gamehub.lite
+            label: "BannerHub Lite"
+          - apk: Bannerhub-Lite-5.1.4-PuBG.apk
+            package: com.tencent.ig
+            label: "BannerHub Lite PuBG"
+          - apk: Bannerhub-Lite-5.1.4-AnTuTu.apk
+            package: com.antutu.ABenchMark
+            label: "BannerHub Lite AnTuTu"
+          - apk: Bannerhub-Lite-5.1.4-alt-AnTuTu.apk
+            package: com.antutu.benchmark.full
+            label: "BannerHub Lite AnTuTu"
+          - apk: Bannerhub-Lite-5.1.4-PuBG-CrossFire.apk
+            package: com.tencent.tmgp.cf
+            label: "BannerHub Lite PuBG CrossFire"
+          - apk: Bannerhub-Lite-5.1.4-Ludashi.apk
+            package: com.ludashi.aibench
+            label: "BannerHub Lite Ludashi"
+          - apk: Bannerhub-Lite-5.1.4-Genshin.apk
+            package: com.mihoyo.genshinimpact
+            label: "BannerHub Lite Genshin"
+          - apk: Bannerhub-Lite-5.1.4-Original.apk
+            package: com.xiaoji.egggame
+            label: "BannerHub Lite"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install apktool
+        run: |
+          APKTOOL_VER=2.9.3
+          mkdir -p $HOME/bin
+          wget -q "https://github.com/iBotPeaches/Apktool/releases/download/v${APKTOOL_VER}/apktool_${APKTOOL_VER}.jar" -O $HOME/bin/apktool.jar
+          wget -q "https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool" -O $HOME/bin/apktool
+          chmod +x $HOME/bin/apktool
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      - name: Download patched source
+        uses: actions/download-artifact@v4
+        with:
+          name: apktool_out_base
+          path: apktool_out
+
+      - name: Patch package name and label
+        run: |
+          PKG="${{ matrix.package }}"
+          LABEL="${{ matrix.label }}"
+          if [ "$PKG" != "gamehub.lite" ]; then
+            sed -i "s/gamehub\.lite/$PKG/g" apktool_out/AndroidManifest.xml
+          fi
+          # Replace @string/app_name reference with literal label
+          sed -i 's/android:label="@string\/app_name"/android:label="'"$LABEL"'"/' apktool_out/AndroidManifest.xml
+
+      - name: Rebuild APK
+        run: |
+          java -jar $HOME/bin/apktool.jar b apktool_out -o rebuilt-unsigned.apk
+          echo "Rebuild complete: $(du -sh rebuilt-unsigned.apk | cut -f1)"
+
+      - name: Compile and inject extension dex
+        run: |
+          ANDROID_JAR=$(ls $ANDROID_SDK_ROOT/platforms/android-*/android.jar 2>/dev/null | sort -V | tail -1)
+          echo "Using SDK: $ANDROID_JAR"
+
+          mkdir -p ext_classes
+          javac -source 8 -target 8 -cp "$ANDROID_JAR" -d ext_classes extension/*.java
+          echo "Compiled extension classes:"
+          find ext_classes -name "*.class"
+
+          BUILD_TOOLS=$(ls $ANDROID_SDK_ROOT/build-tools | sort -V | tail -1)
+          mkdir -p ext_dex
+          $ANDROID_SDK_ROOT/build-tools/$BUILD_TOOLS/d8 \
+            --release \
+            --min-api 26 \
+            --output ext_dex \
+            $(find ext_classes -name "*.class")
+          echo "Extension dex: $(du -sh ext_dex/classes.dex | cut -f1)"
+
+          # Inject as classes11.dex (5.1.4 uses classes.dex through classes10.dex)
+          cp ext_dex/classes.dex classes11.dex
+          zip -j rebuilt-unsigned.apk classes11.dex
+          echo "Injected classes11.dex"
+
+      - name: Zipalign
+        run: |
+          BUILD_TOOLS=$(ls ${ANDROID_SDK_ROOT}/build-tools | tail -1)
+          ${ANDROID_SDK_ROOT}/build-tools/${BUILD_TOOLS}/zipalign -f -v 4 rebuilt-unsigned.apk rebuilt-aligned.apk
+
+      - name: Sign
+        run: |
+          BUILD_TOOLS=$(ls ${ANDROID_SDK_ROOT}/build-tools | tail -1)
+          ${ANDROID_SDK_ROOT}/build-tools/${BUILD_TOOLS}/apksigner sign \
+            --key testkey.pk8 \
+            --cert testkey.x509.pem \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --out "${{ matrix.apk }}" \
+            rebuilt-aligned.apk
+          echo "Signed: ${{ matrix.apk }} ($(du -sh "${{ matrix.apk }}" | cut -f1))"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.apk }}
+          path: ${{ matrix.apk }}
+          retention-days: 1
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Get tag name
+        id: tag
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "name=manual-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download all APK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: Bannerhub-Lite-*.apk
+          merge-multiple: true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: BannerHub Lite ${{ steps.tag.outputs.name }}
+          prerelease: ${{ contains(steps.tag.outputs.name, '-') }}
+          files: Bannerhub-Lite-*.apk
