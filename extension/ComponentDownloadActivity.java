@@ -45,40 +45,27 @@ public class ComponentDownloadActivity extends Activity {
 
     // ── Repo definitions ──────────────────────────────────────────────────────
 
-    private static final String MODE_GITHUB = "github";
-    private static final String MODE_PACK_JSON = "pack_json";
-
     private static class Repo {
         final String name;
         final String url;
-        final String mode;
-        Repo(String name, String url, String mode) {
-            this.name = name; this.url = url; this.mode = mode;
+        Repo(String name, String url) {
+            this.name = name; this.url = url;
         }
     }
 
     private static final Repo[] REPOS = {
-        new Repo("StevenMXZ",
-            "https://api.github.com/repos/StevenMXZ/wcp_hub/releases?per_page=50",
-            MODE_GITHUB),
         new Repo("Arihany WCPHub",
-            "https://raw.githubusercontent.com/Arihany/WinlatorWCPHub/refs/heads/main/pack.json",
-            MODE_PACK_JSON),
-        new Repo("Xnick417x",
-            "https://api.github.com/repos/Xnick417x/winlator-components/releases?per_page=50",
-            MODE_GITHUB),
-        new Repo("AdrenoTools Drivers (K11MCH1)",
-            "https://api.github.com/repos/K11MCH1/AdrenoToolsDrivers/releases?per_page=50",
-            MODE_GITHUB),
-        new Repo("Freedreno Turnip CI (whitebelyash)",
-            "https://api.github.com/repos/whitebelyash/turnip_ci/releases?per_page=50",
-            MODE_GITHUB),
-        new Repo("MaxesTechReview (MTR)",
-            "https://api.github.com/repos/Maxestech/WCPackages/releases?per_page=50",
-            MODE_GITHUB),
-        new Repo("Nightlies by The412Banner",
-            "https://api.github.com/repos/The412Banner/Nightlies/releases?per_page=50",
-            MODE_GITHUB),
+            "https://raw.githubusercontent.com/Arihany/WinlatorWCPHub/refs/heads/main/pack.json"),
+        new Repo("Kimchi GPU Drivers",
+            "https://raw.githubusercontent.com/The412Banner/Nightlies/refs/heads/main/kimchi_drivers.json"),
+        new Repo("StevenMXZ GPU Drivers",
+            "https://raw.githubusercontent.com/The412Banner/Nightlies/refs/heads/main/stevenmxz_drivers.json"),
+        new Repo("MTR GPU Drivers",
+            "https://raw.githubusercontent.com/The412Banner/Nightlies/refs/heads/main/mtr_drivers.json"),
+        new Repo("Whitebelyash GPU Drivers",
+            "https://raw.githubusercontent.com/The412Banner/Nightlies/refs/heads/main/white_drivers.json"),
+        new Repo("The412Banner Nightlies",
+            "https://raw.githubusercontent.com/The412Banner/Nightlies/refs/heads/main/nightlies_components.json"),
     };
 
     private static final String[] CATEGORIES = {
@@ -148,12 +135,7 @@ public class ComponentDownloadActivity extends Activity {
         Repo repo = REPOS[selectedRepoIdx];
         new Thread(() -> {
             try {
-                List<AssetItem> assets;
-                if (repo.mode.equals(MODE_PACK_JSON)) {
-                    assets = fetchPackJson(repo.url);
-                } else {
-                    assets = fetchGithubReleases(repo.url);
-                }
+                List<AssetItem> assets = fetchPackJson(repo.url);
 
                 // Filter by category
                 List<AssetItem> filtered = new ArrayList<>();
@@ -251,35 +233,7 @@ public class ComponentDownloadActivity extends Activity {
         }).start();
     }
 
-    // ── Fetch: GitHub Releases API ────────────────────────────────────────────
-
-    private List<AssetItem> fetchGithubReleases(String apiUrl) throws Exception {
-        String json = httpGet(apiUrl);
-        JSONArray releases = new JSONArray(json);
-        List<AssetItem> result = new ArrayList<>();
-
-        // Find the first nightly-* release (or just take the first release)
-        for (int i = 0; i < releases.length(); i++) {
-            JSONObject release = releases.getJSONObject(i);
-            String tagName = release.optString("tag_name", "");
-            JSONArray assets = release.optJSONArray("assets");
-            if (assets == null) continue;
-
-            for (int j = 0; j < assets.length(); j++) {
-                JSONObject a = assets.getJSONObject(j);
-                String name = a.optString("name", "");
-                String url = a.optString("browser_download_url", "");
-                if (!name.isEmpty() && !url.isEmpty()) {
-                    result.add(new AssetItem(name, url));
-                }
-            }
-            // Only use the first/latest release
-            if (!result.isEmpty()) break;
-        }
-        return result;
-    }
-
-    // ── Fetch: pack.json (Arihany WCPHub format) ──────────────────────────────
+    // ── Fetch: pack.json ──────────────────────────────────────────────────────
 
     private List<AssetItem> fetchPackJson(String url) throws Exception {
         String json = httpGet(url);

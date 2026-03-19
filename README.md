@@ -70,15 +70,14 @@ Tap any installed component to get:
 Browse and install components directly from community repos without leaving the app.
 
 ### Repos
-| Repo | Format |
+| Repo | Source |
 |---|---|
-| StevenMXZ | GitHub Releases API |
-| Arihany WCPHub | pack.json |
-| Xnick417x | GitHub Releases API |
-| AdrenoTools Drivers (K11MCH1) | GitHub Releases API |
-| Freedreno Turnip CI (whitebelyash) | GitHub Releases API |
-| MaxesTechReview (MTR) | GitHub Releases API |
-| Nightlies by The412Banner | GitHub Releases API |
+| Arihany WCPHub | [WinlatorWCPHub/pack.json](https://github.com/Arihany/WinlatorWCPHub) |
+| Kimchi GPU Drivers | [Nightlies/kimchi_drivers.json](https://github.com/The412Banner/Nightlies) |
+| StevenMXZ GPU Drivers | [Nightlies/stevenmxz_drivers.json](https://github.com/The412Banner/Nightlies) |
+| MTR GPU Drivers | [Nightlies/mtr_drivers.json](https://github.com/The412Banner/Nightlies) |
+| Whitebelyash GPU Drivers | [Nightlies/white_drivers.json](https://github.com/The412Banner/Nightlies) |
+| The412Banner Nightlies | [Nightlies/nightlies_components.json](https://github.com/The412Banner/Nightlies) |
 
 ### Category filter
 After selecting a repo, filter by: **DXVK** / **VKD3D** / **Box64** / **FEXCore** / **GPU Driver** / **All**
