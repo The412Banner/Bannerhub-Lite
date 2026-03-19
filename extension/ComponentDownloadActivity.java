@@ -76,9 +76,6 @@ public class ComponentDownloadActivity extends Activity {
         new Repo("MaxesTechReview (MTR)",
             "https://api.github.com/repos/Maxestech/WCPackages/releases?per_page=50",
             MODE_GITHUB),
-        new Repo("HUB Emulators (T3st31)",
-            "https://api.github.com/repos/T3st31/hub_emu/releases?per_page=50",
-            MODE_GITHUB),
         new Repo("Nightlies by The412Banner",
             "https://api.github.com/repos/The412Banner/Nightlies/releases?per_page=50",
             MODE_GITHUB),
@@ -202,7 +199,12 @@ public class ComponentDownloadActivity extends Activity {
         if (targetComponent != null && !targetComponent.isEmpty()) {
             componentFolder = targetComponent;
         } else {
-            componentFolder = guessComponentFolder(asset.name);
+            // Use asset filename (without extension) as folder name
+            // e.g. "Mesa_Turnip_26.1.0_R4.zip" → "Mesa_Turnip_26.1.0_R4"
+            String folderName = asset.name;
+            int dot = folderName.lastIndexOf('.');
+            if (dot > 0) folderName = folderName.substring(0, dot);
+            componentFolder = folderName;
         }
 
         File destDir = new File(componentsDir, componentFolder);
@@ -364,17 +366,6 @@ public class ComponentDownloadActivity extends Activity {
                         || lower.contains("qualcomm") || lower.contains("freedreno");
             default:           return true;
         }
-    }
-
-    private String guessComponentFolder(String filename) {
-        String lower = filename.toLowerCase();
-        if (lower.contains("dxvk"))                          return "dxvk";
-        if (lower.contains("vkd3d"))                         return "vkd3d";
-        if (lower.contains("box64"))                         return "box64";
-        if (lower.contains("fex") || lower.contains("fexcore")) return "fexcore";
-        if (lower.contains("turnip") || lower.contains("driver")
-                || lower.contains("adreno"))                 return "gpu_driver";
-        return "component";
     }
 
     // ── UI helpers ────────────────────────────────────────────────────────────

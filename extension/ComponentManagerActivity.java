@@ -58,6 +58,13 @@ public class ComponentManagerActivity extends Activity {
         showComponents();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Refresh list when returning from ComponentDownloadActivity or file picker
+        showComponents();
+    }
+
     // ── Screen: component list ────────────────────────────────────────────────
 
     private void showComponents() {
