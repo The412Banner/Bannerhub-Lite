@@ -764,6 +764,58 @@ jobs:
               'PcGameSettingDataHelper.x(): default new games to System Driver'
           )
 
+          # Patch 16: WinEmuDownloadManager.H() / checkUserPreferComponent — skip GPU download when System Driver selected
+          # When H0() is null (no preference) or H0().getId() == -1 (System Driver), jump to :cond_f (skip).
+          # Mirrors the identical check for STEAMCLIENT (P0()/id==-1). Without this, "System Driver" is
+          # passed as the preferred name to downloadUserSelectAfterRecommend, EmuComponents.n() can't find
+          # it, falls back to recommended download, and Turnip is queued/downloaded repeatedly → crash.
+          patch(
+              'apktool_out/smali_classes4/com/xj/winemu/download/WinEmuDownloadManager.smali',
+              (
+                  '    invoke-virtual {p1}, Lcom/xj/winemu/settings/PcGameSettingOperations;->H0()Lcom/xj/winemu/bean/PcSettingDataEntity;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    if-eqz p1, :cond_8\n'
+                  '\n'
+                  '    invoke-virtual {p1}, Lcom/xj/winemu/bean/PcSettingDataEntity;->getName()Ljava/lang/String;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    move-object v3, p1\n'
+                  '\n'
+                  '    goto :goto_5\n'
+                  '\n'
+                  '    :cond_8\n'
+                  '    move-object v3, v8\n'
+                  '\n'
+                  '    :goto_5\n'
+              ),
+              (
+                  '    invoke-virtual {p1}, Lcom/xj/winemu/settings/PcGameSettingOperations;->H0()Lcom/xj/winemu/bean/PcSettingDataEntity;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    # BannerHub Lite: skip GPU download when null or System Driver (id=-1)\n'
+                  '    if-eqz p1, :cond_f\n'
+                  '\n'
+                  '    invoke-virtual {p1}, Lcom/xj/winemu/bean/PcSettingDataEntity;->getId()I\n'
+                  '\n'
+                  '    move-result p1\n'
+                  '\n'
+                  '    const/4 p4, -0x1\n'
+                  '\n'
+                  '    if-eq p1, p4, :cond_f\n'
+                  '\n'
+                  '    invoke-virtual {p2}, Lcom/xj/winemu/api/bean/EnvLayerEntity;->getName()Ljava/lang/String;\n'
+                  '\n'
+                  '    move-result-object v3\n'
+                  '\n'
+                  '    :goto_5\n'
+              ),
+              'WinEmuDownloadManager.H(): skip GPU download when System Driver selected'
+          )
+
           print("\nAll patches applied successfully.")
           PYEOF
 

@@ -7,6 +7,24 @@
 
 ---
 
+### [fix] — v0.2.4-pre — Skip GPU driver download when System Driver is selected (2026-03-19)
+**Commit:** `TBD`  |  **Tag:** v0.2.4-pre  |  **CI:** pending
+
+#### What changed
+- **Patch 16 — WinEmuDownloadManager.H() (= `checkUserPreferComponent`):** When building the pending download list for a new game, the GPU branch now mirrors the STEAMCLIENT branch: if `H0()` returns null OR `H0().getId() == -1` (System Driver), jump immediately to `:cond_f` — returning false without adding the GPU entity to the download set.
+  - Previously: `H0().getName()` = `"System Driver"` was passed as the preferred name to `downloadUserSelectAfterRecommend`. `EmuComponents.n("System Driver")` returned null (System Driver is not a real EmuComponent), so it fell through to the "recommended download" path and queued Turnip. After Turnip downloaded, `checkIsDownloaded$2` returned false (GPU fileType has no case), so `checkNextStartTask` re-queued it → second download → "already downloaded more than once, interrupt" abort.
+  - Fix: when the user has explicitly chosen System Driver (id=-1, set by GpuDefaultHelper), skip the GPU entry entirely — same logic GameHub already uses for STEAMCLIENT with id=-1.
+
+#### Root cause
+`WinEmuDownloadManager.H()` had a GPU-specific check that obtained the user's preference via `H0()` but then passed the preference's display name (`"System Driver"`) to `downloadUserSelectAfterRecommend`. Since `"System Driver"` is not a real component in the EmuComponents registry, `n("System Driver")` returned null → recommended (Turnip) was queued regardless of the user's System Driver selection. The "more than once" crash is a downstream symptom.
+
+#### Files touched
+- `apktool_out_local/smali_classes4/com/xj/winemu/download/WinEmuDownloadManager.smali` (GPU block in `checkUserPreferComponent$1`)
+- `.github/workflows/build-quick.yml` (patch 16)
+- `.github/workflows/build.yml` (patch 16)
+
+---
+
 ## Session — 2026-03-19
 
 ### [init] — Project created (2026-03-19)
@@ -308,3 +326,24 @@ v0.2.0-pre CPU selector still used the dropdown list (DialogSettingListItemEntit
 
 #### Files touched
 - `extension/CpuMultiSelectHelper.java`
+
+---
+
+### [feat] — v0.2.3-pre — GPU driver auto-default to System Driver for new games (2026-03-19)
+**Commit:** `2d63c2b`  |  **Tag:** v0.2.3-pre  |  **CI:** ✅ success (run 23306310779, 2m5s)
+
+#### What changed
+- **GpuDefaultHelper.java (NEW):** Ensures new games always default to System Driver.
+  - `ensureSystemDriver(Object ops)`: called via reflection entry; calls `H0()` on the passed `PcGameSettingOperations` — if GPU driver is already set, returns immediately. Otherwise gets per-game SPUtils via `h0()`, builds a `PcSettingDataEntity(id=-1, name=systemDriverLabel)` via Kotlin defaults constructor, serializes to JSON via `GsonUtils.j()`, and writes to per-game key `"pc_ls_GPU_DRIVER_"` via `SPUtils.o(key, json)`.
+  - `buildSystemDriverEntity()`: dynamically finds `PcSettingDataEntity` Kotlin defaults ctor; sets `id=-1` (System Driver sentinel) and `name` from `getSystemDriverName()`; default mask = `(1<<numRealParams)-1 & ~0x3` (all defaults except id and name).
+  - `getSystemDriverName()`: uses `Utils.a()` to get app context; resolves string resource `pc_gpu_official_driver`; falls back to `"System Driver"`.
+
+- **Patch 15 — PcGameSettingDataHelper.x():** Injected `invoke-static {p1}, GpuDefaultHelper;->ensureSystemDriver(Object)V` immediately before `return-object p1`. `x()` is called by `computeIfAbsent` in `w(gameId)` — exactly once per game per session when a new `PcGameSettingOperations` instance is first created, making it the ideal injection point.
+
+#### Root cause
+When a game is added for the first time, no per-game GPU driver key exists in SPUtils. `getSelectGpuOrDefault()` falls back to the global `"pc_d_gpu"` preference which may point to a custom driver that was previously downloaded but no longer exists. `H0()` returns null, the fallback also fails, and GameHub crashes on launch. Fix: write System Driver (id=-1) to the per-game key on first session initialization, so `H0()` always returns non-null and the global fallback is never consulted.
+
+#### Files touched
+- `extension/GpuDefaultHelper.java` (new)
+- `.github/workflows/build-quick.yml` (patch 15)
+- `.github/workflows/build.yml` (patch 15)

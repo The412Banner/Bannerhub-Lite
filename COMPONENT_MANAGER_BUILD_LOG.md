@@ -366,6 +366,64 @@ Smali injection into `GameSettingViewModel$fetchList$1.smali` (in `smali_classes
 
 ---
 
+## Entry 006 — Skip GPU driver download when System Driver selected (v0.2.4-pre)
+
+### Problem (user-reported after v0.2.3-pre)
+When adding a new game, GameHub tries to download Turnip (GPU driver from game config) repeatedly and fails with "already downloaded more than once, incorrect behavior, interrupt" error in logcat. Game launch blocked.
+
+### Root cause analysis
+
+#### WinEmuDownloadManager.H() = `checkUserPreferComponent`
+
+Signature: `H(String gameId, EnvLayerEntity entity, Set downloadSet, EnvLayerEntity container, Continuation)`
+
+Method builds the pending download list. For each game config component, it checks the user's preference:
+- **STEAMCLIENT branch (lines 2226-2238):** Calls `P0()` → if null or `getId() == -1` → jump to `:cond_f` (return false, skip). If real selection → pass `entity.getName()` to `downloadUserSelectAfterRecommend`.
+- **GPU branch (original, lines 2079-2094):** Calls `H0()` → if null → `v3 = null`; if non-null → `v3 = H0().getName()` = `"System Driver"` (set by GpuDefaultHelper). Passes `"System Driver"` to `downloadUserSelectAfterRecommend`.
+
+#### WinEmuDownloadManager.Z() = `downloadUserSelectAfterRecommend`
+
+Signature: `Z(Set, String preferredName, EnvLayerEntity, int, Continuation)`
+
+- If `preferredName` is non-null and non-empty → calls `EmuComponents.n(preferredName)` to get ComponentRepo
+  - If `n()` returns null (no such component in registry) → logs "本地没有用户选择的组件" → falls through to recommended download: calls `EmuComponents.q(entity.getName())` — if q() = "not installed" → adds to download set
+  - If `n()` non-null → checks if installed, downloads if not
+- If `preferredName` is null or empty → same recommended-download fallback
+
+#### Why "System Driver" caused Turnip downloads
+
+`GpuDefaultHelper` (patch 15) correctly wrote a `PcSettingDataEntity(id=-1, name="System Driver")` to the per-game GPU pref. When `checkUserPreferComponent` ran, `H0()` returned non-null, so `v3 = "System Driver"`. Then `downloadUserSelectAfterRecommend("System Driver", turnipEntity)` called `EmuComponents.n("System Driver")` → returned null (System Driver is not a real EmuComponent, it's the built-in GPU). Fallback: `EmuComponents.q("Turnip_v26.1.0_R4")` → not installed → added to download set. Turnip downloaded, but `checkIsDownloaded$2` has no GPU fileType case → returns false → `checkNextStartTask` sees key in `f` map → fires "more than once" abort.
+
+#### Download loop explanation
+
+1. Turnip added to pending set → downloads successfully
+2. `checkAllComplete` → `checkIsDownloaded("Turnip")` → false (no GPU fileType case)
+3. `checkNextStartTask` → Turnip key already in `f` → `F()` → abort. But if not yet in `f`, `c1()` restarts → second download → third attempt → final abort. Logcat shows 3 full downloads before crash.
+
+### Fix
+
+Patched the GPU block in `checkUserPreferComponent` to mirror the STEAMCLIENT check:
+- After `H0()`: if null → `:cond_f` (skip, not `:cond_8` with null name)
+- If `getId() == -1` (System Driver) → `:cond_f` (skip)
+- If real driver selected → use `entity.getName()` (same as STEAMCLIENT branch, not H0().getName())
+
+| Register | Before fix | After fix |
+|----------|-----------|-----------|
+| p1 after H0() | `PcSettingDataEntity` or null | same |
+| null check | `if-eqz p1, :cond_8` (pass null name → recommended download) | `if-eqz p1, :cond_f` (skip entirely) |
+| id check | (none) | `getId(); if id==-1, :cond_f` |
+| v3 (preferred name) | `H0().getName()` = `"System Driver"` | `entity.getName()` (the game config component's actual name) |
+
+### Files modified
+- `apktool_out_local/smali_classes4/com/xj/winemu/download/WinEmuDownloadManager.smali`
+- `.github/workflows/build-quick.yml` (patch 16)
+- `.github/workflows/build.yml` (patch 16)
+
+### CI result
+- Pending (v0.2.4-pre tag not yet pushed)
+
+---
+
 ## Appendix — Reference material
 
 ### EmuComponents 5.1.4 method map
