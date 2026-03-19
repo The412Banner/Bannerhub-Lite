@@ -182,6 +182,37 @@ jobs:
               'GameSettingViewModel$fetchList$1: appendLocalComponents injection'
           )
 
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/launcher/'
+              'LauncherHelper$fetchStartTypeInfoAndSwitchModeInternal$2$1.smali',
+              (
+                  '    :goto_9\n'
+                  '    invoke-virtual {v0}, Ljava/lang/Throwable;->printStackTrace()V\n'
+                  '\n'
+                  '    instance-of v0, v0, Lcom/drake/net/exception/NetUnknownHostException;\n'
+                  '\n'
+                  '    if-eqz v0, :cond_14\n'
+                  '\n'
+                  '    invoke-static {v13}, Lkotlin/coroutines/jvm/internal/Boxing;->a(Z)Ljava/lang/Boolean;\n'
+                  '\n'
+                  '    move-result-object v0\n'
+                  '\n'
+                  '    return-object v0\n'
+              ),
+              (
+                  '    :goto_9\n'
+                  '    invoke-virtual {v0}, Ljava/lang/Throwable;->printStackTrace()V\n'
+                  '\n'
+                  '    # BannerHub Lite: API 404/ConvertException -> proceed with current launch settings\n'
+                  '    invoke-static {v13}, Lkotlin/coroutines/jvm/internal/Boxing;->a(Z)Ljava/lang/Boolean;\n'
+                  '\n'
+                  '    move-result-object v0\n'
+                  '\n'
+                  '    return-object v0\n'
+              ),
+              'LauncherHelper: API error -> proceed with launch defaults instead of blocking'
+          )
+
           print("\nAll patches applied successfully.")
           PYEOF
 
