@@ -74,3 +74,22 @@
 #### Files touched
 - `.github/workflows/build.yml`
 - `.github/workflows/build-quick.yml`
+
+---
+
+### [fix] — v0.1.2-pre — Runtime fix: hidden API + diagnosis logs (2026-03-19)
+**Commit:** `550b6a1`  |  **Tag:** v0.1.2-pre  |  **CI:** ✅ success
+
+#### What changed
+- `addComponentsMenuItem`: was using `ActivityThread.currentApplication()` (hidden API, blocked Android 9+) to get a Context. Changed to `dialog.getContext()` (public Fragment method). Also changed signature from `(List)` to `(Object, List)` — smali injection updated to pass `v0` (dialog) as first arg.
+- Added `Log.d("BannerHub", ...)` entry-point log at start of `addComponentsMenuItem`, `handleMenuItemClick`, `setupBciButton` for runtime diagnosis.
+
+#### Root cause analysis
+- Logcat showed zero "BannerHub" log entries → extension code never ran, or ran and silently failed before even logging
+- Hidden API `ActivityThread.currentApplication()` would throw `NoSuchMethodException` (caught, logged to "BannerHub" tag, but only if code reached that point)
+- More likely: original GameHub Lite was installed (signature conflict — must uninstall first)
+
+#### Files touched
+- `extension/ComponentManagerHelper.java`
+- `.github/workflows/build.yml`
+- `.github/workflows/build-quick.yml`
