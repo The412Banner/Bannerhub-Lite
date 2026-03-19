@@ -221,3 +221,74 @@ Both return HTTP 404 on the AYANEO Pocket FIT because:
 #### Files touched
 - `.github/workflows/build-quick.yml`
 - `.github/workflows/build.yml`
+
+---
+
+### [feat] — v0.1.9-pre — CPU affinity bitmask + extended VRAM limits 6/8/12/16 GB (2026-03-19)
+**Commit:** `d6bff01`  |  **Tag:** v0.1.9-pre  |  **CI:** ✅ success (run 23302752900, 1m 40s)
+
+#### What changed
+Patches 9–13b added to both `build-quick.yml` and `build.yml`:
+
+- **Patch 9 — EnvironmentController.d():** Removed consecutive-core bitmask calculation (CpuInfoCollector total - selected count → shl/sub/not chain). Config.x() stored value is now used directly as the `WINEMU_CPU_AFFINITY` bitmask. 0 = No Limit (full set of cores).
+
+- **Patch 10 — PcGameSettingOperations.F():** Replaced count-based CPU core loop (CpuInfoCollector enumeration) with 11 fixed bitmask presets:
+  - No Limit (0x0), Cores 4-7 Performance (0xF0), Cores 0-3 Efficiency (0x0F)
+  - Core 0 (0x1), Core 1 (0x2), Core 2 (0x4), Core 3 (0x8)
+  - Core 4 (0x10), Core 5 (0x20), Core 6 (0x40), Core 7 Prime (0x80)
+  - Uses {v8..v32} ctor range (5.1.4 has 25-param ctor vs 5.3.5's 26-param). Kotlin default mask = 0x1ffff2.
+
+- **Patch 11 — PcGameSettingOperations.I():** Replaced "X cores" format-string label with bitmask name lookup. All 11 presets return their name string. Unknown bitmasks fall through to `Integer.toHexString()`.
+
+- **Patch 12 — PcGameSettingOperations.p0():** Appended 6 GB (0x1800), 8 GB (0x2000), 12 GB (0x3000), 16 GB (0x4000) entries after the existing 4 GB (0x1000) entry in the VRAM selector list. Each entry calls M0()I fresh to check the current stored value for the selected highlight. Uses {v3..v27} ctor range, v28=1 for isSelected=true.
+
+- **Patch 13a — PcGameSettingOperations.L0():** Added 4 if-eq checks for 0x1800/0x2000/0x3000/0x4000 before the "No Limit" fallback in the VRAM display label method.
+
+- **Patch 13b — PcGameSettingOperations.L0():** Added :cond_bh6/:cond_bh8/:cond_bh12/:cond_bh16 handlers with `goto :goto_0` after :cond_4 (512 MB) to prevent fallthrough.
+
+#### Files touched
+- `.github/workflows/build-quick.yml` (patches 9–13b added)
+- `.github/workflows/build.yml` (patches 9–13b added)
+
+---
+
+### [fix] — v0.2.0-pre — CPU label: dynamic "Core X + Core Y" builder for custom bitmask combinations (2026-03-19)
+**Commit:** `8c972dd`  |  **Tag:** v0.2.0-pre  |  **CI:** ✅ success (run 23303634211, 1m 44s)
+
+#### What changed
+- Updated `PcGameSettingOperations.I()` replacement (Patch 11) in both workflow files
+- The `:goto_0` fallback for unrecognized bitmask values was `Integer.toHexString(p1)` — now replaced with BannerHub's exact StringBuilder-based label builder
+- For any bitmask not matching the 11 fixed presets, the builder iterates each bit (Core 0–7) and appends "Core N" with " + " separator when length > 0
+- e.g. `0b10010001` → "Core 0 + Core 4 + Core 7 (Prime)"
+
+#### Root cause
+BannerHub's D() method (5.3.5) uses a bitwise label builder for custom combinations (lines 1893–2005). v0.1.9-pre used `Integer.toHexString()` as a placeholder fallback.
+
+#### Files touched
+- `.github/workflows/build-quick.yml`
+- `.github/workflows/build.yml`
+
+---
+
+### [feat] — v0.2.1-pre — CPU core selector: individual checkbox popup (matches BannerHub exactly) (2026-03-19)
+**Commit:** (pending)  |  **Tag:** v0.2.1-pre
+
+#### What changed
+- **Patch 14 — SelectAndSingleInputDialog$Companion.f():** When `contentType == CONTENT_TYPE_CORE_LIMIT`, intercept before the normal `OptionsPopup` dropdown is built and call `CpuMultiSelectHelper.show()` instead, then `return-void`. The dropdown list never shows; the checkbox dialog is shown directly.
+
+- **CpuMultiSelectHelper.java (NEW):** Java extension class ported from BannerHub's `CpuMultiSelectHelper.smali`. Shows an `AlertDialog.Builder.setMultiChoiceItems()` dialog with 8 individual checkboxes:
+  - Core 0–3: Efficiency; Core 4–6: Performance; Core 7: Prime
+  - Pre-checks boxes based on current stored bitmask (reads via reflection: `PcGameSettingDataHelper.w()` → ops → `PcGameSettingOperations.H()`)
+  - Apply: builds new bitmask from checked boxes; validates at least 1 core; 0xFF → 0 (all = No Limit); writes via `SPUtils.m()`
+  - No Limit: writes 0 directly
+  - Cancel: no-op
+  - Dialog sized to widthPixels/2 × heightPixels×90%
+  - All GameHub classes accessed via reflection (5.1.4 obfuscated names)
+
+#### Root cause
+v0.2.0-pre CPU selector still used the dropdown list (DialogSettingListItemEntity-based). BannerHub shows a completely different UI — an AlertDialog with 8 individual checkboxes, one per core. This is the exact same behaviour as BannerHub.
+
+#### Files touched
+- `extension/CpuMultiSelectHelper.java` (new)
+- `.github/workflows/build-quick.yml` (patch 14)
+- `.github/workflows/build.yml` (patch 14)

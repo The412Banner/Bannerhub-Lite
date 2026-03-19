@@ -702,6 +702,39 @@ jobs:
               'PcGameSettingOperations.L0(): add 6/8/12/16 GB VRAM display labels (handlers)'
           )
 
+          # Patch 14: SelectAndSingleInputDialog$Companion.f() — intercept CONTENT_TYPE_CORE_LIMIT
+          patch(
+              'apktool_out/smali_classes4/com/xj/winemu/settings/SelectAndSingleInputDialog$Companion.smali',
+              (
+                  '    const-string v4, "callback"\n'
+                  '\n'
+                  '    invoke-static {v3, v4}, Lkotlin/jvm/internal/Intrinsics;->g(Ljava/lang/Object;Ljava/lang/String;)V\n'
+                  '\n'
+                  '    move-object/from16 v4, p0\n'
+                  '\n'
+                  '    invoke-virtual {v4, v2, v1}, Lcom/xj/winemu/settings/SelectAndSingleInputDialog$Companion;->c(ILjava/lang/String;)Ljava/util/List;\n'
+              ),
+              (
+                  '    const-string v4, "callback"\n'
+                  '\n'
+                  '    invoke-static {v3, v4}, Lkotlin/jvm/internal/Intrinsics;->g(Ljava/lang/Object;Ljava/lang/String;)V\n'
+                  '\n'
+                  '    # BannerHub Lite: intercept CONTENT_TYPE_CORE_LIMIT -> multi-select checkbox dialog\n'
+                  '    sget-object v4, Lcom/xj/winemu/bean/PcSettingItemEntity;->Companion:Lcom/xj/winemu/bean/PcSettingItemEntity$Companion;\n'
+                  '    invoke-virtual {v4}, Lcom/xj/winemu/bean/PcSettingItemEntity$Companion;->getCONTENT_TYPE_CORE_LIMIT()I\n'
+                  '    move-result v4\n'
+                  '    if-ne v2, v4, :cond_bh_not_cpu\n'
+                  '    invoke-static {v0, v1, v2, v3}, Lapp/revanced/extension/gamehub/CpuMultiSelectHelper;->show(Landroid/view/View;Ljava/lang/String;ILjava/lang/Object;)V\n'
+                  '    return-void\n'
+                  '    :cond_bh_not_cpu\n'
+                  '\n'
+                  '    move-object/from16 v4, p0\n'
+                  '\n'
+                  '    invoke-virtual {v4, v2, v1}, Lcom/xj/winemu/settings/SelectAndSingleInputDialog$Companion;->c(ILjava/lang/String;)Ljava/util/List;\n'
+              ),
+              'SelectAndSingleInputDialog$Companion.f(): CPU core limit -> CpuMultiSelectHelper'
+          )
+
           print("\nAll patches applied successfully.")
           PYEOF
 
