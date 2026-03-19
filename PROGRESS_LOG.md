@@ -195,3 +195,29 @@
 
 #### Files touched
 - `.github/workflows/build-quick.yml`
+
+---
+
+### [fix] — v0.1.8-pre — Game cards now launch (tap + controller A button) (2026-03-19)
+**Commit:** `2411183`  |  **Tag:** v0.1.8-pre  |  **CI:** ✅ success (run 23299680499, 1m 40s)
+
+#### What changed
+- Patched `LauncherHelper$fetchStartTypeInfoAndSwitchModeInternal$2$1.smali`
+- In the `:goto_9` exception handler, removed the `instance-of`/`if-eqz` check for `NetUnknownHostException`
+- All exceptions (including `ConvertException` from HTTP 404) now return `true` (proceed with current settings) instead of `false` (block launch)
+
+#### Root cause (confirmed via logcat)
+`fetchStartTypeInfoAndSwitchModeInternal` calls two backend APIs before allowing any game to launch:
+1. `devices/getUnknownDevices` — checks if hardware is recognized
+2. `/vtouch/startType` — fetches recommended launch configuration
+
+Both return HTTP 404 on the AYANEO Pocket FIT because:
+- Device not on GameHub hardware whitelist → GENERIC adapter path
+- Controller reports `isGamepad:false` → gamepad shortcut skipped
+- API has no data for this device
+
+`GsonConverter` tries to parse `404` (HTTP status code returned as body) as JSON → `JSONException` → `ConvertException`. Exception handler only returned `true` for `NetUnknownHostException`, `false` for everything else → launch silently blocked every time. This affected both touch and controller since the API call happens before either input is processed.
+
+#### Files touched
+- `.github/workflows/build-quick.yml`
+- `.github/workflows/build.yml`
