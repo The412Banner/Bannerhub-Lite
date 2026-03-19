@@ -176,3 +176,22 @@
 #### Files touched
 - `extension/ComponentDownloadActivity.java`
 - `README.md`
+
+---
+
+### [fix] — v0.1.7-pre — Pre-release package name fix (banner.hub.lite) (2026-03-19)
+**Commit:** `71f5bbc`  |  **Tag:** v0.1.7-pre  |  **CI:** ✅ success (run 23298246088, 1m 45s)
+
+#### What changed
+- Moved "Patch package name and label" step to **before** apktool rebuild in `build-quick.yml`
+  - Previously this step ran after `apktool b`, so sed changes to `apktool_out/AndroidManifest.xml` had zero effect on the compiled APK
+  - Both the package name change AND the label "BannerHub Lite" were silently being dropped every build
+- Added `sed -i 's/gamehub\.lite/banner.hub.lite/g'` — pre-release APK now installs as `banner.hub.lite`
+  - Coexists with any stable `gamehub.lite` install without conflict
+  - FileProvider authority also updated (the sed covers all occurrences in AndroidManifest.xml)
+
+#### Root cause
+`apktool b` compiles `AndroidManifest.xml` into binary XML inside the APK during rebuild. Any sed run after rebuild modifies the source file on disk but the APK binary is unaffected. Fix: run sed before `apktool b`.
+
+#### Files touched
+- `.github/workflows/build-quick.yml`
