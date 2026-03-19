@@ -743,6 +743,35 @@ jobs:
               'SelectAndSingleInputDialog$Companion.f(): CPU core limit -> CpuMultiSelectHelper'
           )
 
+          # Patch 15: PcGameSettingDataHelper.x() — default new games to System Driver
+          patch(
+              'apktool_out/smali_classes4/com/xj/winemu/settings/PcGameSettingDataHelper.smali',
+              (
+                  '    new-instance p1, Lcom/xj/winemu/settings/PcGameSettingOperations;\n'
+                  '\n'
+                  '    invoke-direct {p1, p0}, Lcom/xj/winemu/settings/PcGameSettingOperations;-><init>(Ljava/lang/String;)V\n'
+                  '\n'
+                  '    return-object p1\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public static final y('
+              ),
+              (
+                  '    new-instance p1, Lcom/xj/winemu/settings/PcGameSettingOperations;\n'
+                  '\n'
+                  '    invoke-direct {p1, p0}, Lcom/xj/winemu/settings/PcGameSettingOperations;-><init>(Ljava/lang/String;)V\n'
+                  '\n'
+                  '    # BannerHub Lite: default new games to System Driver\n'
+                  '    invoke-static {p1}, Lapp/revanced/extension/gamehub/GpuDefaultHelper;->ensureSystemDriver(Ljava/lang/Object;)V\n'
+                  '\n'
+                  '    return-object p1\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public static final y('
+              ),
+              'PcGameSettingDataHelper.x(): default new games to System Driver'
+          )
+
           print("\nAll patches applied successfully.")
           PYEOF
 
