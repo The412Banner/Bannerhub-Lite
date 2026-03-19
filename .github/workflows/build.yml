@@ -105,7 +105,7 @@ jobs:
               (
                   '    if-eqz v3, :cond_1\n\n'
                   '    iget-object v4, v0, Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog;->m:Ljava/util/List;\n'
-                  '    invoke-static {v4}, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->addComponentsMenuItem(Ljava/util/List;)V\n\n'
+                  '    invoke-static {v0, v4}, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->addComponentsMenuItem(Ljava/lang/Object;Ljava/util/List;)V\n\n'
                   '    iget-object v4, v0, Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog;->m:Ljava/util/List;\n\n'
                   '    invoke-static {v3, v4}, Lcom/xj/common/view/adapter/MultiViewHolderAdapterKt;->f(Landroidx/recyclerview/widget/RecyclerView$Adapter;Ljava/util/List;)V\n'
               ),

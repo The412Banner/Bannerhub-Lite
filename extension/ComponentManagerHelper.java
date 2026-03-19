@@ -29,11 +29,11 @@ public final class ComponentManagerHelper {
     // ── Called from HomeLeftMenuDialog.Z0() ──────────────────────────────────
 
     @SuppressWarnings("rawtypes")
-    public static void addComponentsMenuItem(List items) {
+    public static void addComponentsMenuItem(Object dialog, List items) {
+        Log.d(TAG, "addComponentsMenuItem called");
         try {
-            Context ctx = (Context) Class.forName("android.app.ActivityThread")
-                    .getMethod("currentApplication")
-                    .invoke(null);
+            // Get context from the dialog fragment (public API, no hidden API needed)
+            Context ctx = (Context) dialog.getClass().getMethod("getContext").invoke(dialog);
 
             Class<?> menuItemClass = Class.forName(
                     "com.xj.landscape.launcher.ui.menu.HomeLeftMenuDialog$MenuItem");
@@ -50,12 +50,13 @@ public final class ComponentManagerHelper {
             int iconRes = ctx.getResources().getIdentifier(
                     "menu_setting_normal", "drawable", ctx.getPackageName());
 
-            // mask=0x8: bit3 set → rightContent uses Kotlin default (null)
+            // mask=0x8: bit3 set → rightContent uses Kotlin default ("")
             Object item = ctor.newInstance(
                     COMPONENTS_MENU_ID, iconRes, "Components", null, 0x8, null);
 
             //noinspection unchecked
             items.add(item);
+            Log.d(TAG, "addComponentsMenuItem: Components item added (id=" + COMPONENTS_MENU_ID + " iconRes=" + iconRes + ")");
         } catch (Exception e) {
             Log.e(TAG, "addComponentsMenuItem failed", e);
         }
@@ -64,6 +65,7 @@ public final class ComponentManagerHelper {
     // ── Called from HomeLeftMenuDialog$init$1$9$2.a(MenuItem) ────────────────
 
     public static boolean handleMenuItemClick(Object dialog, Object menuItem, Activity activity) {
+        Log.d(TAG, "handleMenuItemClick called");
         try {
             int id = (int) menuItem.getClass().getMethod("a").invoke(menuItem);
             if (id != COMPONENTS_MENU_ID) return false;
@@ -88,6 +90,7 @@ public final class ComponentManagerHelper {
      * Falls back to ComponentManagerActivity if BCI is not installed.
      */
     public static void setupBciButton(Activity activity) {
+        Log.d(TAG, "setupBciButton called");
         try {
             int id = activity.getResources().getIdentifier(
                     "iv_bci_launcher", "id", activity.getPackageName());
