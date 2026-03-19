@@ -190,6 +190,12 @@ jobs:
           cp -r patches/. apktool_out/
           sed -i '/firebase_common_keep\|firebase_crashlytics_keep/d' apktool_out/res/values/public.xml || true
 
+      - name: Patch package name and label
+        run: |
+          # Pre-release builds use banner.hub.lite so they coexist with any stable install
+          sed -i 's/gamehub\.lite/banner.hub.lite/g' apktool_out/AndroidManifest.xml
+          sed -i 's/android:label="@string\/app_name"/android:label="BannerHub Lite"/' apktool_out/AndroidManifest.xml
+
       - name: Rebuild APK
         run: |
           java -jar $HOME/bin/apktool.jar b apktool_out -o rebuilt-unsigned.apk
@@ -207,11 +213,6 @@ jobs:
             $(find ext_classes -name "*.class")
           cp ext_dex/classes.dex classes11.dex
           zip -j rebuilt-unsigned.apk classes11.dex
-
-      - name: Patch package name and label
-        run: |
-          # Quick build uses Normal variant (gamehub.lite)
-          sed -i 's/android:label="@string\/app_name"/android:label="BannerHub Lite"/' apktool_out/AndroidManifest.xml || true
 
       - name: Zipalign and sign
         run: |
