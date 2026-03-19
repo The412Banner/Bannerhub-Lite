@@ -93,3 +93,22 @@
 - `extension/ComponentManagerHelper.java`
 - `.github/workflows/build.yml`
 - `.github/workflows/build-quick.yml`
+
+---
+
+### [fix] — v0.1.3-pre — List refresh + correct folder naming + T3st31 404 removed (2026-03-19)
+**Commit:** `ef70a0d`  |  **Tag:** v0.1.3-pre  |  **CI:** ✅ success
+
+#### What changed
+- `ComponentManagerActivity`: added `onResume()` calling `showComponents()` — list now refreshes when returning from `ComponentDownloadActivity` (previously stayed stale, downloaded components appeared to vanish)
+- `ComponentDownloadActivity.downloadAndInject`: replaced `guessComponentFolder()` with asset-name-based folder naming — strips extension so e.g. `Mesa_Turnip_26.1.0_R4.zip` → `components/Mesa_Turnip_26.1.0_R4/` instead of generic `gpu_driver/` (which overwrote every GPU driver download into the same folder)
+- Removed T3st31/HUB Emulators from repo list — `T3st31/hub_emu` returns HTTP 404; uses rankings.json format not yet supported in bh-lite
+
+#### Root cause analysis
+- logcat: `E/BannerHub: fetchAndShowAssets failed — HTTP 404 for T3st31/hub_emu` (twice, separate threads)
+- No `onResume()` → `ComponentManagerActivity` never re-called `showComponents()` on return from download
+- `guessComponentFolder()` put all GPU drivers into `gpu_driver/`, cleared on every new download
+
+#### Files touched
+- `extension/ComponentManagerActivity.java`
+- `extension/ComponentDownloadActivity.java`
