@@ -112,3 +112,47 @@
 #### Files touched
 - `extension/ComponentManagerActivity.java`
 - `extension/ComponentDownloadActivity.java`
+
+---
+
+### [feat] — v0.1.4-pre — EmuComponents registration + correct UI flow (2026-03-19)
+**Commit:** `d1a1a96`  |  **Tag:** v0.1.4-pre  |  **CI:** ✅ success (run 23295310207, 2m 5s)
+
+#### What changed
+- **ComponentInjectorHelper** (NEW) — reflection-based component system:
+  - `injectComponent(Context, Uri, int)`: extract WCP/ZIP/XZ, read profile.json/meta.json, register in EmuComponents, stamp `.bh_injected`
+  - `injectFromCachedFile(Context, File, String, int)`: same for downloaded files
+  - `registerComponent()`: creates `EnvLayerEntity` (18-param ctor) + `ComponentRepo` (7-param ctor) via reflection, calls `EmuComponents.C(ComponentRepo)` with Extracted state (not B() which sets Downloaded and would be reset by A())
+  - `unregisterComponent(String)`: calls `EmuComponents.w(List<String>)` — removes from HashMap + SharedPreferences
+  - `appendLocalComponents(List, int)`: iterates EmuComponents HashMap, creates `DialogSettingListItemEntity` (21-param ctor) for each BH-registered component matching the requested contentType; TRANSLATOR(32) matches Box64(94) and FEXCore(95)
+- **ComponentManagerActivity** — complete rewrite matching BH 5.3.5 UI exactly:
+  - Modes 0-3 navigation (main list → type selection → file picker)
+  - Type selection: DXVK / VKD3D-Proton / Box64 / FEXCore / GPU Driver / ← Back
+  - Per-component: Inject/Replace / Backup / Remove / ← Back
+  - Remove All only deletes `.bh_injected`-stamped dirs
+  - Calls `ComponentInjectorHelper.injectComponent()` for new components
+- **ComponentDownloadActivity** — calls `ComponentInjectorHelper.injectFromCachedFile()` instead of WcpExtractor; tracks `selectedContentType` per category; added `categoryToType()` mapping
+- **WcpExtractor.java** — deleted (extraction fully replaced by ComponentInjectorHelper)
+- **build-quick.yml + build.yml** — added smali patch #8: inject `appendLocalComponents(v13, $contentType)` into `GameSettingViewModel$fetchList$1` before `setData(v13)` so locally registered components appear in game settings component pickers
+
+#### Root cause analysis
+- Components were only stored on disk as folders; never called `EmuComponents.B/C()` to register in GameHub's in-memory HashMap or SharedPreferences
+- `GameSettingViewModel$fetchList$1` only fetched from server API; no injection point for local components
+- ComponentManagerActivity UI (Add New Component → text dialog) did not match BH 5.3.5 flow (type selection → file picker)
+
+#### Key smali facts discovered
+- `EmuComponents.B(ComponentRepo)` sets state to Downloaded (wrong — gets reset by A()); use `C()` directly with Extracted state
+- `EmuComponents.C(ComponentRepo)` = HashMap.put(name, repo) + SharedPreferences.putString(name, gson)
+- `EmuComponents.w(List<String>)` = HashMap.remove(name) + SharedPreferences.remove(name) for each
+- `GameSettingViewModel$fetchList$1.$contentType` (int field on lambda) = content type being fetched
+- v13 in the lambda = List of `DialogSettingListItemEntity` about to be set as data
+- `DialogSettingListItemEntity` 21-param ctor mapping documented in ComponentInjectorHelper
+
+#### Files touched
+- `extension/ComponentInjectorHelper.java` (new)
+- `extension/ComponentManagerActivity.java`
+- `extension/ComponentDownloadActivity.java`
+- `extension/WcpExtractor.java` (deleted)
+- `.github/workflows/build-quick.yml`
+- `.github/workflows/build.yml`
+
