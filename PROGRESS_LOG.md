@@ -292,3 +292,19 @@ v0.2.0-pre CPU selector still used the dropdown list (DialogSettingListItemEntit
 - `extension/CpuMultiSelectHelper.java` (new)
 - `.github/workflows/build-quick.yml` (patch 14)
 - `.github/workflows/build.yml` (patch 14)
+
+---
+
+### [fix] — v0.2.2-pre — CPU selector: UI refreshes immediately on Apply/No Limit (2026-03-19)
+**Commit:** `94dfc26`  |  **Tag:** v0.2.2-pre  |  **CI:** ✅ success (run 23305291571, 1m43s)
+
+#### What changed
+- `CpuMultiSelectHelper.java`: after writing bitmask via `SPUtils.m()`, now calls `fireCallback(callback, mask)` in both Apply and No Limit handlers
+- `fireCallback()`: invokes `callback.getClass().getMethod("invoke", Object.class).invoke(callback, entity)` — matches BannerHub `CpuMultiSelectHelper$2.onClick()` which calls `Function1.invoke(DialogSettingListItemEntity)`
+- `buildEntity(int id)`: creates minimal entity via Kotlin defaults constructor (id=mask, isSelected=true, all other params defaulted). Dynamically finds the defaults ctor (params + int mask + DefaultConstructorMarker) so it works for any version.
+
+#### Root cause
+`callback` (`Function1<DialogSettingListItemEntity, Unit>`) was never invoked after saving. The RecyclerView adapter has no other way to know a value changed — it only updates on callback invocation. Without this, the label stayed stale until the ViewModel re-fetched the list on next entry.
+
+#### Files touched
+- `extension/CpuMultiSelectHelper.java`
