@@ -177,6 +177,25 @@ jobs:
               'SteamGameByPcEmuLaunchStrategy: offline Steam skip injection'
           )
 
+          # ── 8. GameSettingViewModel$fetchList$1: appendLocalComponents ──────────
+          patch(
+              'apktool_out/smali_classes4/com/xj/winemu/settings/GameSettingViewModel$fetchList$1.smali',
+              (
+                  '    iget-object v0, v7, Lcom/xj/winemu/settings/GameSettingViewModel$fetchList$1;'
+                  '->$result:Lcom/xj/common/data/model/CommResultEntity;\n\n'
+                  '    invoke-virtual {v0, v13}, Lcom/xj/common/data/model/CommResultEntity;->setData(Ljava/lang/Object;)V\n'
+              ),
+              (
+                  '    iget v0, v7, Lcom/xj/winemu/settings/GameSettingViewModel$fetchList$1;->$contentType:I\n'
+                  '    invoke-static {v13, v0}, Lapp/revanced/extension/gamehub/ComponentInjectorHelper;'
+                  '->appendLocalComponents(Ljava/util/List;I)V\n\n'
+                  '    iget-object v0, v7, Lcom/xj/winemu/settings/GameSettingViewModel$fetchList$1;'
+                  '->$result:Lcom/xj/common/data/model/CommResultEntity;\n\n'
+                  '    invoke-virtual {v0, v13}, Lcom/xj/common/data/model/CommResultEntity;->setData(Ljava/lang/Object;)V\n'
+              ),
+              'GameSettingViewModel$fetchList$1: appendLocalComponents injection'
+          )
+
           print("\nAll patches applied successfully.")
           PYEOF
 

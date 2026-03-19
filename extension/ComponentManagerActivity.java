@@ -3,18 +3,12 @@ package app.revanced.extension.gamehub;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.OpenableColumns;
-import android.text.InputType;
 import android.util.Log;
-import android.view.Gravity;
 import android.widget.ArrayAdapter;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -30,159 +24,228 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * BannerHub Lite — Component Manager Activity.
- * Full feature parity with BannerHub 5.3.5:
- *   - Inject WCP/ZIP/XZ file (with duplicate prevention)
- *   - Add New Component (creates empty folder)
- *   - Remove component folder
- *   - Remove All component folders
- *   - Backup component to Downloads/BannerHub/
- *   - Download from Online Repos (opens ComponentDownloadActivity)
+ * BannerHub Lite — Component Manager.
+ * UI matches BannerHub 5.3.5 exactly (from screenshots):
+ *
+ *   Mode 0  Main list:   + Add New Component | <dir names> | ✕ Remove All
+ *   Mode 1  Options:     Inject/Replace file... | Backup | Remove | ← Back
+ *   Mode 2  TypeSelect:  ↓ Download | DXVK | VKD3D-Proton | Box64 | FEXCore | GPU Driver/Turnip | ← Back
+ *   Mode 3  Awaiting file picker for new injection
  */
 @SuppressWarnings("unused")
 public class ComponentManagerActivity extends Activity {
 
     private static final String TAG = "BannerHub";
-    private static final int REQUEST_CODE_PICK_WCP = 1001;
-    private static final String PREFS_INJECTED = "bh_injected";
+    private static final int REQUEST_PICK_FILE = 0x3e9;
 
-    private File componentsDir;
-    private SharedPreferences injectedPrefs;
-    private String selectedComponent;
+    // GameHub EmuComponents content-type ints
+    static final int TYPE_GPU_DRIVER = 10;
+    static final int TYPE_DXVK      = 12;
+    static final int TYPE_VKD3D     = 13;
+    static final int TYPE_BOX64     = 94;
+    static final int TYPE_FEXCORE   = 95;
+
+    private File   componentsDir;
+    private File[] components = new File[0];
+    private ListView listView;
+
+    private int mode;          // 0–3
+    private int selectedIndex; // into components[]
+    private int selectedType;  // content-type for new inject
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         componentsDir = new File(getFilesDir(), "usr/home/components");
-        injectedPrefs = getSharedPreferences(PREFS_INJECTED, MODE_PRIVATE);
+
+        TextView title = new TextView(this);
+        title.setText("Banners Component Manager");
+        title.setTextSize(18f);
+        title.setTextColor(0xFFFFFFFF);
+        title.setPadding(48, 24, 48, 24);
+
+        listView = new ListView(this);
+        listView.setClipToPadding(false);
+        listView.setOnItemClickListener((p, v, pos, id) -> onItemClick(pos));
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setFitsSystemWindows(true);
+        root.addView(title, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        root.addView(listView, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        setContentView(root);
         showComponents();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        // Refresh list when returning from ComponentDownloadActivity or file picker
-        showComponents();
+        if (mode == 0) showComponents(); // refresh after returning from download activity
     }
 
-    // ── Screen: component list ────────────────────────────────────────────────
+    @Override
+    public void onBackPressed() {
+        if (mode != 0) showComponents();
+        else super.onBackPressed();
+    }
+
+    // ── Mode 0: main component list ───────────────────────────────────────────
 
     private void showComponents() {
+        mode = 0;
+        componentsDir.mkdirs();
+        File[] dirs = componentsDir.listFiles(File::isDirectory);
+        if (dirs != null) { Arrays.sort(dirs); components = dirs; }
+        else components = new File[0];
+
         List<String> rows = new ArrayList<>();
-        rows.add("[+ Add New Component]");
-        rows.add("[↓ Download from Online Repos]");
-        rows.add("[✕ Remove All Components]");
+        rows.add("+ Add New Component");
+        for (File d : components) rows.add(d.getName());
+        if (components.length > 0) rows.add("\u2715 Remove All Components");
 
-        if (componentsDir.isDirectory()) {
-            File[] dirs = componentsDir.listFiles(File::isDirectory);
-            if (dirs != null) {
-                Arrays.sort(dirs);
-                for (File d : dirs) {
-                    String name = d.getName();
-                    String injected = injectedPrefs.getString(name, null);
-                    rows.add(injected != null ? name + " [-> " + injected + "]" : name);
-                }
-            }
-        }
-        if (rows.size() == 3) rows.add("(no components found)");
-
-        LinearLayout root = buildRoot();
-        ListView listView = buildList(root, rows);
-        setContentView(root);
-
-        listView.setOnItemClickListener((parent, view, position, id) -> {
-            String raw = rows.get(position);
-            if (raw.equals("[+ Add New Component]")) {
-                showAddNewComponentDialog();
-            } else if (raw.equals("[↓ Download from Online Repos]")) {
-                startActivity(new Intent(this, ComponentDownloadActivity.class));
-            } else if (raw.equals("[✕ Remove All Components]")) {
-                confirmRemoveAll();
-            } else if (raw.equals("(no components found)")) {
-                // no-op
-            } else {
-                int bracket = raw.indexOf(" [-> ");
-                selectedComponent = bracket >= 0 ? raw.substring(0, bracket) : raw;
-                showOptions();
-            }
-        });
+        setAdapter(rows);
     }
 
-    // ── Screen: per-component options ─────────────────────────────────────────
+    // ── Mode 1: per-component options ─────────────────────────────────────────
 
     private void showOptions() {
-        List<String> options = new ArrayList<>();
-        options.add("Inject file");
-        options.add("Download from Online Repos");
-        options.add("Remove Component");
-        options.add("Backup");
-        options.add("Back");
+        mode = 1;
+        List<String> opts = new ArrayList<>();
+        opts.add("Inject/Replace file...");
+        opts.add("Backup");
+        opts.add("Remove");
+        opts.add("\u2190 Back");
+        setAdapter(opts);
+    }
 
-        LinearLayout root = buildRoot();
-        TextView subtitle = new TextView(this);
-        subtitle.setText(selectedComponent);
-        subtitle.setTextSize(14f);
-        subtitle.setPadding(0, 0, 0, 24);
-        root.addView(subtitle);
+    // ── Mode 2: type selection for new component ───────────────────────────────
 
-        ListView listView = buildList(root, options);
-        setContentView(root);
+    private void showTypeSelection() {
+        mode = 2;
+        List<String> opts = new ArrayList<>();
+        opts.add("\u2193 Download from Online Repos");
+        opts.add("DXVK");
+        opts.add("VKD3D-Proton");
+        opts.add("Box64");
+        opts.add("FEXCore");
+        opts.add("GPU Driver / Turnip");
+        opts.add("\u2190 Back");
+        setAdapter(opts);
+    }
 
-        listView.setOnItemClickListener((parent, view, position, id) -> {
-            switch (position) {
-                case 0: openFilePicker(); break;
-                case 1:
-                    Intent intent = new Intent(this, ComponentDownloadActivity.class);
-                    intent.putExtra("target_component", selectedComponent);
-                    startActivity(intent);
-                    break;
-                case 2: confirmRemoveComponent(selectedComponent); break;
-                case 3: backupComponent(selectedComponent); break;
-                case 4: showComponents(); break;
+    // ── Click dispatcher ──────────────────────────────────────────────────────
+
+    private void onItemClick(int pos) {
+        if (mode == 0) {
+            if (pos == 0) {
+                showTypeSelection();
+            } else if (pos <= components.length) {
+                selectedIndex = pos - 1;
+                showOptions();
+            } else {
+                confirmRemoveAll();
             }
-        });
+
+        } else if (mode == 1) {
+            switch (pos) {
+                case 0: mode = 1; pickFile(); break;     // Inject/Replace (keeps mode=1)
+                case 1: backupComponent(); break;
+                case 2: confirmRemove(); break;
+                case 3: showComponents(); break;          // ← Back
+            }
+
+        } else if (mode == 2) {
+            switch (pos) {
+                case 0: startActivity(new Intent(this, ComponentDownloadActivity.class)); break;
+                case 1: selectedType = TYPE_DXVK;       mode = 3; pickFile(); break;
+                case 2: selectedType = TYPE_VKD3D;      mode = 3; pickFile(); break;
+                case 3: selectedType = TYPE_BOX64;      mode = 3; pickFile(); break;
+                case 4: selectedType = TYPE_FEXCORE;    mode = 3; pickFile(); break;
+                case 5: selectedType = TYPE_GPU_DRIVER; mode = 3; pickFile(); break;
+                case 6: showComponents(); break;          // ← Back
+            }
+        }
     }
 
-    // ── Add New Component ─────────────────────────────────────────────────────
+    // ── File picker ───────────────────────────────────────────────────────────
 
-    private void showAddNewComponentDialog() {
-        EditText input = new EditText(this);
-        input.setInputType(InputType.TYPE_CLASS_TEXT);
-        input.setHint("Component name (e.g. dxvk)");
-        input.setPadding(48, 24, 48, 24);
+    private void pickFile() {
+        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        i.addCategory(Intent.CATEGORY_OPENABLE);
+        i.setType("*/*");
+        startActivityForResult(i, REQUEST_PICK_FILE);
+    }
 
-        new AlertDialog.Builder(this)
-                .setTitle("Add New Component")
-                .setView(input)
-                .setPositiveButton("Create", (dialog, which) -> {
-                    String name = input.getText().toString().trim();
-                    if (name.isEmpty()) {
-                        Toast.makeText(this, "Name cannot be empty", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    File newDir = new File(componentsDir, name);
-                    if (newDir.exists()) {
-                        Toast.makeText(this, "Component already exists: " + name, Toast.LENGTH_SHORT).show();
-                    } else {
-                        newDir.mkdirs();
-                        Toast.makeText(this, "Created: " + name, Toast.LENGTH_SHORT).show();
-                    }
+    @Override
+    protected void onActivityResult(int req, int res, Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req != REQUEST_PICK_FILE || res != RESULT_OK || data == null || data.getData() == null) {
+            showComponents();
+            return;
+        }
+        Uri uri = data.getData();
+
+        if (mode == 3) {
+            // New component: WCP/ZIP extract + register with EmuComponents
+            int type = selectedType;
+            new Thread(() -> {
+                ComponentInjectorHelper.injectComponent(this, uri, type);
+                runOnUiThread(this::showComponents);
+            }).start();
+        } else if (mode == 1) {
+            // Existing component: raw file copy into component dir
+            injectRaw(uri);
+        } else {
+            showComponents();
+        }
+    }
+
+    // ── Raw copy (Inject/Replace into existing component) ─────────────────────
+
+    private void injectRaw(Uri uri) {
+        File destDir = components[selectedIndex];
+        String filename = ComponentInjectorHelper.getDisplayName(this, uri);
+        if (filename == null || filename.isEmpty()) filename = "injected_file";
+        File destFile = new File(destDir, filename);
+        final String name = filename;
+
+        new Thread(() -> {
+            try (InputStream in = getContentResolver().openInputStream(uri);
+                 OutputStream out = new FileOutputStream(destFile)) {
+                byte[] buf = new byte[8192];
+                int n;
+                if (in != null) while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Injected: " + name, Toast.LENGTH_SHORT).show();
                     showComponents();
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "injectRaw failed", e);
+                String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Inject failed: " + msg, Toast.LENGTH_LONG).show();
+                    showComponents();
+                });
+            }
+        }).start();
     }
 
-    // ── Remove Component ──────────────────────────────────────────────────────
+    // ── Remove component ──────────────────────────────────────────────────────
 
-    private void confirmRemoveComponent(String name) {
+    private void confirmRemove() {
+        String name = components[selectedIndex].getName();
         new AlertDialog.Builder(this)
                 .setTitle("Remove Component")
                 .setMessage("Delete \"" + name + "\"? This cannot be undone.")
-                .setPositiveButton("Delete", (dialog, which) -> {
-                    File dir = new File(componentsDir, name);
-                    deleteRecursive(dir);
-                    injectedPrefs.edit().remove(name).apply();
+                .setPositiveButton("Remove", (d, w) -> {
+                    ComponentInjectorHelper.unregisterComponent(name);
+                    deleteDir(components[selectedIndex]);
                     Toast.makeText(this, "Removed: " + name, Toast.LENGTH_SHORT).show();
                     showComponents();
                 })
@@ -195,116 +258,66 @@ public class ComponentManagerActivity extends Activity {
     private void confirmRemoveAll() {
         new AlertDialog.Builder(this)
                 .setTitle("Remove All Components")
-                .setMessage("Delete ALL component folders? This cannot be undone.")
-                .setPositiveButton("Delete All", (dialog, which) -> {
-                    if (componentsDir.isDirectory()) {
-                        File[] dirs = componentsDir.listFiles(File::isDirectory);
-                        if (dirs != null) {
-                            for (File d : dirs) deleteRecursive(d);
+                .setMessage("Remove all " + components.length + " component(s)?\nThis cannot be undone.")
+                .setPositiveButton("Remove All", (d, w) -> {
+                    for (File dir : components) {
+                        // Only remove BannerHub-injected dirs (stamped with .bh_injected)
+                        if (new File(dir, ".bh_injected").exists()) {
+                            ComponentInjectorHelper.unregisterComponent(dir.getName());
+                            deleteDir(dir);
                         }
                     }
-                    injectedPrefs.edit().clear().apply();
-                    Toast.makeText(this, "All components removed", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "BannerHub components removed", Toast.LENGTH_SHORT).show();
                     showComponents();
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
     }
 
-    private static void deleteRecursive(File file) {
-        if (file.isDirectory()) {
-            File[] children = file.listFiles();
-            if (children != null) for (File c : children) deleteRecursive(c);
-        }
-        file.delete();
-    }
-
-    // ── File injection ─────────────────────────────────────────────────────────
-
-    private void openFilePicker() {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("*/*");
-        startActivityForResult(intent, REQUEST_CODE_PICK_WCP);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != REQUEST_CODE_PICK_WCP || resultCode != RESULT_OK
-                || data == null || data.getData() == null) return;
-
-        Uri uri = data.getData();
-        File destDir = new File(componentsDir, selectedComponent);
-        final String componentName = selectedComponent;
-        final String filename = getFileName(uri);
-
-        // Duplicate prevention: check if file already in dest
-        if (filename != null) {
-            File existing = new File(destDir, filename);
-            if (existing.exists()) {
-                Toast.makeText(this, "Already installed: " + filename, Toast.LENGTH_LONG).show();
-                return;
-            }
-        }
-
-        Handler uiHandler = new Handler(Looper.getMainLooper());
-        new Thread(() -> {
-            try {
-                WcpExtractor.extract(getContentResolver(), uri, destDir);
-                if (filename != null) {
-                    injectedPrefs.edit().putString(componentName, filename).apply();
-                }
-                uiHandler.post(() -> {
-                    Toast.makeText(this, "Injected successfully", Toast.LENGTH_SHORT).show();
-                    showComponents();
-                });
-            } catch (Throwable t) {
-                Log.e(TAG, "Extraction failed", t);
-                String msg = t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
-                uiHandler.post(() ->
-                        Toast.makeText(this, "Inject failed: " + msg, Toast.LENGTH_LONG).show());
-            }
-        }).start();
-    }
-
-    private String getFileName(Uri uri) {
-        try (Cursor cursor = getContentResolver().query(
-                uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
-            if (cursor != null && cursor.moveToFirst()) return cursor.getString(0);
-        } catch (Exception e) {
-            Log.e(TAG, "getFileName failed", e);
-        }
-        return null;
-    }
-
     // ── Backup ────────────────────────────────────────────────────────────────
 
-    private void backupComponent(String name) {
-        File src = new File(componentsDir, name);
-        if (!src.isDirectory()) {
-            Toast.makeText(this, "Component directory not found", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        File backupRoot = new File(
+    private void backupComponent() {
+        File src = components[selectedIndex];
+        String name = src.getName();
+        File dst = new File(
                 android.os.Environment.getExternalStoragePublicDirectory(
                         android.os.Environment.DIRECTORY_DOWNLOADS),
                 "BannerHub/" + name);
-        backupRoot.mkdirs();
-        Handler uiHandler = new Handler(Looper.getMainLooper());
+        dst.mkdirs();
+
         new Thread(() -> {
             try {
-                copyDir(src, backupRoot);
-                uiHandler.post(() ->
-                        Toast.makeText(this, "Backed up to Downloads/BannerHub/" + name,
-                                Toast.LENGTH_SHORT).show());
+                copyDir(src, dst);
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Backed up to Downloads/BannerHub/" + name,
+                            Toast.LENGTH_SHORT).show();
+                    showComponents();
+                });
             } catch (Exception e) {
                 Log.e(TAG, "Backup failed", e);
-                uiHandler.post(() ->
-                        Toast.makeText(this, "Backup failed: " + e.getMessage(),
-                                Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Backup failed: " + e.getMessage(),
+                            Toast.LENGTH_LONG).show();
+                    showComponents();
+                });
             }
         }).start();
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private void setAdapter(List<String> items) {
+        listView.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_list_item_1, items));
+    }
+
+    static void deleteDir(File dir) {
+        File[] files = dir.listFiles();
+        if (files != null) for (File f : files) {
+            if (f.isDirectory()) deleteDir(f);
+            else f.delete();
+        }
+        dir.delete();
     }
 
     private static void copyDir(File src, File dst) throws Exception {
@@ -323,31 +336,5 @@ public class ComponentManagerActivity extends Activity {
                 }
             }
         }
-    }
-
-    // ── UI helpers ────────────────────────────────────────────────────────────
-
-    private LinearLayout buildRoot() {
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(48, 48, 48, 48);
-
-        TextView title = new TextView(this);
-        title.setText("BannerHub Lite — Components");
-        title.setTextSize(20f);
-        title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, 24);
-        root.addView(title);
-        return root;
-    }
-
-    private ListView buildList(LinearLayout root, List<String> items) {
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_list_item_1, items);
-        ListView listView = new ListView(this);
-        listView.setAdapter(adapter);
-        root.addView(listView, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
-        return listView;
     }
 }

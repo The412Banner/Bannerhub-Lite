@@ -89,6 +89,7 @@ public class ComponentDownloadActivity extends Activity {
 
     private int selectedRepoIdx;
     private String selectedCategory;
+    private int selectedContentType; // EmuComponents type for selectedCategory
     private String targetComponent; // pre-selected component (from intent extra)
     private File componentsDir;
 
@@ -129,6 +130,7 @@ public class ComponentDownloadActivity extends Activity {
             String cat = rows.get(pos);
             if (cat.equals("Back")) { showRepos(); return; }
             selectedCategory = cat;
+            selectedContentType = categoryToType(cat);
             fetchAndShowAssets();
         });
         setContentView(root);
@@ -219,6 +221,7 @@ public class ComponentDownloadActivity extends Activity {
         loading.addView(pb);
         setContentView(loading);
 
+        final int contentType = selectedContentType;
         new Thread(() -> {
             File cacheFile = null;
             try {
@@ -226,16 +229,9 @@ public class ComponentDownloadActivity extends Activity {
                 cacheFile = new File(getCacheDir(), asset.name);
                 downloadFile(asset.downloadUrl, cacheFile);
 
-                // Extract
-                File finalDest = destDir;
-                finalDest.mkdirs();
-                try (java.io.FileInputStream fis = new java.io.FileInputStream(cacheFile)) {
-                    WcpExtractor.extractFromStream(fis, finalDest);
-                }
-
-                // Save injection record
-                getSharedPreferences("bh_injected", MODE_PRIVATE)
-                        .edit().putString(componentFolder, asset.name).apply();
+                // Extract + register with EmuComponents
+                ComponentInjectorHelper.injectFromCachedFile(
+                        this, cacheFile, componentFolder, contentType);
 
                 uiHandler.post(() -> {
                     Toast.makeText(this,
@@ -348,6 +344,19 @@ public class ComponentDownloadActivity extends Activity {
              FileOutputStream fos = new FileOutputStream(dest)) {
             int n;
             while ((n = in.read(buf)) > 0) fos.write(buf, 0, n);
+        }
+    }
+
+    // ── Category → EmuComponents type ────────────────────────────────────────
+
+    private static int categoryToType(String category) {
+        switch (category) {
+            case "DXVK":       return ComponentInjectorHelper.TYPE_DXVK;
+            case "VKD3D":      return ComponentInjectorHelper.TYPE_VKD3D;
+            case "Box64":      return ComponentInjectorHelper.TYPE_BOX64;
+            case "FEXCore":    return ComponentInjectorHelper.TYPE_FEXCORE;
+            case "GPU Driver": return ComponentInjectorHelper.TYPE_GPU_DRIVER;
+            default:           return ComponentInjectorHelper.TYPE_GPU_DRIVER; // fallback for "All"
         }
     }
 
