@@ -420,7 +420,7 @@ Patched the GPU block in `checkUserPreferComponent` to mirror the STEAMCLIENT ch
 - `.github/workflows/build.yml` (patch 16)
 
 ### CI result
-- Pending (v0.2.4-pre tag not yet pushed)
+- ✅ success (run 23307656790)
 
 ---
 

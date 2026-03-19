@@ -8,7 +8,7 @@
 ---
 
 ### [fix] — v0.2.4-pre — Skip GPU driver download when System Driver is selected (2026-03-19)
-**Commit:** `TBD`  |  **Tag:** v0.2.4-pre  |  **CI:** pending
+**Commit:** `7d2b74b`  |  **Tag:** v0.2.4-pre  |  **CI:** ✅ success (run 23307656790)
 
 #### What changed
 - **Patch 16 — WinEmuDownloadManager.H() (= `checkUserPreferComponent`):** When building the pending download list for a new game, the GPU branch now mirrors the STEAMCLIENT branch: if `H0()` returns null OR `H0().getId() == -1` (System Driver), jump immediately to `:cond_f` — returning false without adding the GPU entity to the download set.
