@@ -6,6 +6,7 @@ import android.text.Html;
 import android.util.DisplayMetrics;
 import android.view.View;
 import android.widget.Toast;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
@@ -23,6 +24,9 @@ import java.lang.reflect.Method;
  *   PcGameSettingDataHelper.C(helper, type, null, 2, null) (get prefs key)
  *   PcGameSettingOperations.H(ops, 0, 1, null)             (read stored bitmask)
  *   SPUtils.m(String, int)              (write preference)
+ *
+ * After writing, fires callback.invoke(entity) so the settings list
+ * updates the selected-item label immediately (matching BannerHub behaviour).
  */
 public class CpuMultiSelectHelper {
 
@@ -89,6 +93,7 @@ public class CpuMultiSelectHelper {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
+                fireCallback(callback, newMask);
             });
             builder.setNegativeButton("No Limit", (dialog, which) -> {
                 try {
@@ -96,6 +101,7 @@ public class CpuMultiSelectHelper {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
+                fireCallback(callback, 0);
             });
             builder.setNeutralButton("Cancel", null);
 
@@ -107,6 +113,77 @@ public class CpuMultiSelectHelper {
             }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * Fire the Function1 callback with a minimal DialogSettingListItemEntity
+     * (id = mask, isSelected = true, all other fields = defaults).
+     * This triggers the settings RecyclerView to refresh the selected-item label.
+     */
+    private static void fireCallback(Object callback, int mask) {
+        if (callback == null) return;
+        try {
+            Object entity = buildEntity(mask);
+            if (entity == null) return;
+            // kotlin.jvm.functions.Function1.invoke(Object) -> Object
+            callback.getClass().getMethod("invoke", Object.class).invoke(callback, entity);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Build a DialogSettingListItemEntity via the Kotlin defaults constructor.
+     * Only id (param 0) and isSelected (param 2) are set explicitly.
+     */
+    private static Object buildEntity(int id) {
+        try {
+            Class<?> entityClass = Class.forName("com.xj.winemu.bean.DialogSettingListItemEntity");
+            Class<?> dcmClass    = Class.forName("kotlin.jvm.internal.DefaultConstructorMarker");
+
+            // Find the Kotlin defaults constructor: real params + int mask + DCM
+            Constructor<?> ctor = null;
+            for (Constructor<?> c : entityClass.getDeclaredConstructors()) {
+                Class<?>[] pt = c.getParameterTypes();
+                if (pt.length > 2
+                        && pt[pt.length - 1] == dcmClass
+                        && pt[pt.length - 2] == int.class) {
+                    ctor = c;
+                    break;
+                }
+            }
+            if (ctor == null) return null;
+            ctor.setAccessible(true);
+
+            int totalParams    = ctor.getParameterCount();
+            int numRealParams  = totalParams - 2; // subtract mask + DCM
+            Class<?>[] pt      = ctor.getParameterTypes();
+            Object[] args      = new Object[totalParams];
+
+            // Fill defaults (null / 0 / false depending on type)
+            for (int i = 0; i < numRealParams; i++) {
+                Class<?> t = pt[i];
+                if      (t == int.class)     args[i] = 0;
+                else if (t == long.class)    args[i] = 0L;
+                else if (t == boolean.class) args[i] = false;
+                else                         args[i] = null;
+            }
+
+            // Set explicit params
+            args[0] = id;    // id = bitmask value
+            args[2] = true;  // isSelected = true
+
+            // Kotlin default mask: all bits set except bit 0 (id) and bit 2 (isSelected)
+            int defaultMask = (1 << numRealParams) - 1;
+            defaultMask &= ~0x5; // clear bits 0 and 2
+            args[numRealParams]     = defaultMask;
+            args[numRealParams + 1] = null; // DefaultConstructorMarker = null
+
+            return ctor.newInstance(args);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
     }
 }
