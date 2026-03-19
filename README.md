@@ -35,7 +35,7 @@ The Component Manager is accessible from the left sidebar under "Components". It
 ### Main screen
 - **+ Add New Component** — opens a type selection menu to install a new component from a file or online repo
 - **Component list** — shows all installed component folders; tap any to see options
-- **✕ Remove All Components** — bulk remove all BannerHub-injected components (with confirmation)
+- **✕ Remove All Components** — removes all components you added through BannerHub Lite; only appears when at least one BannerHub-added component is present (see [Remove All safety](#remove-all-safety) below)
 
 ### Adding a new component
 1. Tap **+ Add New Component**
@@ -55,6 +55,15 @@ Tap any installed component to get:
 - **Backup** — copies the component folder to `Downloads/BannerHub/<name>/`
 - **Remove** — deletes the component folder and unregisters it from GameHub (with confirmation)
 - **← Back** — return to the component list
+
+### Per-component Remove
+Tapping **Remove** on an individual component always removes that specific component regardless of how it was installed — it unregisters it from GameHub and deletes its folder.
+
+### Remove All safety
+
+**✕ Remove All Components** only removes components that BannerHub Lite installed. It will never touch components that GameHub installed through its own UI.
+
+Every component BannerHub Lite installs (via file injection or online download) gets a hidden `.bh_injected` marker file stamped inside the component folder at the time of installation. Remove All checks every folder for this marker before deleting — folders without it are skipped entirely. The confirmation dialog shows the exact number of BannerHub-added components that will be removed and states that GameHub-installed components will not be affected.
 
 ### Supported file formats
 | Format | Used for |
