@@ -1,6 +1,6 @@
 # BannerHub Lite — Component Manager Build Log
 
-**Repo:** https://github.com/The412Banner/bh-lite
+**Repo:** https://github.com/The412Banner/Bannerhub-Lite
 **Base APK:** GameHub Lite 5.1.4 (vanilla, non-ReVanced)
 **Purpose:** Detailed technical log of every change made to the component manager feature — what broke, what was discovered, what was changed, and why. Required for build reproducibility and future context.
 

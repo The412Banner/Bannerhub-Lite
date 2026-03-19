@@ -1,6 +1,6 @@
 # BannerHub Lite — Progress Log
 
-**Repo:** https://github.com/The412Banner/bh-lite
+**Repo:** https://github.com/The412Banner/Bannerhub-Lite
 **Local path:** `/data/data/com.termux/files/home/bh-lite`
 **Base APK:** GameHub Lite 5.1.4 (vanilla, non-ReVanced)
 **Rules:** No pull requests. Log every change. Update MEMORY.md after every commit/push.
