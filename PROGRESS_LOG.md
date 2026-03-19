@@ -61,3 +61,16 @@
 - `.github/workflows/build-quick.yml`
 - `testkey.pk8`, `testkey.x509.pem`
 - `PROGRESS_LOG.md`, `README.md`
+
+---
+
+### [fix] — v0.1.1-pre — invoke-static/range fix for BCI button (2026-03-19)
+**Commit:** `cab5b01`  |  **Tag:** v0.1.1-pre  |  **CI:** ✅ success
+
+#### What changed
+- `LandscapeLauncherMainActivity.initView()` injection: changed `invoke-static {p0}` to `invoke-static/range {p0 .. p0}`
+- Root cause: `initView()` has `.locals 21`; for a non-static method p0 = v21. The non-range `invoke-static` encoding only supports v0-v15 (4-bit register field); v21 triggers "Invalid register: v21. Must be between v0 and v15" smali assembler error.
+
+#### Files touched
+- `.github/workflows/build.yml`
+- `.github/workflows/build-quick.yml`
