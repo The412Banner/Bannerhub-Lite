@@ -271,7 +271,7 @@ BannerHub's D() method (5.3.5) uses a bitwise label builder for custom combinati
 ---
 
 ### [feat] — v0.2.1-pre — CPU core selector: individual checkbox popup (matches BannerHub exactly) (2026-03-19)
-**Commit:** (pending)  |  **Tag:** v0.2.1-pre
+**Commit:** `de987ba`  |  **Tag:** v0.2.1-pre  |  **CI:** ✅ success (run 23304363996, 1m42s)
 
 #### What changed
 - **Patch 14 — SelectAndSingleInputDialog$Companion.f():** When `contentType == CONTENT_TYPE_CORE_LIMIT`, intercept before the normal `OptionsPopup` dropdown is built and call `CpuMultiSelectHelper.show()` instead, then `return-void`. The dropdown list never shows; the checkbox dialog is shown directly.
