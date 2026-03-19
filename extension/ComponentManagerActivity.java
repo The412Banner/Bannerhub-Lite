@@ -104,10 +104,16 @@ public class ComponentManagerActivity extends Activity {
         if (dirs != null) { Arrays.sort(dirs); components = dirs; }
         else components = new File[0];
 
+        // Count only BH-injected dirs for the Remove All button
+        int bhCount = 0;
+        for (File d : components) {
+            if (new File(d, ".bh_injected").exists()) bhCount++;
+        }
+
         List<String> rows = new ArrayList<>();
         rows.add("+ Add New Component");
         for (File d : components) rows.add(d.getName());
-        if (components.length > 0) rows.add("\u2715 Remove All Components");
+        if (bhCount > 0) rows.add("\u2715 Remove All Components");
 
         setAdapter(rows);
     }
@@ -256,16 +262,24 @@ public class ComponentManagerActivity extends Activity {
     // ── Remove All ────────────────────────────────────────────────────────────
 
     private void confirmRemoveAll() {
+        // Collect only BH-injected dirs — never touch components GameHub installed itself
+        List<File> bhDirs = new ArrayList<>();
+        for (File dir : components) {
+            if (new File(dir, ".bh_injected").exists()) bhDirs.add(dir);
+        }
+        if (bhDirs.isEmpty()) {
+            Toast.makeText(this, "No BannerHub-added components to remove", Toast.LENGTH_SHORT).show();
+            return;
+        }
         new AlertDialog.Builder(this)
-                .setTitle("Remove All Components")
-                .setMessage("Remove all " + components.length + " component(s)?\nThis cannot be undone.")
-                .setPositiveButton("Remove All", (d, w) -> {
-                    for (File dir : components) {
-                        // Only remove BannerHub-injected dirs (stamped with .bh_injected)
-                        if (new File(dir, ".bh_injected").exists()) {
-                            ComponentInjectorHelper.unregisterComponent(dir.getName());
-                            deleteDir(dir);
-                        }
+                .setTitle("Remove BannerHub Components")
+                .setMessage("Remove " + bhDirs.size() + " BannerHub-added component(s)?\n"
+                        + "Components installed by GameHub will not be affected.\n"
+                        + "This cannot be undone.")
+                .setPositiveButton("Remove", (d, w) -> {
+                    for (File dir : bhDirs) {
+                        ComponentInjectorHelper.unregisterComponent(dir.getName());
+                        deleteDir(dir);
                     }
                     Toast.makeText(this, "BannerHub components removed", Toast.LENGTH_SHORT).show();
                     showComponents();
