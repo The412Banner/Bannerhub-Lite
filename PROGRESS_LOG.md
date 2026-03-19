@@ -156,3 +156,23 @@
 - `.github/workflows/build-quick.yml`
 - `.github/workflows/build.yml`
 
+
+---
+
+### [feat] — v0.1.5-pre — Repos match BannerHub exactly (2026-03-19)
+**Commit:** `ec341fd`  |  **Tag:** v0.1.5-pre  |  **CI:** ✅ success (run 23296902845, 2m 10s)
+
+#### What changed
+- Replaced 7 GitHub Releases API repos with the exact 6 repos BannerHub uses:
+  - Arihany WCPHub (`WinlatorWCPHub/pack.json`)
+  - Kimchi GPU Drivers (`Nightlies/kimchi_drivers.json`)
+  - StevenMXZ GPU Drivers (`Nightlies/stevenmxz_drivers.json`)
+  - MTR GPU Drivers (`Nightlies/mtr_drivers.json`)
+  - Whitebelyash GPU Drivers (`Nightlies/white_drivers.json`)
+  - The412Banner Nightlies (`Nightlies/nightlies_components.json`)
+- All repos now use pack.json format — removed `MODE_GITHUB` constant, `Repo.mode` field, and `fetchGithubReleases()` method
+- Updated README repo table with correct source links
+
+#### Files touched
+- `extension/ComponentDownloadActivity.java`
+- `README.md`
