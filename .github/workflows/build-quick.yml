@@ -132,7 +132,7 @@ jobs:
               (
                   '    invoke-virtual/range {p0 .. p0}, Lcom/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity;->X2()V\n'
                   '\n'
-                  '    invoke-static {p0}, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->setupBciButton(Landroid/app/Activity;)V\n'
+                  '    invoke-static/range {p0 .. p0}, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->setupBciButton(Landroid/app/Activity;)V\n'
                   '\n'
                   '    return-void\n'
                   '.end method\n'
