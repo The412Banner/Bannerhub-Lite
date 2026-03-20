@@ -12,6 +12,33 @@ This project patches **GameHub Lite 5.1.4** (vanilla, not ReVanced) with additio
 
 ---
 
+## BannerHub Lite vs BannerHub
+
+Both projects add the same core set of features. The difference is in the base app they patch.
+
+| | BannerHub Lite (this) | [BannerHub](https://github.com/The412Banner/bannerhub) |
+|---|---|---|
+| **Base app** | GameHub Lite 5.1.4 — vanilla, no ReVanced | GameHub 5.3.5 — ReVanced |
+| **ReVanced patches** | None (stock GameHub Lite) | Yes (applied to 5.3.5 before BH patches) |
+| **RTS touch controls** | Built into 5.1.4 already — no patch needed | Patched in by BannerHub |
+| **GPU System Driver default** | Yes — new games always default to System Driver | No |
+| **Launch fix (unrecognized hardware)** | Yes — HTTP 404 device check no longer blocks launch | No |
+| **Component description in picker** | Not yet | Yes (shows `profile.json` blurb in game settings) |
+| **Component Manager** | Yes | Yes |
+| **Online Component Downloader** | Yes (6 repos) | Yes (6 repos) |
+| **CPU Core Affinity** | Yes | Yes |
+| **Extended VRAM limits** | Yes (up to 16 GB) | Yes (up to 16 GB) |
+| **Performance toggles** | Yes (Sustained Perf + Max Adreno) | Yes (Sustained Perf + Max Adreno) |
+| **Grant Root Access button** | Yes | Yes |
+| **Offline Steam skip** | Yes | Yes |
+| **BCI launcher button** | Yes | Yes |
+
+**Choose BannerHub Lite if** you are running GameHub Lite 5.1.4 (the most common community build) and want a vanilla base with no ReVanced dependency.
+
+**Choose BannerHub if** you are running GameHub 5.3.5 ReVanced and want the latest codebase features (newer API, component description display, etc.).
+
+---
+
 ## What BannerHub Lite adds
 
 | Feature | Description |
