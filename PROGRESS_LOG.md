@@ -7,6 +7,18 @@
 
 ---
 
+### [fix] — v0.2.8-pre — VerifyError crash when opening Advanced settings tab (2026-03-20)
+**Commit:** `f1575b7`  |  **Tag:** v0.2.8-pre  |  **CI:** pending
+
+#### What changed
+- **Patch 21 (`SettingBtnHolder.w()`):** Fixed `VerifyError` crash that caused a crash-to-dashboard every time Advanced settings tab was opened. Root cause: injection at `:cond_5` used `p2` (already overwritten to int) as a View, and `if-ne p0, p1, :goto_0` created a type-merge conflict at `:goto_0`. Fix: moved injection immediately after `getContentType()`'s `move-result p0`, before any register overwriting, using `v0` as comparison register. Returns Unit directly — no jump to `:goto_0`.
+
+#### Files touched
+- `apktool_out_local/smali_classes5/.../SettingBtnHolder.smali`
+- `.github/workflows/build-quick.yml`, `.github/workflows/build.yml`
+
+---
+
 ### [feat] — v0.2.7-pre — Settings: Grant Root Access button + remove perf-menu root popup (2026-03-20)
 **Commit:** `c43363d`  |  **Tag:** v0.2.7-pre  |  **CI:** ✅ success (run 23336597590)
 

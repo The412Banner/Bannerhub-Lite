@@ -514,6 +514,28 @@ Changed else branch from `goto :goto_4` to `goto :goto_1`. At `:goto_1`: `move v
 
 ---
 
+## Entry 009 — Fix VerifyError crash when opening Advanced settings tab (v0.2.8-pre)
+
+### Root cause
+`SettingBtnHolder.w()` was patched to inject the Grant Root Access handler at `:cond_5` (the end of the method). Two verifier violations caused a crash every time the Advanced settings tab was opened:
+
+1. **p2 is not a View at `:cond_5`** — `p2` was overwritten with an int (the `getCONTENT_TYPE_HID_TIPS()` result via `move-result p2`) before `:cond_5` is reached. Calling `invoke-virtual {p2}, View->getContext()` on an int register is a type error.
+
+2. **Type-merge conflict at `:goto_0`** — `if-ne p0, p1, :goto_0` sends `p0` (int/contentType) to `:goto_0`, but earlier `goto :goto_0` branches arrive there with `p0` as Object (event instances). The verifier sees `Conflict` for `p0` at the merge point.
+
+### Fix
+Moved the injection to immediately after `move-result p0` (the `getContentType()` result), before any registers are overwritten. At that point: `p0`=int, `p1`=entity(Object), `p2`=FocusableConstraintLayout(View). Used `v0` as comparison register. Returns `kotlin.Unit` directly — never jumps to `:goto_0`, eliminating the merge conflict entirely.
+
+### Files touched
+- `apktool_out_local/smali_classes5/.../SettingBtnHolder.smali`
+- `.github/workflows/build-quick.yml` — Patch 21 anchor + logic rewritten
+- `.github/workflows/build.yml` — Patch 21 anchor + logic rewritten
+
+### CI result
+Pending — run triggered by v0.2.8-pre
+
+---
+
 ## Entry 008 — Settings Grant Root Access button + remove perf-menu root popup (v0.2.7-pre)
 
 ### Problem
