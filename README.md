@@ -18,6 +18,7 @@ Both projects add the same core set of features. The difference is in the base a
 
 | | BannerHub Lite (this) | [BannerHub](https://github.com/The412Banner/bannerhub) |
 |---|---|---|
+| **APK size** | ~47 MB | ~138 MB |
 | **Base app** | GameHub Lite 5.1.4 — vanilla, no ReVanced | GameHub 5.3.5 — ReVanced |
 | **ReVanced patches** | None (stock GameHub Lite) | Yes (applied to 5.3.5 before BH patches) |
 | **RTS touch controls** | Built into 5.1.4 already — no patch needed | Patched in by BannerHub |
