@@ -8,7 +8,7 @@
 ---
 
 ### [fix] — v0.2.6-pre — Fix "more than once" crash when custom GPU driver is selected (2026-03-20)
-**Commit:** `TBD`  |  **Tag:** v0.2.6-pre  |  **CI:** pending
+**Commit:** `ec02225`  |  **Tag:** v0.2.6-pre  |  **CI:** ✅ success (run 23335618978)
 
 #### What changed
 - **Patch 18 — `checkIsDownloaded$2` fileType==4 GPU check:** Before the `EmuComponents.q()` call for fileType==4 entities, check `entity.getType() == ComponentType.GPU`. If so, jump directly to `:goto_1` (return TRUE = "done"), bypassing q() entirely. GPU drivers are stored in xj_downloads after download, never registered in EmuComponents, so q() always returned "needs install" → FALSE → abort loop.
