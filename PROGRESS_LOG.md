@@ -7,6 +7,16 @@
 
 ---
 
+### [release] — v0.3.0 — First stable release (2026-03-20)
+**Commit:** `aaf1f88`  |  **Tag:** v0.3.0  |  **CI:** ✅ success (run 23345254370, 8 APKs)
+
+#### What changed
+- Stable tag cut from v0.2.8-pre (commit `f1575b7`) — all features and fixes from v0.1.1-pre through v0.2.8-pre included
+- README rewritten to cover all features: CPU affinity, VRAM limits, root access, launch fix, GPU default, component manager, online downloader, performance toggles
+- Release description set with full feature set + installation guide
+
+---
+
 ### [fix] — v0.2.8-pre — VerifyError crash when opening Advanced settings tab (2026-03-20)
 **Commit:** `f1575b7`  |  **Tag:** v0.2.8-pre  |  **CI:** ✅ success (run 23337088171)
 
