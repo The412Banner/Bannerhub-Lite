@@ -245,3 +245,6 @@ When you install a component via BannerHub Lite (inject from file or download fr
 - CI: GitHub Actions — `build.yml` builds all 8 variants on `v*` stable tags; `build-quick.yml` builds Normal APK only on `v*-pre*` tags
 - Signed with AOSP testkey (v1 + v2 + v3 signatures)
 - Extension code compiled to `classes11.dex` (5.1.4 uses `classes.dex` through `classes10.dex` — no conflict)
+
+---
+<sub>☕ [Support on Ko-fi](https://ko-fi.com/the412banner)</sub>
