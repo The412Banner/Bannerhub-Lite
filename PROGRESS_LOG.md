@@ -8,7 +8,7 @@
 ---
 
 ### [fix] — v0.2.5-pre — Fix "more than once" crash for GPU driver downloads (2026-03-20)
-**Commit:** `TBD`  |  **Tag:** v0.2.5-pre  |  **CI:** pending
+**Commit:** `c2631b6`  |  **Tag:** v0.2.5-pre  |  **CI:** ✅ success (run 23334942958)
 
 #### What changed
 - **Patch 17 — `GameConfigDownloadAction$checkIsDownloaded$2`:** The `else` branch (fileType != 2/3/4) now jumps to `:goto_1` (returns TRUE = "done") instead of `:goto_4` (returns FALSE = "not downloaded"). GPU driver entities from getDeps() have an unrecognised fileType, so checkIsDownloaded always returned FALSE even after a successful md5-verified download → checkNextStartTask saw the key in the `f` map → "more than once, interrupt" abort. Fix: treat any unrecognised fileType as "downloaded" so checkAllComplete can proceed.

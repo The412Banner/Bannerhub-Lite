@@ -462,7 +462,7 @@ Changed else branch from `goto :goto_4` to `goto :goto_1`. At `:goto_1`: `move v
 - `.github/workflows/build.yml` (patch 17)
 
 ### CI result
-- Pending (v0.2.5-pre tag not yet pushed)
+- ✅ success (run 23334942958)
 
 ---
 
