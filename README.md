@@ -19,10 +19,15 @@ This project patches **GameHub Lite 5.1.4** (vanilla, not ReVanced) with additio
 | **My Games** tab rename | The "Dashboard" sidebar tab is renamed to "My Games" |
 | **BCI launcher button** | Button in the top-right toolbar that opens [BannersComponentInjector](https://github.com/The412Banner/BannersComponentInjector) if installed, otherwise shows a toast |
 | **Component Manager** | Full sidebar "Components" entry — inject, add, remove, backup, and download emulation components |
-| **Online Component Downloader** | Browse 7 community repos by category and install components directly from within the app |
+| **Online Component Downloader** | Browse 6 community repos by category and install components directly from within the app |
 | **Offline Steam skip** | If not Steam-logged-in and offline, skips the login dialog and attempts to launch the game offline anyway |
+| **CPU Core Affinity** | Per-game checkbox dialog to pin Wine to specific CPU cores using bitmask presets; 11 fixed presets + dynamic label for custom combos |
+| **Extended VRAM limits** | Adds 6 GB, 8 GB, 12 GB, and 16 GB options to the VRAM allocation selector |
+| **GPU System Driver default** | New games automatically default to System Driver — prevents launch crashes on first-time setup |
 | **Sustained Performance toggle** | Sidebar switch — enables `setSustainedPerformanceMode` + sets CPU scaling governor to `performance` via root (Root+) |
 | **Max Adreno Clocks toggle** | Sidebar switch — pins GPU minimum frequency to maximum via `/sys/class/kgsl/kgsl-3d0/devfreq/` using root (Root) |
+| **Grant Root Access button** | Settings → Advanced tab — explicit root grant button with warning dialog; no automatic root popup on app open |
+| **Launch fix** | Games launch correctly on devices not in GameHub's hardware whitelist (previously blocked by HTTP 404 errors from the device check API) |
 
 > **RTS touch controls** are already built into the GameHub Lite 5.1.4 base APK — no patch needed.
 
@@ -35,12 +40,12 @@ The Component Manager is accessible from the left sidebar under "Components". It
 ### Main screen
 - **+ Add New Component** — opens a type selection menu to install a new component from a file or online repo
 - **Component list** — shows all installed component folders; tap any to see options
-- **✕ Remove All Components** — removes all components you added through BannerHub Lite; only appears when at least one BannerHub-added component is present (see [Remove All safety](#remove-all-safety) below)
+- **Remove All Components** — removes all components you added through BannerHub Lite; only appears when at least one BannerHub-added component is present (see [Remove All safety](#remove-all-safety) below)
 
 ### Adding a new component
 1. Tap **+ Add New Component**
 2. Select the component type:
-   - **↓ Download from Online Repos** — browse online repos (see below)
+   - **Download from Online Repos** — browse online repos (see below)
    - **DXVK** — DirectX → Vulkan translation layer
    - **VKD3D-Proton** — DirectX 12 → Vulkan translation layer
    - **Box64** — x86-64 CPU emulator
@@ -54,14 +59,11 @@ Tap any installed component to get:
 - **Inject/Replace file...** — copy a file into the component's folder (replaces existing)
 - **Backup** — copies the component folder to `Downloads/BannerHub/<name>/`
 - **Remove** — deletes the component folder and unregisters it from GameHub (with confirmation)
-- **← Back** — return to the component list
-
-### Per-component Remove
-Tapping **Remove** on an individual component always removes that specific component regardless of how it was installed — it unregisters it from GameHub and deletes its folder.
+- **Back** — return to the component list
 
 ### Remove All safety
 
-**✕ Remove All Components** only removes components that BannerHub Lite installed. It will never touch components that GameHub installed through its own UI.
+**Remove All Components** only removes components that BannerHub Lite installed. It will never touch components that GameHub installed through its own UI.
 
 Every component BannerHub Lite installs (via file injection or online download) gets a hidden `.bh_injected` marker file stamped inside the component folder at the time of installation. Remove All checks every folder for this marker before deleting — folders without it are skipped entirely. The confirmation dialog shows the exact number of BannerHub-added components that will be removed and states that GameHub-installed components will not be affected.
 
@@ -93,6 +95,38 @@ After selecting a repo, filter by: **DXVK** / **VKD3D** / **Box64** / **FEXCore*
 
 ---
 
+## CPU Core Affinity
+
+Found in per-game settings under CPU configuration. Tap the CPU Core Affinity row to open a checkbox dialog with 8 individual core toggles.
+
+**Fixed presets:**
+| Preset | Bitmask | Description |
+|---|---|---|
+| No Limit | 0x00 | All cores, no pinning |
+| Cores 4–7 Performance | 0xF0 | Performance cluster only |
+| Cores 0–3 Efficiency | 0x0F | Efficiency cluster only |
+| Core 0–7 (individual) | 0x01–0x80 | Pin to a single core |
+
+For any custom combination of cores, the label shows e.g. **"Core 0 + Core 4 + Core 7 (Prime)"**.
+
+The selected bitmask is passed directly to Wine's `WINEMU_CPU_AFFINITY` environment variable.
+
+---
+
+## Extended VRAM Limits
+
+The VRAM allocation selector in game settings now includes:
+
+| Option | Value |
+|---|---|
+| (existing) | up to 4 GB |
+| 6 GB | 0x1800 |
+| 8 GB | 0x2000 |
+| 12 GB | 0x3000 |
+| 16 GB | 0x4000 |
+
+---
+
 ## Performance Toggles
 
 Found in the game/emulation sidebar under the performance section. Both require root (`su`). If root is not available, the toggles are shown at 50% opacity and cannot be tapped.
@@ -106,6 +140,19 @@ Found in the game/emulation sidebar under the performance section. Both require 
 - Pins GPU minimum frequency to maximum via `su -c "echo <max> > /sys/class/kgsl/kgsl-3d0/devfreq/min_freq"`
 - Forces the Adreno GPU to run at its highest clock speed at all times
 - Useful for benchmarking or GPU-bound games where the driver is underclocking
+
+---
+
+## Root Access
+
+BannerHub Lite never triggers a root popup automatically. Root is only requested when you explicitly tap **Grant Root Access** in **Settings → Advanced**.
+
+Tapping the button shows a warning dialog covering:
+- What root is used for (Sustained Performance, Max Adreno Clocks)
+- Device compatibility caveats
+- Battery and thermal considerations
+
+Once granted, the root status is stored in preferences and the performance toggles become active. Tapping the button again while root is granted offers a **Revoke** option.
 
 ---
 
@@ -151,7 +198,7 @@ When you install a component via BannerHub Lite (inject from file or download fr
 
 - **[Producdevity](https://github.com/Producdevity/gamehub-lite)** — GameHub Lite (base app, all core emulation functionality)
 - **The412Banner** — BannerHub Lite patches (this repo)
-- Community component repos: StevenMXZ, Arihany, Xnick417x, K11MCH1, whitebelyash, MaxesTechReview (MTR)
+- Community component repos: StevenMXZ, Arihany, Kimchi, K11MCH1, whitebelyash, MaxesTechReview (MTR)
 
 ---
 
