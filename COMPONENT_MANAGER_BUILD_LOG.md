@@ -553,4 +553,4 @@ Before `:goto_0` (the no-op fall-through), checks `p0 == 0x64`. If match: calls 
 - `.github/workflows/build.yml` — Patches 19/20/21
 
 ### CI result
-Pending — tagged v0.2.7-pre
+✅ Success — run 23336597590 — 1m44s

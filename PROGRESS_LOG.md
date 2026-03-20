@@ -8,7 +8,7 @@
 ---
 
 ### [feat] — v0.2.7-pre — Settings: Grant Root Access button + remove perf-menu root popup (2026-03-20)
-**Commit:** TBD  |  **Tag:** v0.2.7-pre  |  **CI:** pending
+**Commit:** `c43363d`  |  **Tag:** v0.2.7-pre  |  **CI:** ✅ success (run 23336597590)
 
 #### What changed
 - **BhPerfSetupDelegate.java:** Removed `isRootAvailable()` call on performance sidebar open. Now reads `bh_prefs["root_granted"]` instead — no root popup when opening the Performance menu.
