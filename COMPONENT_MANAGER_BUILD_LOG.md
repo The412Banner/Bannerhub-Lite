@@ -532,7 +532,7 @@ Moved the injection to immediately after `move-result p0` (the `getContentType()
 - `.github/workflows/build.yml` — Patch 21 anchor + logic rewritten
 
 ### CI result
-Pending — run triggered by v0.2.8-pre
+✅ Success — run 23337088171 — 1m36s
 
 ---
 

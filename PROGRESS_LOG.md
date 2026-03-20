@@ -8,7 +8,7 @@
 ---
 
 ### [fix] — v0.2.8-pre — VerifyError crash when opening Advanced settings tab (2026-03-20)
-**Commit:** `f1575b7`  |  **Tag:** v0.2.8-pre  |  **CI:** pending
+**Commit:** `f1575b7`  |  **Tag:** v0.2.8-pre  |  **CI:** ✅ success (run 23337088171)
 
 #### What changed
 - **Patch 21 (`SettingBtnHolder.w()`):** Fixed `VerifyError` crash that caused a crash-to-dashboard every time Advanced settings tab was opened. Root cause: injection at `:cond_5` used `p2` (already overwritten to int) as a View, and `if-ne p0, p1, :goto_0` created a type-merge conflict at `:goto_0`. Fix: moved injection immediately after `getContentType()`'s `move-result p0`, before any register overwriting, using `v0` as comparison register. Returns Unit directly — no jump to `:goto_0`.
