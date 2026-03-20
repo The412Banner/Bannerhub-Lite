@@ -7,6 +7,22 @@
 
 ---
 
+### [fix] — v0.2.5-pre — Fix "more than once" crash for GPU driver downloads (2026-03-20)
+**Commit:** `TBD`  |  **Tag:** v0.2.5-pre  |  **CI:** pending
+
+#### What changed
+- **Patch 17 — `GameConfigDownloadAction$checkIsDownloaded$2`:** The `else` branch (fileType != 2/3/4) now jumps to `:goto_1` (returns TRUE = "done") instead of `:goto_4` (returns FALSE = "not downloaded"). GPU driver entities from getDeps() have an unrecognised fileType, so checkIsDownloaded always returned FALSE even after a successful md5-verified download → checkNextStartTask saw the key in the `f` map → "more than once, interrupt" abort. Fix: treat any unrecognised fileType as "downloaded" so checkAllComplete can proceed.
+
+#### Why Patch 16 alone didn't fix it
+Patch 16 fixed the getComponent() path (H() returns TRUE for GPU with System Driver → entity skipped). But Turnip also enters via the **getDeps() loop** (lines 3529-3589 of collectGameConfigs$1), which calls EmuComponents.q() directly and bypasses H() entirely. Since Turnip is not in EmuComponents, it gets queued. After download, checkIsDownloaded's else case returned FALSE → re-queue loop → crash.
+
+#### Files touched
+- `apktool_out_local/smali_classes4/com/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2.smali`
+- `.github/workflows/build-quick.yml` (patch 17)
+- `.github/workflows/build.yml` (patch 17)
+
+---
+
 ### [fix] — v0.2.4-pre — Skip GPU driver download when System Driver is selected (2026-03-19)
 **Commit:** `7d2b74b`  |  **Tag:** v0.2.4-pre  |  **CI:** ✅ success (run 23307656790)
 

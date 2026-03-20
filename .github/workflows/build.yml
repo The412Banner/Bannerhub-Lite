@@ -824,6 +824,33 @@ jobs:
               'WinEmuDownloadManager.H(): skip GPU download when System Driver selected'
           )
 
+          # Patch 17: GameConfigDownloadAction$checkIsDownloaded$2 — return TRUE for unrecognised fileTypes (GPU driver)
+          # The else branch (fileType != 2/3/4) originally jumped to :goto_4 (v4=0 → FALSE = "not downloaded").
+          # GPU driver entities downloaded via getDeps() have a fileType not handled by the 2/3/4 switch, so
+          # checkIsDownloaded always returned FALSE even after a successful md5-verified download.
+          # checkNextStartTask then saw the key already in the completed-downloads map (f) and fired the
+          # "more than once, interrupt" abort.  Jumping to :goto_1 instead sets v4=v5=1 → TRUE = "done",
+          # so checkAllComplete sees the item complete and proceeds to launch normally.
+          patch(
+              'apktool_out/smali_classes4/com/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2.smali',
+              (
+                  '    const/4 v1, 0x4\n'
+                  '\n'
+                  '    if-eq p1, v1, :cond_4\n'
+                  '\n'
+                  '    goto :goto_4\n'
+              ),
+              (
+                  '    const/4 v1, 0x4\n'
+                  '\n'
+                  '    if-eq p1, v1, :cond_4\n'
+                  '\n'
+                  '    # BannerHub Lite: unrecognised fileType (GPU driver) — treat as downloaded\n'
+                  '    goto :goto_1\n'
+              ),
+              'GameConfigDownloadAction$checkIsDownloaded$2: return TRUE for unrecognised fileType (GPU driver fix)'
+          )
+
           print("\nAll patches applied successfully.")
           PYEOF
 

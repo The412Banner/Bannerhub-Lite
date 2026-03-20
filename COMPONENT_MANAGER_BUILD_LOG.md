@@ -424,6 +424,48 @@ Patched the GPU block in `checkUserPreferComponent` to mirror the STEAMCLIENT ch
 
 ---
 
+## Entry 007 — checkIsDownloaded$2 else-branch fix for GPU driver (v0.2.5-pre)
+
+### Problem (user-reported after v0.2.4-pre)
+Turnip still downloads on every new game add and launch still fails with "more than once, interrupt."
+
+### Root cause analysis
+
+#### Why Patch 16 didn't prevent the download
+Patch 16 patched `WinEmuDownloadManager.H()` (= `checkUserPreferComponent`) to return TRUE (skip) for GPU entities when System Driver is selected. This works for the **getComponent() loop** in collectGameConfigs$1. However, Turnip is also present in the game config's **getDeps() list**. The getDeps() loop (lines 3529-3589) calls `EmuComponents.q(name)` directly — it never calls H() at all. Since Turnip is not in EmuComponents, q() says "needs download" → Turnip added to download set regardless of Patch 16.
+
+#### checkIsDownloaded$2 else-branch bug
+After Turnip downloads (successfully, md5 matches), `checkAllComplete` calls `checkIsDownloaded(turnipEntity)`. The entity's `getFileType()` is not 2, 3, or 4 (those are EmuContainers, EmuImageFs, EmuComponents types) — it's the GPU driver's server-provided fileType, which falls through to the `else` branch.
+
+Original else branch:
+```smali
+goto :goto_4  # v4=0 → returns FALSE = "not downloaded"
+```
+
+`FALSE` = "still needs download" → `checkNextStartTask` adds Turnip to "still needed" list → checks if key is in `f` map (it is, download just completed) → calls `F()` → "more than once, interrupt" → abort.
+
+If Turnip's key is NOT yet in `f`: `c1(id, false)` restarts the download → second download → same loop → third download → F() fires. This explains the 3-download cycle in logcat.
+
+#### Fix
+Changed else branch from `goto :goto_4` to `goto :goto_1`. At `:goto_1`: `move v4, v5` = v4=1, then `goto :goto_4` → `Boxing.a(1)` = TRUE = "already downloaded." checkAllComplete sees all items done → fires onAllComplete → game launch proceeds.
+
+| Branch | Old | New |
+|--------|-----|-----|
+| fileType == 4 (EmuComponents) | q() → TRUE if installed | unchanged |
+| fileType == 3 (EmuImageFs) | C() | unchanged |
+| fileType == 2 (EmuContainers) | B() | unchanged |
+| else (GPU driver, unrecognised) | `:goto_4` → FALSE | `:goto_1` → TRUE |
+
+### Files modified
+- `apktool_out_local/smali_classes4/com/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2.smali`
+- `.github/workflows/build-quick.yml` (patch 17)
+- `.github/workflows/build.yml` (patch 17)
+
+### CI result
+- Pending (v0.2.5-pre tag not yet pushed)
+
+---
+
 ## Appendix — Reference material
 
 ### EmuComponents 5.1.4 method map
