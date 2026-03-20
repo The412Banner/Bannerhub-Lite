@@ -983,31 +983,36 @@ jobs:
           )
 
           # Patch 21: SettingBtnHolder.w() — handle click for contentType=0x64
+          # Injected EARLY (right after getContentType move-result) while p2 is still a View reference.
+          # Cannot inject at :cond_5 because by then p2 has been overwritten with an int (HID_TIPS const).
+          # Also avoids type-merge conflict at :goto_0 by returning directly rather than jumping to it.
           patch(
               'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/setting/holder/SettingBtnHolder.smali',
-              '    :cond_5\n'
-              '    :goto_0\n'
-              '    sget-object p0, Lkotlin/Unit;->a:Lkotlin/Unit;\n'
+              '    move-result p0\n'
               '\n'
-              '    return-object p0\n'
-              '.end method',
-              '    :cond_5\n'
-              '    # BannerHub Lite: Grant Root Access (contentType=0x64)\n'
-              '    const/16 p1, 0x64\n'
+              '    sget-object p1, Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity;'
+              '->Companion:Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity$Companion;\n',
+              '    move-result p0\n'
               '\n'
-              '    if-ne p0, p1, :goto_0\n'
+              '    # BannerHub Lite: Grant Root Access (contentType=0x64) — injected early while p2 is still a View\n'
+              '    const/16 v0, 0x64\n'
+              '\n'
+              '    if-ne p0, v0, :bh_skip_root_grant\n'
               '\n'
               '    invoke-virtual {p2}, Landroid/view/View;->getContext()Landroid/content/Context;\n'
               '\n'
-              '    move-result-object p0\n'
+              '    move-result-object v0\n'
               '\n'
-              '    invoke-static {p0}, Lapp/revanced/extension/gamehub/BhRootGrantHelper;->requestRoot(Landroid/content/Context;)V\n'
+              '    invoke-static {v0}, Lapp/revanced/extension/gamehub/BhRootGrantHelper;->requestRoot(Landroid/content/Context;)V\n'
               '\n'
-              '    :goto_0\n'
-              '    sget-object p0, Lkotlin/Unit;->a:Lkotlin/Unit;\n'
+              '    sget-object v0, Lkotlin/Unit;->a:Lkotlin/Unit;\n'
               '\n'
-              '    return-object p0\n'
-              '.end method',
+              '    return-object v0\n'
+              '\n'
+              '    :bh_skip_root_grant\n'
+              '\n'
+              '    sget-object p1, Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity;'
+              '->Companion:Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity$Companion;\n',
               'SettingBtnHolder.w(): handle Grant Root Access click (contentType=0x64)'
           )
 

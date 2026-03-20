@@ -126,6 +126,23 @@
 
     move-result p0
 
+    # BannerHub Lite: Grant Root Access (contentType=0x64) — injected early while p2 is still a View
+    const/16 v0, 0x64
+
+    if-ne p0, v0, :bh_skip_root_grant
+
+    invoke-virtual {p2}, Landroid/view/View;->getContext()Landroid/content/Context;
+
+    move-result-object v0
+
+    invoke-static {v0}, Lapp/revanced/extension/gamehub/BhRootGrantHelper;->requestRoot(Landroid/content/Context;)V
+
+    sget-object v0, Lkotlin/Unit;->a:Lkotlin/Unit;
+
+    return-object v0
+
+    :bh_skip_root_grant
+
     sget-object p1, Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity;->Companion:Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity$Companion;
 
     invoke-virtual {p1}, Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity$Companion;->getCONTENT_TYPE_DELETE_PC_MU()I
@@ -220,17 +237,6 @@
     invoke-static {p0, v1, v0, v1}, Lcom/drake/channel/ChannelKt;->c(Ljava/lang/Object;Ljava/lang/String;ILjava/lang/Object;)Lkotlinx/coroutines/Job;
 
     :cond_5
-    # BannerHub Lite: Grant Root Access (contentType=0x64)
-    const/16 p1, 0x64
-
-    if-ne p0, p1, :goto_0
-
-    invoke-virtual {p2}, Landroid/view/View;->getContext()Landroid/content/Context;
-
-    move-result-object p0
-
-    invoke-static {p0}, Lapp/revanced/extension/gamehub/BhRootGrantHelper;->requestRoot(Landroid/content/Context;)V
-
     :goto_0
     sget-object p0, Lkotlin/Unit;->a:Lkotlin/Unit;
 
