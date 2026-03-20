@@ -218,6 +218,23 @@
     goto :goto_1
 
     :cond_4
+    # BannerHub Lite: GPU drivers are downloaded to xj_downloads but never registered
+    # in EmuComponents, so q() always returns "needs download" even after a successful
+    # md5-verified download.  Skip q() for GPU-type entities and return TRUE (done).
+    iget-object v1, p0, Lcom/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2;->$entity:Lcom/xj/winemu/api/bean/EnvLayerEntity;
+
+    invoke-virtual {v1}, Lcom/xj/winemu/api/bean/EnvLayerEntity;->getType()I
+
+    move-result p1
+
+    sget-object v1, Lcom/xj/winemu/api/bean/ComponentType;->GPU:Lcom/xj/winemu/api/bean/ComponentType;
+
+    invoke-virtual {v1}, Lcom/xj/winemu/api/bean/ComponentType;->getType()I
+
+    move-result v1
+
+    if-eq p1, v1, :goto_1
+
     sget-object p1, Lcom/xj/winemu/EmuComponents;->c:Lcom/xj/winemu/EmuComponents$Companion;
 
     invoke-virtual {p1}, Lcom/xj/winemu/EmuComponents$Companion;->a()Lcom/xj/winemu/EmuComponents;

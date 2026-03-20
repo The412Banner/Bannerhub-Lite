@@ -843,6 +843,70 @@ jobs:
               'GameConfigDownloadAction$checkIsDownloaded$2: return TRUE for unrecognised fileType (GPU driver fix)'
           )
 
+          # Patch 18: checkIsDownloaded$2 — skip EmuComponents.q() for GPU-type entities (fileType==4)
+          # With a custom GPU driver selected, downloadUserSelectAfterRecommend may setFileType(4) on
+          # the entity before adding it to the download set.  For fileType==4, checkIsDownloaded calls
+          # EmuComponents.q() — but GPU drivers are never registered in EmuComponents after download
+          # (they live in xj_downloads), so q() always says "needs install" → returns FALSE →
+          # checkNextStartTask fires the "more than once" abort even after a successful download.
+          # Fix: check entity.getType() == ComponentType.GPU before the q() call; if GPU, jump to
+          # :goto_1 (v4=1 → TRUE = done) and skip q() entirely.
+          patch(
+              'apktool_out/smali_classes4/com/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2.smali',
+              (
+                  '    :cond_4\n'
+                  '    sget-object p1, Lcom/xj/winemu/EmuComponents;->c:Lcom/xj/winemu/EmuComponents$Companion;\n'
+                  '\n'
+                  '    invoke-virtual {p1}, Lcom/xj/winemu/EmuComponents$Companion;->a()Lcom/xj/winemu/EmuComponents;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    iget-object v1, p0, Lcom/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2;->$entity:Lcom/xj/winemu/api/bean/EnvLayerEntity;\n'
+                  '\n'
+                  '    invoke-virtual {v1}, Lcom/xj/winemu/api/bean/EnvLayerEntity;->getName()Ljava/lang/String;\n'
+                  '\n'
+                  '    move-result-object v1\n'
+                  '\n'
+                  '    iput v5, p0, Lcom/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2;->label:I\n'
+                  '\n'
+                  '    invoke-virtual {p1, v1, p0}, Lcom/xj/winemu/EmuComponents;->q(Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;\n'
+              ),
+              (
+                  '    :cond_4\n'
+                  '    # BannerHub Lite: GPU drivers are not registered in EmuComponents after download\n'
+                  '    iget-object v1, p0, Lcom/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2;->$entity:Lcom/xj/winemu/api/bean/EnvLayerEntity;\n'
+                  '\n'
+                  '    invoke-virtual {v1}, Lcom/xj/winemu/api/bean/EnvLayerEntity;->getType()I\n'
+                  '\n'
+                  '    move-result p1\n'
+                  '\n'
+                  '    sget-object v1, Lcom/xj/winemu/api/bean/ComponentType;->GPU:Lcom/xj/winemu/api/bean/ComponentType;\n'
+                  '\n'
+                  '    invoke-virtual {v1}, Lcom/xj/winemu/api/bean/ComponentType;->getType()I\n'
+                  '\n'
+                  '    move-result v1\n'
+                  '\n'
+                  '    if-eq p1, v1, :goto_1\n'
+                  '\n'
+                  '    sget-object p1, Lcom/xj/winemu/EmuComponents;->c:Lcom/xj/winemu/EmuComponents$Companion;\n'
+                  '\n'
+                  '    invoke-virtual {p1}, Lcom/xj/winemu/EmuComponents$Companion;->a()Lcom/xj/winemu/EmuComponents;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    iget-object v1, p0, Lcom/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2;->$entity:Lcom/xj/winemu/api/bean/EnvLayerEntity;\n'
+                  '\n'
+                  '    invoke-virtual {v1}, Lcom/xj/winemu/api/bean/EnvLayerEntity;->getName()Ljava/lang/String;\n'
+                  '\n'
+                  '    move-result-object v1\n'
+                  '\n'
+                  '    iput v5, p0, Lcom/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2;->label:I\n'
+                  '\n'
+                  '    invoke-virtual {p1, v1, p0}, Lcom/xj/winemu/EmuComponents;->q(Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;\n'
+              ),
+              'checkIsDownloaded$2: skip EmuComponents.q() for GPU-type entities (custom driver fix)'
+          )
+
           print("\nAll patches applied successfully.")
           PYEOF
 

@@ -7,6 +7,22 @@
 
 ---
 
+### [fix] — v0.2.6-pre — Fix "more than once" crash when custom GPU driver is selected (2026-03-20)
+**Commit:** `TBD`  |  **Tag:** v0.2.6-pre  |  **CI:** pending
+
+#### What changed
+- **Patch 18 — `checkIsDownloaded$2` fileType==4 GPU check:** Before the `EmuComponents.q()` call for fileType==4 entities, check `entity.getType() == ComponentType.GPU`. If so, jump directly to `:goto_1` (return TRUE = "done"), bypassing q() entirely. GPU drivers are stored in xj_downloads after download, never registered in EmuComponents, so q() always returned "needs install" → FALSE → abort loop.
+
+#### Why v0.2.5-pre still failed with custom driver
+Patch 17 fixed the `else` branch (unrecognised fileType). With System Driver, only the getDeps()-Turnip is in the download set, and it has an unrecognised fileType → Patch 17 covers it. With a custom driver, there's ALSO a getComponent()-Turnip entry. `downloadUserSelectAfterRecommend` may call `setFileType(4)` on it before adding to the set. For fileType==4, Patch 17 doesn't apply — instead EmuComponents.q() is called, Turnip is not registered → q() returns "not installed" → checkIsDownloaded returns FALSE → abort.
+
+#### Files touched
+- `apktool_out_local/smali_classes4/com/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2.smali`
+- `.github/workflows/build-quick.yml` (patch 18)
+- `.github/workflows/build.yml` (patch 18)
+
+---
+
 ### [fix] — v0.2.5-pre — Fix "more than once" crash for GPU driver downloads (2026-03-20)
 **Commit:** `c2631b6`  |  **Tag:** v0.2.5-pre  |  **CI:** ✅ success (run 23334942958)
 
