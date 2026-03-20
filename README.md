@@ -224,9 +224,18 @@ When you install a component via BannerHub Lite (inject from file or download fr
 
 ## Credits
 
-- **[Producdevity](https://github.com/Producdevity/gamehub-lite)** — GameHub Lite (base app, all core emulation functionality)
+- **Python** — original creator of GameHub Lite
+- **[Producdevity](https://github.com/Producdevity/gamehub-lite)** — current maintainer of GameHub Lite (base app, all core emulation functionality)
+- **[The412Banner/BannerHub](https://github.com/The412Banner/bannerhub)** — original source of all BannerHub features ported into this project
 - **The412Banner** — BannerHub Lite patches (this repo)
-- Community component repos: StevenMXZ, Arihany, Kimchi, K11MCH1, whitebelyash, MaxesTechReview (MTR)
+
+**Community component repos:**
+- [StevenMXZ](https://github.com/StevenMXZ) — GPU drivers
+- [Arihany](https://github.com/Arihany/WinlatorWCPHub) — WCPHub (DXVK, VKD3D, Box64, FEXCore)
+- [K11MCH1 (AdrenoToolsDrivers)](https://github.com/K11MCH1/AdrenoToolsDrivers) — Kimchi GPU drivers
+- [whitebelyash](https://github.com/whitebelyash/freedreno_Turnip-CI) — Freedreno Turnip CI drivers
+- [MaxesTechReview (MTR)](https://github.com/MaxesTechReview) — GPU drivers
+- [The412Banner/Nightlies](https://github.com/The412Banner/Nightlies) — nightly builds (DXVK, VKD3D, Box64, FEXCore, GPU drivers)
 
 ---
 
