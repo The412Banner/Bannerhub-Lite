@@ -7,6 +7,25 @@
 
 ---
 
+### [feat] — v0.2.7-pre — Settings: Grant Root Access button + remove perf-menu root popup (2026-03-20)
+**Commit:** TBD  |  **Tag:** v0.2.7-pre  |  **CI:** pending
+
+#### What changed
+- **BhPerfSetupDelegate.java:** Removed `isRootAvailable()` call on performance sidebar open. Now reads `bh_prefs["root_granted"]` instead — no root popup when opening the Performance menu.
+- **BhRootGrantHelper.java (new):** `requestRoot(Context)` shows a warning dialog with 5 caveats (sustained performance mode, max adreno clocks, root risks, device compat, battery) before running `su -c id`. Stores `root_granted` in prefs. If already granted: shows revoke option instead.
+- **Patch 19 — `SettingItemViewModel.k()`:** Adds a new TYPE_BTN entry (contentType=0x64) after Clear Cache in the Advanced settings list.
+- **Patch 20 — `SettingItemEntity.getContentName()`:** Returns `"Grant Root Access"` for contentType 0x64.
+- **Patch 21 — `SettingBtnHolder.w()`:** On click for contentType 0x64, calls `BhRootGrantHelper.requestRoot(context)`.
+
+#### Files touched
+- `extension/BhPerfSetupDelegate.java`, `extension/BhRootGrantHelper.java` (new)
+- `apktool_out_local/smali_classes5/...SettingItemViewModel.smali`
+- `apktool_out_local/smali_classes5/...SettingItemEntity.smali`
+- `apktool_out_local/smali_classes5/...SettingBtnHolder.smali`
+- `.github/workflows/build-quick.yml`, `.github/workflows/build.yml`
+
+---
+
 ### [fix] — v0.2.6-pre — Fix "more than once" crash when custom GPU driver is selected (2026-03-20)
 **Commit:** `ec02225`  |  **Tag:** v0.2.6-pre  |  **CI:** ✅ success (run 23335618978)
 

@@ -511,3 +511,46 @@ Changed else branch from `goto :goto_4` to `goto :goto_1`. At `:goto_1`: `move v
 | v7 | `this` (the lambda instance) |
 | v13 | `List<DialogSettingListItemEntity>` from API |
 | `$contentType` | int field on v7, the content type being queried |
+
+---
+
+## Entry 008 — Settings Grant Root Access button + remove perf-menu root popup (v0.2.7-pre)
+
+### Problem
+`BhPerfSetupDelegate.onAttachedToWindow()` called `isRootAvailable()` which ran `su -c id` every time the in-game Performance sidebar opened, triggering the root manager popup. User wanted: no popup on menu open; instead a dedicated Settings → Advanced button to grant root access with a thorough warning.
+
+### Root cause
+`isRootAvailable()` unconditionally runs a blocking `su -c id`. This was fine for a one-time check at BannerHub startup but is disruptive when called on every sidebar open.
+
+### Fix
+
+#### Part A — `BhPerfSetupDelegate.java`
+Changed `boolean hasRoot = isRootAvailable();` to `boolean hasRoot = prefs.getBoolean("root_granted", false);`. Performance toggles now read root state from `bh_prefs` without running su. The `isRootAvailable()` method is kept but no longer called on menu open.
+
+#### Part B — `BhRootGrantHelper.java` (new extension class)
+Static method `requestRoot(Context)`:
+- If root already granted: shows dialog to revoke (sets `root_granted=false`).
+- If not granted: shows a 5-point warning dialog explaining Sustained Performance Mode, Max Adreno Clocks, root risks, device compatibility, and battery impact. "Grant Access" button runs `su -c id` on a background thread, stores result in `bh_prefs`, shows Toast.
+
+#### Part C — Smali patches (Patches 19/20/21)
+
+**Patch 19 — `SettingItemViewModel.k()`:**
+Added a third `SettingItemEntity` (TYPE_BTN=3, contentType=0x64) after the existing CLEAR_CACHE item. Uses the same register layout (v9=Companion, v10-v16=init args, mask=0xc). `0x64` is above the highest existing contentType (0x17) to avoid collisions.
+
+**Patch 20 — `SettingItemEntity.getContentName()`:**
+At the final else block (`:cond_15`), checks `v0 == 0x64` → returns `"Grant Root Access"`. Falls through to `:cond_16` for any other unknown types which still return `""`.
+
+**Patch 21 — `SettingBtnHolder.w()`:**
+Before `:goto_0` (the no-op fall-through), checks `p0 == 0x64`. If match: calls `p2.getContext()` (p2 = FocusableConstraintLayout, a View subclass) → passes context to `BhRootGrantHelper.requestRoot()`. Uses only param registers (no extra `.locals` needed).
+
+### Files created/modified
+- `extension/BhPerfSetupDelegate.java` — 1 line changed (isRootAvailable() → prefs read)
+- `extension/BhRootGrantHelper.java` — new file (100 lines)
+- `apktool_out_local/smali_classes5/com/xj/landscape/launcher/vm/SettingItemViewModel.smali` — Patch 19
+- `apktool_out_local/smali_classes5/com/xj/landscape/launcher/data/model/entity/SettingItemEntity.smali` — Patch 20
+- `apktool_out_local/smali_classes5/com/xj/landscape/launcher/ui/setting/holder/SettingBtnHolder.smali` — Patch 21
+- `.github/workflows/build-quick.yml` — Patches 19/20/21
+- `.github/workflows/build.yml` — Patches 19/20/21
+
+### CI result
+Pending — tagged v0.2.7-pre

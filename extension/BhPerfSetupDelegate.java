@@ -44,7 +44,9 @@ public class BhPerfSetupDelegate extends View {
             if (ctx == null) return;
 
             SharedPreferences prefs = ctx.getSharedPreferences("bh_prefs", Context.MODE_PRIVATE);
-            boolean hasRoot = isRootAvailable();
+            // BannerHub Lite: root is requested explicitly via Settings → Advanced → Grant Root Access.
+            // Reading prefs avoids triggering the su popup every time this menu is opened.
+            boolean hasRoot = prefs.getBoolean("root_granted", false);
 
             int sustainedId = ctx.getResources().getIdentifier(
                     "switch_sustained_perf", "id", ctx.getPackageName());
