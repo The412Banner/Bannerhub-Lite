@@ -354,14 +354,14 @@ public final class GogDownloadManager {
 
             cb.onProgress("Fetching Gen 1 manifest…", 12);
             byte[] raw = fetchBytes(manifestUrl, token);
-            if (raw == null) return false;
+            if (raw == null) return "manifest fetch null";
             String manifestStr = decompressBytes(raw);
-            if (manifestStr == null) return false;
+            if (manifestStr == null) return "manifest decompress failed";
 
             JSONObject manifest = new JSONObject(manifestStr);
             String installDir  = manifest.optString("installDirectory", game.title);
             JSONArray depots   = manifest.optJSONArray("depot");
-            if (depots == null) return false;
+            if (depots == null) return "no depot array in manifest";
 
             // Collect files from all depots
             List<Gen1File> files = new ArrayList<>();
