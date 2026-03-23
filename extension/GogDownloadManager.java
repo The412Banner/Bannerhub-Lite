@@ -118,10 +118,19 @@ public final class GogDownloadManager {
             String err1 = runGen1(ctx, game, token, builds1Json, cb, dbg);
             if (err1 != null) {
                 dbg.append("gen1_failed=").append(err1).append("\n");
-                writeDebug(ctx, dbg);
-                // Include builds response snippet in error so it's visible without debug file
-                String snippet = builds1Json.substring(0, Math.min(120, builds1Json.length()));
-                cb.onError("Fail: " + err1 + " | resp: " + snippet);
+
+                // Both gen1 and gen2 empty → old installer system, fall back to direct download
+                if ("NO_CS_BUILDS".equals(err1)) {
+                    cb.onProgress("No Galaxy builds — trying installer download…", 12);
+                    String installerErr = runInstaller(ctx, game, token, cb, dbg);
+                    if (installerErr == null) { writeDebug(ctx, dbg); return; }
+                    dbg.append("installer_failed=").append(installerErr).append("\n");
+                    writeDebug(ctx, dbg);
+                    cb.onError("No downloadable builds for this game");
+                } else {
+                    writeDebug(ctx, dbg);
+                    cb.onError("Download failed: " + err1);
+                }
             } else {
                 writeDebug(ctx, dbg);
             }
@@ -342,7 +351,7 @@ public final class GogDownloadManager {
             JSONObject builds = new JSONObject(buildsJson);
             JSONArray items = builds.optJSONArray("items");
             if (items == null || items.length() == 0)
-                return "no items";
+                return builds.optInt("total_count", -1) == 0 ? "NO_CS_BUILDS" : "no items (api error)";
 
             String manifestUrl = null;
             for (int i = 0; i < items.length(); i++) {
@@ -414,6 +423,132 @@ public final class GogDownloadManager {
             return null; // success
         } catch (Exception e) {
             return "exception: " + e;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Installer (old GOG downloader — games without content-system builds)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Fetches the Windows installer for games that have no content-system builds.
+     * Uses api.gog.com/products/{id}?expand=downloads → installers[].manualUrl
+     * → follow redirect → download .exe to installDir.
+     * Returns null on success, error string on failure.
+     */
+    private static String runInstaller(Context ctx, GogGame game, String token,
+                                        Callback cb, StringBuilder dbg) {
+        try {
+            dbg.append("\n--- Installer fallback ---\n");
+            String productUrl = "https://api.gog.com/products/" + game.gameId + "?expand=downloads";
+            String productJson = httpGet(productUrl, token);
+            dbg.append("product_response=").append(productJson == null ? "NULL"
+                    : productJson.substring(0, Math.min(400, productJson.length()))).append("\n");
+            if (productJson == null) return "product fetch null";
+
+            JSONObject product = new JSONObject(productJson);
+            JSONObject downloads = product.optJSONObject("downloads");
+            if (downloads == null) return "no downloads object";
+
+            JSONArray installers = downloads.optJSONArray("installers");
+            if (installers == null || installers.length() == 0) return "no installers";
+
+            // Find windows installer
+            String manualUrl = null;
+            String fileName  = null;
+            for (int i = 0; i < installers.length(); i++) {
+                JSONObject inst = installers.getJSONObject(i);
+                if ("windows".equals(inst.optString("os"))) {
+                    JSONArray files = inst.optJSONArray("files");
+                    if (files != null && files.length() > 0) {
+                        JSONObject f = files.getJSONObject(0);
+                        manualUrl = f.optString("downlink", null);
+                        if (manualUrl == null) manualUrl = f.optString("downlink", null);
+                        fileName  = f.optString("filename", game.title + "_installer.exe");
+                    }
+                    if (manualUrl == null) manualUrl = inst.optString("manualUrl", null);
+                    if (fileName == null)  fileName  = game.title + "_installer.exe";
+                    break;
+                }
+            }
+            dbg.append("manualUrl=").append(manualUrl).append(" fileName=").append(fileName).append("\n");
+            if (manualUrl == null) return "no windows installer manualUrl";
+
+            // Resolve the manualUrl → signed download URL (follows redirect)
+            String downloadUrl = resolveRedirect(manualUrl, token);
+            dbg.append("downloadUrl=").append(downloadUrl == null ? "NULL"
+                    : downloadUrl.substring(0, Math.min(120, downloadUrl.length()))).append("\n");
+            if (downloadUrl == null) return "redirect resolve failed";
+
+            // Download the installer .exe
+            File installDir = GogInstallPath.getInstallDir(ctx, game.title);
+            installDir.mkdirs();
+            File outFile = new File(installDir, fileName);
+
+            cb.onProgress("Downloading installer: " + fileName, 15);
+            downloadWithProgress(downloadUrl, outFile, cb);
+
+            // Save prefs
+            SharedPreferences.Editor ed = ctx.getSharedPreferences("bh_gog_prefs", 0).edit();
+            ed.putString("gog_dir_" + game.gameId, game.title);
+            ed.putString("gog_exe_" + game.gameId, outFile.getAbsolutePath());
+            ed.apply();
+
+            cb.onProgress("Installer downloaded!", 100);
+            cb.onComplete(outFile.getAbsolutePath());
+            return null; // success
+        } catch (Exception e) {
+            return "exception: " + e;
+        }
+    }
+
+    /** Follows HTTP redirects on the GOG manualUrl to get the actual download URL. */
+    private static String resolveRedirect(String url, String token) {
+        try {
+            // GOG manualUrl is relative like /downloader/get/... — prepend host
+            if (url.startsWith("/")) url = "https://www.gog.com" + url;
+            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setConnectTimeout(TIMEOUT);
+            conn.setReadTimeout(TIMEOUT);
+            conn.setInstanceFollowRedirects(false);
+            if (token != null) conn.setRequestProperty("Authorization", "Bearer " + token);
+            int code = conn.getResponseCode();
+            String location = conn.getHeaderField("Location");
+            conn.disconnect();
+            if ((code == 301 || code == 302 || code == 303 || code == 307 || code == 308)
+                    && location != null) {
+                return location;
+            }
+            if (code == 200) return url; // already the final URL
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Downloads url to outFile, reporting progress via cb. */
+    private static void downloadWithProgress(String url, File out, Callback cb) {
+        try {
+            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setConnectTimeout(TIMEOUT);
+            conn.setReadTimeout(60_000);
+            int total = conn.getContentLength();
+            try (InputStream is = conn.getInputStream();
+                 FileOutputStream fos = new FileOutputStream(out)) {
+                byte[] buf = new byte[32768];
+                int n, downloaded = 0;
+                while ((n = is.read(buf)) != -1) {
+                    fos.write(buf, 0, n);
+                    downloaded += n;
+                    if (total > 0) {
+                        int pct = 15 + (int) ((downloaded / (float) total) * 80);
+                        cb.onProgress("Downloading: " + out.getName(), pct);
+                    }
+                }
+            }
+            conn.disconnect();
+        } catch (Exception e) {
+            Log.e(TAG, "downloadWithProgress failed", e);
         }
     }
 
