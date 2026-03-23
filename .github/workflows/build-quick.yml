@@ -40,6 +40,12 @@ jobs:
           echo "Decompiling: $APK"
           java -jar $HOME/bin/apktool.jar d "$APK" -o apktool_out -f
 
+      - name: Patch versionName
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          sed -i "s/^  versionName: .*/  versionName: '$TAG'/" apktool_out/apktool.yml
+          grep versionName apktool_out/apktool.yml
+
       - name: Apply all patches
         run: |
           python3 << 'PYEOF'
@@ -1047,9 +1053,9 @@ jobs:
           ${ANDROID_SDK_ROOT}/build-tools/${BUILD_TOOLS}/apksigner sign \
             --key testkey.pk8 --cert testkey.x509.pem \
             --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true \
-            --out Bannerhub-Lite-5.1.4-Normal.apk \
+            --out "Bannerhub-Lite-${GITHUB_REF_NAME}-Normal.apk" \
             rebuilt-aligned.apk
-          echo "Signed: $(du -sh Bannerhub-Lite-5.1.4-Normal.apk | cut -f1)"
+          echo "Signed: $(du -sh "Bannerhub-Lite-${GITHUB_REF_NAME}-Normal.apk" | cut -f1)"
 
       - name: Get tag name
         id: tag
@@ -1066,4 +1072,4 @@ jobs:
           tag_name: ${{ steps.tag.outputs.name }}
           name: BannerHub Lite ${{ steps.tag.outputs.name }}
           prerelease: true
-          files: Bannerhub-Lite-5.1.4-Normal.apk
+          files: Bannerhub-Lite-${{ github.ref_name }}-Normal.apk

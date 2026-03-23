@@ -39,6 +39,12 @@ jobs:
           echo "Decompiling: $APK"
           java -jar $HOME/bin/apktool.jar d "$APK" -o apktool_out -f
 
+      - name: Patch versionName
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          sed -i "s/^  versionName: .*/  versionName: '$TAG'/" apktool_out/apktool.yml
+          grep versionName apktool_out/apktool.yml
+
       - name: Apply all patches
         run: |
           python3 << 'PYEOF'
@@ -1047,28 +1053,28 @@ jobs:
     strategy:
       matrix:
         include:
-          - apk: Bannerhub-Lite-5.1.4-Normal.apk
+          - variant: Normal
             package: gamehub.lite
             label: "BannerHub Lite"
-          - apk: Bannerhub-Lite-5.1.4-PuBG.apk
+          - variant: PuBG
             package: com.tencent.ig
             label: "BannerHub Lite PuBG"
-          - apk: Bannerhub-Lite-5.1.4-AnTuTu.apk
+          - variant: AnTuTu
             package: com.antutu.ABenchMark
             label: "BannerHub Lite AnTuTu"
-          - apk: Bannerhub-Lite-5.1.4-alt-AnTuTu.apk
+          - variant: alt-AnTuTu
             package: com.antutu.benchmark.full
             label: "BannerHub Lite AnTuTu"
-          - apk: Bannerhub-Lite-5.1.4-PuBG-CrossFire.apk
+          - variant: PuBG-CrossFire
             package: com.tencent.tmgp.cf
             label: "BannerHub Lite PuBG CrossFire"
-          - apk: Bannerhub-Lite-5.1.4-Ludashi.apk
+          - variant: Ludashi
             package: com.ludashi.aibench
             label: "BannerHub Lite Ludashi"
-          - apk: Bannerhub-Lite-5.1.4-Genshin.apk
+          - variant: Genshin
             package: com.mihoyo.genshinimpact
             label: "BannerHub Lite Genshin"
-          - apk: Bannerhub-Lite-5.1.4-Original.apk
+          - variant: Original
             package: com.xiaoji.egggame
             label: "BannerHub Lite"
 
@@ -1136,23 +1142,26 @@ jobs:
           ${ANDROID_SDK_ROOT}/build-tools/${BUILD_TOOLS}/zipalign -f -v 4 rebuilt-unsigned.apk rebuilt-aligned.apk
 
       - name: Sign
+        id: sign
         run: |
           BUILD_TOOLS=$(ls ${ANDROID_SDK_ROOT}/build-tools | tail -1)
+          APK_NAME="Bannerhub-Lite-${GITHUB_REF_NAME}-${{ matrix.variant }}.apk"
           ${ANDROID_SDK_ROOT}/build-tools/${BUILD_TOOLS}/apksigner sign \
             --key testkey.pk8 \
             --cert testkey.x509.pem \
             --v1-signing-enabled true \
             --v2-signing-enabled true \
             --v3-signing-enabled true \
-            --out "${{ matrix.apk }}" \
+            --out "$APK_NAME" \
             rebuilt-aligned.apk
-          echo "Signed: ${{ matrix.apk }} ($(du -sh "${{ matrix.apk }}" | cut -f1))"
+          echo "Signed: $APK_NAME ($(du -sh "$APK_NAME" | cut -f1))"
+          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.apk }}
-          path: ${{ matrix.apk }}
+          name: ${{ steps.sign.outputs.apk_name }}
+          path: ${{ steps.sign.outputs.apk_name }}
           retention-days: 1
 
   release:
