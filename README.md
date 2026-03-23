@@ -311,7 +311,7 @@ Useful for games or translation layers (DXVK, VKD3D) that read the reported VRAM
 
 ### Per-Game CPU Core Affinity
 
-PC game settings → **CPU Core Affinity** opens a checkbox dialog to pin the game process to specific CPU cores.
+PC game settings → **CPU Core Limit** opens a checkbox dialog to pin the game process to specific CPU cores.
 
 #### Core Labels
 
@@ -358,13 +358,11 @@ BannerHub Lite bypasses this check — the 404 response is treated as a pass, no
 
 ### Settings: Advanced Tab
 
+BannerHub Lite adds one item to GameHub Lite's existing Advanced settings:
+
 | Setting | What it does |
 |---------|-------------|
-| **EmuReady API** | Toggle EmuReady compatibility checks (defaults off on fresh installs) |
-| **CPU Usage Display** | Show/hide the CPU usage overlay during gameplay |
-| **Performance Metrics** | Show/hide the full performance metrics overlay |
-| **Sustained Performance Mode** | Same toggle as the sidebar one — accessible here outside of a running game |
-| **Grant Root Access** | Shows a 5-point warning dialog explaining what root is used for. On confirmation, runs `su -c id` on a background thread and stores the result. The Performance sidebar reads this pref — no unsolicited root popup every time you open the Performance tab. Tapping again while root is granted offers a Revoke option |
+| **Grant Root Access** | Shows a warning dialog explaining exactly what root is used for (Sustained Performance Mode and Max Adreno Clocks). On confirmation, runs `su -c id` on a background thread — your root manager (Magisk, KernelSU, etc.) will show its own prompt at this point. The result is stored in `bh_prefs`. The Performance sidebar reads this pref on open — no unsolicited root popup every time you navigate to that tab. Tapping the button again while root is already granted shows a **Revoke** option instead |
 
 ---
 
@@ -390,7 +388,7 @@ No external dex is injected into the base classes — the extension code is self
 
 **Q: Does BannerHub Lite require root?**
 
-Most features work without root. The only features that require root are the two Performance sidebar toggles (Sustained Performance Mode and Max Adreno Clocks) — both are greyed out and non-interactive on non-rooted devices. Everything else — GOG tab, Component Manager, downloader, VRAM unlock, CPU affinity, offline modes, launch fix, and settings — works on any non-rooted device.
+Most features work without root. The only features that require root are the two Performance sidebar toggles (Sustained Performance Mode and Max Adreno Clocks) — both are greyed out and non-interactive on non-rooted devices. Everything else — GOG tab, Component Manager, downloader, VRAM unlock, CPU core limit, offline modes, launch fix, and settings — works on any non-rooted device.
 
 **Q: Will this replace my existing GameHub Lite?**
 
