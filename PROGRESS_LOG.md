@@ -7,6 +7,15 @@
 
 ---
 
+### [release] — v0.3.2 — Stable: Component Manager + Downloader UI upgrade (2026-03-23)
+**Commit:** `bf225ec`  |  **Tag:** v0.3.2  |  **CI:** ✅ run 23442199577 (8 APKs, ~3m30s)
+
+#### What changed
+- Stable release cutting all changes from v0.3.1-pre
+- README updated to reflect new Component Manager card UI and Downloader navigation
+
+---
+
 ### [feat] — v0.3.1-pre — Component Manager + Downloader UI upgrade to BannerHub style (2026-03-23)
 **Commit:** `8308819`  |  **Tag:** v0.3.1-pre  |  **CI:** ✅ run 23441811893 (1m46s, Normal APK)
 
