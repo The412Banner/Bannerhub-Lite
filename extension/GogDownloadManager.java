@@ -87,10 +87,11 @@ public final class GogDownloadManager {
 
             cb.onProgress("Fetching builds…", 2);
 
-            // Try Gen 2
+            // Try Gen 2 — builds list is public, no auth needed; fall back to authed if null
             String buildsUrl = "https://content-system.gog.com/products/" + game.gameId
                     + "/os/windows/builds?generation=2";
-            String buildsJson = httpGet(buildsUrl, token);
+            String buildsJson = httpGet(buildsUrl, null);
+            if (buildsJson == null) buildsJson = httpGet(buildsUrl, token);
             dbg.append("gen2_builds_url=").append(buildsUrl).append("\n");
             dbg.append("gen2_builds_response=").append(buildsJson == null ? "NULL"
                     : buildsJson.substring(0, Math.min(300, buildsJson.length()))).append("\n");
@@ -106,9 +107,10 @@ public final class GogDownloadManager {
             // Fallback Gen 1
             String builds1Url = "https://content-system.gog.com/products/" + game.gameId
                     + "/os/windows/builds?generation=1";
-            String builds1Json = httpGet(builds1Url, token);
+            String builds1Json = httpGet(builds1Url, null);
+            if (builds1Json == null) builds1Json = httpGet(builds1Url, token);
             dbg.append("gen1_builds_response=").append(builds1Json == null ? "NULL"
-                    : builds1Json.substring(0, Math.min(200, builds1Json.length()))).append("\n");
+                    : builds1Json.substring(0, Math.min(300, builds1Json.length()))).append("\n");
             if (builds1Json == null) {
                 writeDebug(ctx, dbg);
                 cb.onError("No builds available for this game"); return;
@@ -117,7 +119,9 @@ public final class GogDownloadManager {
             if (err1 != null) {
                 dbg.append("gen1_failed=").append(err1).append("\n");
                 writeDebug(ctx, dbg);
-                cb.onError("Download failed: " + err1);
+                // Include builds response snippet in error so it's visible without debug file
+                String snippet = builds1Json.substring(0, Math.min(120, builds1Json.length()));
+                cb.onError("Fail: " + err1 + " | resp: " + snippet);
             } else {
                 writeDebug(ctx, dbg);
             }
