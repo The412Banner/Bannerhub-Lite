@@ -42,7 +42,7 @@ Both projects add the same core set of features on top of different GameHub base
 | **Launch fix (hardware whitelist bypass)** | Yes | No |
 | **Component description in game settings picker** | Not yet | Yes |
 | **Sustained Perf toggle behavior** | `setSustainedPerformanceMode` + CPU governor (root) | CPU governor only (root) |
-| **GOG Games tab** | Yes | Yes |
+| **GOG Games tab** | Coming soon | Yes |
 | **Component Manager** | Yes | Yes |
 | **Online Component Downloader** | Yes (6 repos) | Yes (6 repos) |
 | **CPU Core Affinity** | Yes | Yes |
@@ -88,6 +88,8 @@ Both projects add the same core set of features on top of different GameHub base
 ## Features
 
 ### GOG Games Tab
+
+> **Coming soon** — GOG Games is not yet available in BannerHub Lite. It is in active development and will be added in an upcoming release. See [BannerHub](https://github.com/The412Banner/bannerhub) for the fully working GOG tab in the meantime.
 
 Accessible via the left side menu → **GOG**.
 
