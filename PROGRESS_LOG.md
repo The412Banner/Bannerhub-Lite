@@ -7,6 +7,34 @@
 
 ---
 
+### [pre] — v0.3.3-pre — feat(gog): full GOG Games integration (2026-03-23)
+**Commit:** `fde7a57`  |  **Tag:** v0.3.3-pre  |  **CI:** ✅ run 23455679718
+
+#### What changed
+- **GogGame.java** — data class (gameId, title, imageUrl, description, developer, category, generation)
+- **GogInstallPath.java** — static `{filesDir}/gog_games/{dirName}`
+- **GogTokenRefresh.java** — blocking GET to auth.gog.com/token; updates bh_gog_prefs
+- **GogLoginActivity.java** — WebView OAuth2 implicit flow; intercepts on_login_success redirect; parses access_token/refresh_token/user_id from URL fragment; fetches username from userData.json; saves to bh_gog_prefs including loginTime + expiresIn
+- **GogMainActivity.java** — side-menu entry point; login card / logged-in card; View Library → GogGamesActivity; Sign Out clears prefs
+- **GogGamesActivity.java** — scrollable game cards; proactive token refresh; library sync via user/data/games + products/{id}?expand=downloads,description; Gen badge (1=orange/2=blue); ✓ Installed checkmark; ProgressBar + status text; Install/Add/Uninstall buttons; detail dialog with Copy to Downloads
+- **GogDownloadManager.java** — Gen 2 pipeline (builds API → manifest → depot manifests → CDN via secure_link → chunk download + zlib inflate → file assembly); Gen 1 fallback (byte-range download); copyToDownloads() → Downloads/GOG Games/
+- **ComponentManagerHelper.java** — GOG_MENU_ID=10 added; addComponentsMenuItem() adds "GOG Games" menu item; handleMenuItemClick() routes ID=10 → GogMainActivity
+- **build.yml + build-quick.yml** — register GogMainActivity, GogLoginActivity, GogGamesActivity in AndroidManifest patch
+
+#### Files touched
+- `extension/GogGame.java` (new)
+- `extension/GogInstallPath.java` (new)
+- `extension/GogTokenRefresh.java` (new)
+- `extension/GogLoginActivity.java` (new)
+- `extension/GogMainActivity.java` (new)
+- `extension/GogDownloadManager.java` (new)
+- `extension/GogGamesActivity.java` (new)
+- `extension/ComponentManagerHelper.java` (modified)
+- `.github/workflows/build.yml` (modified)
+- `.github/workflows/build-quick.yml` (modified)
+
+---
+
 ### [release] — v0.3.2 — Stable: Component Manager + Downloader UI upgrade + dynamic APK naming (2026-03-23)
 **Commit:** `1480819`  |  **Tag:** v0.3.2  |  **CI:** ✅ run 23442891841 (8 APKs)
 

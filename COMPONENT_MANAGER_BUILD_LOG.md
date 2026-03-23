@@ -576,3 +576,41 @@ Before `:goto_0` (the no-op fall-through), checks `p0 == 0x64`. If match: calls 
 
 ### CI result
 ✅ Success — run 23336597590 — 1m44s
+
+---
+
+## Entry 010 — Full GOG Games Integration (v0.3.3-pre)
+
+### Commit
+`fde7a57` — v0.3.3-pre — 2026-03-23
+
+### What was added
+Port of BannerHub 5.3.5 GOG Games integration to BannerHub Lite 5.1.4 as Java extension classes (all compiled into classes11.dex via javac+d8).
+
+### New Java files
+| File | Purpose |
+|---|---|
+| `GogGame.java` | Data class: gameId, title, imageUrl, description, developer, category, generation |
+| `GogInstallPath.java` | Static helper: `{filesDir}/gog_games/{dirName}` |
+| `GogTokenRefresh.java` | Blocking GET to auth.gog.com/token; updates bh_gog_prefs |
+| `GogLoginActivity.java` | WebView OAuth2 implicit flow; intercepts on_login_success fragment; fetches userData.json; saves tokens + loginTime/expiresIn |
+| `GogMainActivity.java` | Entry point: login card / logged-in card; View Library → GogGamesActivity; Sign Out |
+| `GogGamesActivity.java` | Scrollable game cards; library sync (user/data/games + products/{id}); proactive token refresh; Gen badge; ✓ Installed checkmark; ProgressBar; Install/Add/Uninstall; Copy to Downloads |
+| `GogDownloadManager.java` | Gen 2 pipeline (manifest → depots → CDN → chunk+inflate → assembly); Gen 1 fallback (byte-range); copyToDownloads() |
+
+### Modified files
+- `extension/ComponentManagerHelper.java` — GOG_MENU_ID=10; addComponentsMenuItem() adds "GOG Games"; handleMenuItemClick() routes ID=10 → GogMainActivity
+- `.github/workflows/build.yml` — register GogMainActivity, GogLoginActivity, GogGamesActivity in AndroidManifest patch
+- `.github/workflows/build-quick.yml` — same manifest additions
+
+### Key design decisions
+- All code as Java extension classes (no new smali needed — same approach as all existing bh-lite features)
+- Implicit OAuth2 flow (response_type=token) — tokens arrive in redirect URL fragment; no token exchange request needed
+- GOG credentials: public embedded client (46899977096215655 / 9d85c43b...) documented in open-source GOG Galaxy
+- Install path: `{filesDir}/gog_games/{installDirectory}` (mirrors BannerHub 5.3.5)
+- Gen 2 + Gen 1 fallback; zlib inflate for Gen 2 chunks, byte-range for Gen 1
+- Copy to Downloads → `Downloads/GOG Games/{dirName}` via Environment.getExternalStoragePublicDirectory
+- "Add to Launcher" shows exe path + manual instructions (standalone Activity cannot call EditImportedGameInfoDialog which requires FragmentActivity)
+
+### CI result
+✅ Success — run 23455679718
