@@ -85,7 +85,7 @@ public final class GogDownloadManager {
             cb.onProgress("Fetching builds…", 2);
 
             // Try Gen 2
-            String buildsUrl = "https://api.gog.com/products/" + game.gameId
+            String buildsUrl = "https://content-system.gog.com/products/" + game.gameId
                     + "/os/windows/builds?generation=2";
             String buildsJson = httpGet(buildsUrl, token);
 
@@ -96,7 +96,7 @@ public final class GogDownloadManager {
             cb.onProgress("Gen 2 unavailable, trying Gen 1…", 10);
 
             // Fallback Gen 1
-            String builds1Url = "https://api.gog.com/products/" + game.gameId
+            String builds1Url = "https://content-system.gog.com/products/" + game.gameId
                     + "/os/windows/builds?generation=1";
             String builds1Json = httpGet(builds1Url, token);
             if (builds1Json == null) { cb.onError("No builds available for this game"); return; }
@@ -143,6 +143,14 @@ public final class GogDownloadManager {
             JSONArray depots  = manifest.optJSONArray("depots");
             if (depots == null) return false;
 
+            // Extract temp_executable from products[0] (primary exe hint)
+            String tempExe = null;
+            JSONArray products = manifest.optJSONArray("products");
+            if (products != null && products.length() > 0) {
+                tempExe = products.getJSONObject(0).optString("temp_executable", null);
+                if (tempExe != null && tempExe.isEmpty()) tempExe = null;
+            }
+
             // Collect DepotFiles from each language-compatible depot
             cb.onProgress("Reading depot manifests…", 10);
             List<DepotFile> files = new ArrayList<>();
@@ -153,19 +161,21 @@ public final class GogDownloadManager {
                 if (languages == null || languages.length() == 0) {
                     compatible = true;
                 } else {
-                    for (int l = 0; l < languages.length(); l++) {
-                        String lang = languages.getString(l);
-                        if ("en-US".equals(lang) || "*".equals(lang)) {
-                            compatible = true; break;
-                        }
+                    String langsStr = languages.toString();
+                    if (langsStr.contains("*") || langsStr.contains("en-US")
+                            || langsStr.contains("\"en\"") || langsStr.contains("english")) {
+                        compatible = true;
                     }
                 }
                 if (!compatible) continue;
 
-                String depotManifestUrl = depot.optString("manifest");
-                if (depotManifestUrl == null || depotManifestUrl.isEmpty()) continue;
+                // "manifest" field is a hash — build CDN URL from it
+                String manifestHash = depot.optString("manifest");
+                if (manifestHash == null || manifestHash.isEmpty()) continue;
+                String metaUrl = "https://gog-cdn-fastly.gog.com/content-system/v2/meta/"
+                        + buildCdnPath(manifestHash);
 
-                byte[] dmRaw = fetchBytes(depotManifestUrl, token);
+                byte[] dmRaw = fetchBytes(metaUrl, token);
                 if (dmRaw == null) continue;
                 String dmStr = decompressBytes(dmRaw);
                 if (dmStr == null) continue;
@@ -177,8 +187,14 @@ public final class GogDownloadManager {
 
             // Fetch CDN base URL via secure_link
             cb.onProgress("Fetching CDN link…", 15);
-            String secureLinkUrl = "https://www.gog.com/api/products/" + game.gameId
-                    + "/content_system/secure_link?generation=2&_version=2&buildId=" + buildId;
+            // Use baseProductId from products[0] if available
+            String baseProductId = game.gameId;
+            if (products != null && products.length() > 0) {
+                String pid = products.getJSONObject(0).optString("productId", null);
+                if (pid != null && !pid.isEmpty()) baseProductId = pid;
+            }
+            String secureLinkUrl = "https://content-system.gog.com/products/" + baseProductId
+                    + "/secure_link?_version=2&generation=2&path=/";
             String secureLinkJson = httpGet(secureLinkUrl, token);
             String cdnBase = parseCdnUrl(secureLinkJson);
             if (cdnBase == null) return false;
@@ -222,8 +238,13 @@ public final class GogDownloadManager {
             // Delete chunks temp dir
             deleteDir(chunksDir);
 
-            // Find exe
-            String exePath = findExe(installPath, game.gameId, installDir);
+            // Find exe — prefer temp_executable hint from manifest, fall back to scan
+            String exePath = null;
+            if (tempExe != null) {
+                File hinted = new File(installPath, tempExe);
+                if (hinted.exists()) exePath = hinted.getAbsolutePath();
+            }
+            if (exePath == null) exePath = findExe(installPath, game.gameId, installDir);
 
             // Save prefs
             SharedPreferences.Editor ed = ctx.getSharedPreferences("bh_gog_prefs", 0).edit();
