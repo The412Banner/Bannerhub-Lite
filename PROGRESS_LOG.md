@@ -7,6 +7,14 @@
 
 ---
 
+## [docs] — v0.3.3-pre — Thorough README rewrite with heat disclaimer (2026-03-23)
+**Commit:** `153c649`  |  **Tag:** v0.3.3-pre (docs only, no CI)
+**What changed:** Full README rewrite. Added Table of Contents. Every feature section expanded: GOG tab covers all three download pipelines, Component Manager covers card UI/actions/registration flow, Performance toggles have prominent heat/damage disclaimer and accurate technical explanation (sysfs KGSL min_freq, setSustainedPerformanceMode, CPU governor — both root-only, greyed out without root). Added RTS gesture table, CPU affinity presets table, GPU default, launch fix, FAQ (6 questions), How It Works (classes11 dex injection), Build Info.
+**Files touched:** `README.md`
+**CI result:** N/A (docs-only commit)
+
+---
+
 ### [pre] — v0.3.3-pre — feat(gog): installer fallback for old GOG games (2026-03-23)
 **Commit:** `7d1992b`  |  **Tag:** v0.3.3-pre  |  **CI:** ✅ (APK compiled; upload finalize glitch, published manually)
 
