@@ -23,6 +23,7 @@ public final class ComponentManagerHelper {
 
     private static final String TAG = "BannerHub";
     private static final int COMPONENTS_MENU_ID = 9;
+    private static final int GOG_MENU_ID = 10;
 
     private ComponentManagerHelper() {}
 
@@ -53,10 +54,15 @@ public final class ComponentManagerHelper {
             // mask=0x8: bit3 set → rightContent uses Kotlin default ("")
             Object item = ctor.newInstance(
                     COMPONENTS_MENU_ID, iconRes, "Components", null, 0x8, null);
-
             //noinspection unchecked
             items.add(item);
-            Log.d(TAG, "addComponentsMenuItem: Components item added (id=" + COMPONENTS_MENU_ID + " iconRes=" + iconRes + ")");
+            Log.d(TAG, "addComponentsMenuItem: Components item added (id=" + COMPONENTS_MENU_ID + ")");
+
+            Object gogItem = ctor.newInstance(
+                    GOG_MENU_ID, iconRes, "GOG Games", null, 0x8, null);
+            //noinspection unchecked
+            items.add(gogItem);
+            Log.d(TAG, "addComponentsMenuItem: GOG item added (id=" + GOG_MENU_ID + ")");
         } catch (Exception e) {
             Log.e(TAG, "addComponentsMenuItem failed", e);
         }
@@ -68,14 +74,24 @@ public final class ComponentManagerHelper {
         Log.d(TAG, "handleMenuItemClick called");
         try {
             int id = (int) menuItem.getClass().getMethod("a").invoke(menuItem);
-            if (id != COMPONENTS_MENU_ID) return false;
 
-            dialog.getClass().getMethod("dismiss").invoke(dialog);
+            if (id == COMPONENTS_MENU_ID) {
+                dialog.getClass().getMethod("dismiss").invoke(dialog);
+                Intent intent = new Intent(activity, ComponentManagerActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                activity.startActivity(intent);
+                return true;
+            }
 
-            Intent intent = new Intent(activity, ComponentManagerActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            activity.startActivity(intent);
-            return true;
+            if (id == GOG_MENU_ID) {
+                dialog.getClass().getMethod("dismiss").invoke(dialog);
+                Intent intent = new Intent(activity, GogMainActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                activity.startActivity(intent);
+                return true;
+            }
+
+            return false;
         } catch (Exception e) {
             Log.e(TAG, "handleMenuItemClick failed", e);
             return false;

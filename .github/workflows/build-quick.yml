@@ -70,6 +70,15 @@ jobs:
               ' android:screenOrientation="sensorLandscape" />\n'
               '    <activity android:name="app.revanced.extension.gamehub.ComponentDownloadActivity"'
               ' android:label="Download Components" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.GogMainActivity"'
+              ' android:label="GOG Games" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.GogLoginActivity"'
+              ' android:label="GOG Login" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.GogGamesActivity"'
+              ' android:label="GOG Library" android:exported="false"'
               ' android:screenOrientation="sensorLandscape" />\n    </application>',
               'manifest: register activities'
           )
