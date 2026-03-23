@@ -7,12 +7,14 @@
 
 ---
 
-### [release] — v0.3.2 — Stable: Component Manager + Downloader UI upgrade (2026-03-23)
-**Commit:** `bf225ec`  |  **Tag:** v0.3.2  |  **CI:** ✅ run 23442199577 (8 APKs, ~3m30s)
+### [release] — v0.3.2 — Stable: Component Manager + Downloader UI upgrade + dynamic APK naming (2026-03-23)
+**Commit:** `1480819`  |  **Tag:** v0.3.2  |  **CI:** ✅ run 23442891841 (8 APKs)
 
 #### What changed
 - Stable release cutting all changes from v0.3.1-pre
 - README updated to reflect new Component Manager card UI and Downloader navigation
+- CI: APK files now named `Bannerhub-Lite-vX.Y.Z-<Variant>.apk` (dynamic from tag)
+- CI: `versionName` in built APK now matches repo tag (e.g. `0.3.2`) via `apktool.yml` sed patch
 
 ---
 
