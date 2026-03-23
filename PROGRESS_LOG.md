@@ -8,7 +8,7 @@
 ---
 
 ### [pre] — v0.3.3-pre — fix(gog): correct download pipeline API hosts + depot manifest (2026-03-23)
-**Commit:** `325e4b0`  |  **Tag:** v0.3.3-pre  |  **CI:** pending
+**Commit:** `325e4b0`  |  **Tag:** v0.3.3-pre  |  **CI:** ✅ run 23456432070 (APK uploaded; duplicate release cleaned up manually)
 
 #### What changed
 - **GogDownloadManager.java** — 5 download pipeline bugs fixed:
