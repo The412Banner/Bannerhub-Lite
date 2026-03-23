@@ -64,10 +64,12 @@ public final class GogDownloadManager {
     // ─────────────────────────────────────────────────────────────────────────
 
     private static void doDownload(Context ctx, GogGame game, Callback cb) {
+        StringBuilder dbg = new StringBuilder();
+        dbg.append("=== BH GOG Debug === game=").append(game.gameId)
+           .append(" title=").append(game.title).append("\n");
         try {
             cb.onProgress("Checking token…", 0);
 
-            // Refresh token if expiry exceeded
             SharedPreferences prefs = ctx.getSharedPreferences("bh_gog_prefs", 0);
             String token = prefs.getString("access_token", null);
             if (token == null) { cb.onError("Not logged in to GOG"); return; }
@@ -81,6 +83,7 @@ public final class GogDownloadManager {
                 if (newToken == null) { cb.onError("Token expired — please sign in again"); return; }
                 token = newToken;
             }
+            dbg.append("token OK\n");
 
             cb.onProgress("Fetching builds…", 2);
 
@@ -88,13 +91,14 @@ public final class GogDownloadManager {
             String buildsUrl = "https://content-system.gog.com/products/" + game.gameId
                     + "/os/windows/builds?generation=2";
             String buildsJson = httpGet(buildsUrl, token);
+            dbg.append("gen2_builds_url=").append(buildsUrl).append("\n");
+            dbg.append("gen2_builds_response=").append(buildsJson == null ? "NULL"
+                    : buildsJson.substring(0, Math.min(300, buildsJson.length()))).append("\n");
 
             if (buildsJson != null) {
-                Log.d(TAG, "doDownload: Gen2 builds response len=" + buildsJson.length());
-                if (runGen2(ctx, game, token, buildsJson, cb)) return;
-                Log.e(TAG, "doDownload: Gen2 failed, trying Gen1");
-            } else {
-                Log.e(TAG, "doDownload: Gen2 builds fetch returned null");
+                String err = runGen2(ctx, game, token, buildsJson, cb, dbg);
+                if (err == null) { writeDebug(ctx, dbg); return; }
+                dbg.append("gen2_failed=").append(err).append("\n");
             }
 
             cb.onProgress("Gen 2 unavailable, trying Gen 1…", 10);
@@ -103,18 +107,36 @@ public final class GogDownloadManager {
             String builds1Url = "https://content-system.gog.com/products/" + game.gameId
                     + "/os/windows/builds?generation=1";
             String builds1Json = httpGet(builds1Url, token);
+            dbg.append("gen1_builds_response=").append(builds1Json == null ? "NULL"
+                    : builds1Json.substring(0, Math.min(200, builds1Json.length()))).append("\n");
             if (builds1Json == null) {
-                Log.e(TAG, "doDownload: Gen1 builds also null");
+                writeDebug(ctx, dbg);
                 cb.onError("No builds available for this game"); return;
             }
-            Log.d(TAG, "doDownload: Gen1 builds response len=" + builds1Json.length());
-            if (!runGen1(ctx, game, token, builds1Json, cb)) {
-                Log.e(TAG, "doDownload: Gen1 also failed");
-                cb.onError("Download failed");
+            String err1 = runGen1(ctx, game, token, builds1Json, cb, dbg);
+            if (err1 != null) {
+                dbg.append("gen1_failed=").append(err1).append("\n");
+                writeDebug(ctx, dbg);
+                cb.onError("Download failed: " + err1);
+            } else {
+                writeDebug(ctx, dbg);
             }
         } catch (Exception e) {
-            Log.e(TAG, "Download error", e);
+            dbg.append("EXCEPTION=").append(e).append("\n");
+            writeDebug(ctx, dbg);
             cb.onError("Download error: " + e.getMessage());
+        }
+    }
+
+    private static void writeDebug(Context ctx, StringBuilder dbg) {
+        try {
+            java.io.File dir = ctx.getExternalFilesDir(null);
+            if (dir == null) dir = ctx.getFilesDir();
+            java.io.File f = new java.io.File(dir, "bh_gog_debug.txt");
+            writeFile(f, dbg.toString().getBytes("UTF-8"));
+            Log.i(TAG, "Debug written to: " + f.getAbsolutePath());
+        } catch (Exception e) {
+            Log.e(TAG, "writeDebug failed", e);
         }
     }
 
@@ -122,23 +144,23 @@ public final class GogDownloadManager {
     // Gen 2 pipeline
     // ─────────────────────────────────────────────────────────────────────────
 
-    private static boolean runGen2(Context ctx, GogGame game, String token,
-                                    String buildsJson, Callback cb) {
+    // Returns null on success, error description string on failure.
+    private static String runGen2(Context ctx, GogGame game, String token,
+                                   String buildsJson, Callback cb, StringBuilder dbg) {
         try {
-            Log.d(TAG, "Gen2: starting for game=" + game.gameId);
+            dbg.append("\n--- Gen2 ---\n");
             JSONObject builds = new JSONObject(buildsJson);
             JSONArray items = builds.optJSONArray("items");
-            if (items == null || items.length() == 0) {
-                Log.e(TAG, "Gen2: no items in builds response");
-                return false;
-            }
-            Log.d(TAG, "Gen2: " + items.length() + " build items");
+            if (items == null || items.length() == 0)
+                return "no items in builds response";
+            dbg.append("items=").append(items.length()).append("\n");
 
             // Pick first windows build
             String buildId = null, manifestUrl = null;
             for (int i = 0; i < items.length(); i++) {
                 JSONObject item = items.getJSONObject(i);
-                Log.d(TAG, "Gen2: item[" + i + "] os=" + item.optString("os") + " gen=" + item.optInt("generation"));
+                dbg.append("item[").append(i).append("] os=").append(item.optString("os"))
+                   .append(" gen=").append(item.optInt("generation")).append("\n");
                 if ("windows".equals(item.optString("os"))) {
                     buildId     = item.optString("build_id");
                     manifestUrl = item.optString("link");
@@ -147,34 +169,27 @@ public final class GogDownloadManager {
                     break;
                 }
             }
-            if (buildId == null || manifestUrl == null || manifestUrl.isEmpty()) {
-                Log.e(TAG, "Gen2: no windows build found or manifest URL empty");
-                return false;
-            }
-            Log.d(TAG, "Gen2: buildId=" + buildId + " manifestUrl=" + manifestUrl.substring(0, Math.min(80, manifestUrl.length())));
+            if (buildId == null || manifestUrl == null || manifestUrl.isEmpty())
+                return "no windows build or manifest URL empty";
+            dbg.append("buildId=").append(buildId).append("\nmanifestUrl=")
+               .append(manifestUrl.substring(0, Math.min(120, manifestUrl.length()))).append("\n");
 
             cb.onProgress("Fetching manifest…", 5);
             byte[] manifestRaw = fetchBytes(manifestUrl, token);
-            if (manifestRaw == null) {
-                Log.e(TAG, "Gen2: manifest fetch failed");
-                return false;
-            }
-            Log.d(TAG, "Gen2: manifest raw bytes=" + manifestRaw.length + " first2=" + String.format("%02X%02X", manifestRaw[0]&0xFF, manifestRaw[1]&0xFF));
+            if (manifestRaw == null) return "manifest fetch returned null";
+            dbg.append("manifestRaw bytes=").append(manifestRaw.length)
+               .append(String.format(" first2=%02X%02X\n", manifestRaw[0]&0xFF, manifestRaw[1]&0xFF));
             String manifestStr = decompressBytes(manifestRaw);
-            if (manifestStr == null) {
-                Log.e(TAG, "Gen2: manifest decompress failed");
-                return false;
-            }
-            Log.d(TAG, "Gen2: manifest JSON len=" + manifestStr.length() + " snippet=" + manifestStr.substring(0, Math.min(200, manifestStr.length())));
+            if (manifestStr == null) return "manifest decompress failed";
+            dbg.append("manifestStr snippet=")
+               .append(manifestStr.substring(0, Math.min(300, manifestStr.length()))).append("\n");
 
             JSONObject manifest = new JSONObject(manifestStr);
             String installDir = manifest.optString("installDirectory", game.title);
             JSONArray depots  = manifest.optJSONArray("depots");
-            if (depots == null) {
-                Log.e(TAG, "Gen2: no depots in manifest. Keys=" + manifest.keys().toString());
-                return false;
-            }
-            Log.d(TAG, "Gen2: installDir=" + installDir + " depots=" + depots.length());
+            if (depots == null)
+                return "no depots in manifest; keys=" + manifest.keys().toString();
+            dbg.append("installDir=").append(installDir).append(" depots=").append(depots.length()).append("\n");
 
             // Extract temp_executable from products[0] (primary exe hint)
             String tempExe = null;
@@ -183,7 +198,7 @@ public final class GogDownloadManager {
                 tempExe = products.getJSONObject(0).optString("temp_executable", null);
                 if (tempExe != null && tempExe.isEmpty()) tempExe = null;
             }
-            Log.d(TAG, "Gen2: tempExe=" + tempExe);
+            dbg.append("tempExe=").append(tempExe).append("\n");
 
             // Collect DepotFiles from each language-compatible depot
             cb.onProgress("Reading depot manifests…", 10);
@@ -201,44 +216,38 @@ public final class GogDownloadManager {
                         compatible = true;
                     }
                 }
-                Log.d(TAG, "Gen2: depot[" + i + "] langs=" + languages + " compatible=" + compatible);
+                dbg.append("depot[").append(i).append("] langs=").append(languages)
+                   .append(" compat=").append(compatible).append("\n");
                 if (!compatible) continue;
 
                 // "manifest" field is a hash — build CDN URL from it
                 String manifestHash = depot.optString("manifest");
-                if (manifestHash == null || manifestHash.isEmpty()) {
-                    Log.w(TAG, "Gen2: depot[" + i + "] has no manifest hash");
-                    continue;
-                }
+                if (manifestHash == null || manifestHash.isEmpty()) continue;
                 String metaUrl = "https://gog-cdn-fastly.gog.com/content-system/v2/meta/"
                         + buildCdnPath(manifestHash);
-                Log.d(TAG, "Gen2: depot[" + i + "] metaUrl=" + metaUrl);
+                dbg.append("depot[").append(i).append("] metaUrl=").append(metaUrl).append("\n");
 
                 byte[] dmRaw = fetchBytes(metaUrl, null);  // CDN, no auth needed
                 if (dmRaw == null) {
-                    Log.e(TAG, "Gen2: depot[" + i + "] meta fetch failed");
+                    dbg.append("depot[").append(i).append("] meta fetch FAILED\n");
                     continue;
                 }
                 String dmStr = decompressBytes(dmRaw);
                 if (dmStr == null) {
-                    Log.e(TAG, "Gen2: depot[" + i + "] meta decompress failed");
+                    dbg.append("depot[").append(i).append("] decompress FAILED\n");
                     continue;
                 }
 
                 int before = files.size();
                 parseDepotManifest(dmStr, files);
-                Log.d(TAG, "Gen2: depot[" + i + "] added " + (files.size() - before) + " files");
+                dbg.append("depot[").append(i).append("] added ").append(files.size() - before).append(" files\n");
             }
 
-            if (files.isEmpty()) {
-                Log.e(TAG, "Gen2: no depot files collected");
-                return false;
-            }
-            Log.d(TAG, "Gen2: total files to download=" + files.size());
+            if (files.isEmpty()) return "no depot files collected after processing all depots";
+            dbg.append("total files=").append(files.size()).append("\n");
 
             // Fetch CDN base URL via secure_link
             cb.onProgress("Fetching CDN link…", 15);
-            // Use baseProductId from products[0] if available
             String baseProductId = game.gameId;
             if (products != null && products.length() > 0) {
                 String pid = products.getJSONObject(0).optString("productId", null);
@@ -246,15 +255,15 @@ public final class GogDownloadManager {
             }
             String secureLinkUrl = "https://content-system.gog.com/products/" + baseProductId
                     + "/secure_link?_version=2&generation=2&path=/";
-            Log.d(TAG, "Gen2: secure_link url=" + secureLinkUrl);
             String secureLinkJson = httpGet(secureLinkUrl, token);
-            Log.d(TAG, "Gen2: secure_link response=" + (secureLinkJson == null ? "NULL" : secureLinkJson.substring(0, Math.min(300, secureLinkJson.length()))));
+            dbg.append("secure_link_url=").append(secureLinkUrl).append("\n");
+            dbg.append("secure_link_response=").append(secureLinkJson == null ? "NULL"
+                    : secureLinkJson.substring(0, Math.min(400, secureLinkJson.length()))).append("\n");
             String cdnBase = parseCdnUrl(secureLinkJson);
-            Log.d(TAG, "Gen2: cdnBase=" + cdnBase);
-            if (cdnBase == null) {
-                Log.e(TAG, "Gen2: cdnBase is null — secure_link failed or parse error");
-                return false;
-            }
+            dbg.append("cdnBase=").append(cdnBase).append("\n");
+            if (cdnBase == null)
+                return "cdnBase null; secure_link_response=" + (secureLinkJson == null ? "NULL"
+                        : secureLinkJson.substring(0, Math.min(200, secureLinkJson.length())));
 
             // Install dir
             File installPath = GogInstallPath.getInstallDir(ctx, installDir);
@@ -311,10 +320,9 @@ public final class GogDownloadManager {
 
             cb.onProgress("Install complete!", 100);
             cb.onComplete(exePath != null ? exePath : "");
-            return true;
+            return null; // success
         } catch (Exception e) {
-            Log.e(TAG, "Gen2 error", e);
-            return false;
+            return "exception: " + e;
         }
     }
 
@@ -322,16 +330,15 @@ public final class GogDownloadManager {
     // Gen 1 pipeline
     // ─────────────────────────────────────────────────────────────────────────
 
-    private static boolean runGen1(Context ctx, GogGame game, String token,
-                                    String buildsJson, Callback cb) {
+    // Returns null on success, error description string on failure.
+    private static String runGen1(Context ctx, GogGame game, String token,
+                                   String buildsJson, Callback cb, StringBuilder dbg) {
         try {
-            Log.d(TAG, "Gen1: starting");
+            dbg.append("\n--- Gen1 ---\n");
             JSONObject builds = new JSONObject(buildsJson);
             JSONArray items = builds.optJSONArray("items");
-            if (items == null || items.length() == 0) {
-                Log.e(TAG, "Gen1: no items in builds response");
-                return false;
-            }
+            if (items == null || items.length() == 0)
+                return "no items";
 
             String manifestUrl = null;
             for (int i = 0; i < items.length(); i++) {
@@ -341,11 +348,9 @@ public final class GogDownloadManager {
                     break;
                 }
             }
-            if (manifestUrl == null || manifestUrl.isEmpty()) {
-                Log.e(TAG, "Gen1: no windows manifest URL");
-                return false;
-            }
-            Log.d(TAG, "Gen1: manifestUrl=" + manifestUrl.substring(0, Math.min(80, manifestUrl.length())));
+            if (manifestUrl == null || manifestUrl.isEmpty())
+                return "no windows manifest URL";
+            dbg.append("manifestUrl=").append(manifestUrl.substring(0, Math.min(80, manifestUrl.length()))).append("\n");
 
             cb.onProgress("Fetching Gen 1 manifest…", 12);
             byte[] raw = fetchBytes(manifestUrl, token);
@@ -377,7 +382,8 @@ public final class GogDownloadManager {
                 }
             }
 
-            if (files.isEmpty()) return false;
+            if (files.isEmpty()) return "no files in manifest";
+            dbg.append("gen1 files=").append(files.size()).append("\n");
 
             File installPath = GogInstallPath.getInstallDir(ctx, installDir);
             installPath.mkdirs();
@@ -401,10 +407,9 @@ public final class GogDownloadManager {
 
             cb.onProgress("Install complete!", 100);
             cb.onComplete(exePath != null ? exePath : "");
-            return true;
+            return null; // success
         } catch (Exception e) {
-            Log.e(TAG, "Gen1 error", e);
-            return false;
+            return "exception: " + e;
         }
     }
 
