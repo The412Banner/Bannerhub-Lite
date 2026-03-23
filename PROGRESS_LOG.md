@@ -7,6 +7,35 @@
 
 ---
 
+### [pre] — v0.3.3-pre — feat(gog): installer fallback for old GOG games (2026-03-23)
+**Commit:** `7d1992b`  |  **Tag:** v0.3.3-pre  |  **CI:** ✅ (APK compiled; upload finalize glitch, published manually)
+
+#### What changed
+- **GogDownloadManager.java** — installer fallback pipeline for GOG games with no content-system builds:
+  - `runGen1` now returns `"NO_CS_BUILDS"` sentinel when `total_count==0` (distinguishes true empty from API error)
+  - `doDownload` detects `NO_CS_BUILDS` → calls `runInstaller()`
+  - `runInstaller()`: `GET api.gog.com/products/{id}?expand=downloads` → parse `installers[].files[].downlink` (or `manualUrl`) for Windows installer → `resolveRedirect()` follows GOG /downloader/get/... redirect → `downloadWithProgress()` streams .exe with live progress
+  - `resolveRedirect()`: handles relative GOG manual URLs (prepends `https://www.gog.com`), follows one redirect hop
+  - `downloadWithProgress()`: streams with 32KB buffer, reports `onProgress` percent from Content-Length
+  - Error message improved: shows `"No downloadable builds for this game"` instead of raw API JSON
+- **Debug infrastructure** (from earlier commits in this session, still present):
+  - `writeDebug()` writes full diagnostic to `getExternalFilesDir/bh_gog_debug.txt`
+  - Builds API response snippet shown in error message
+  - `runGen2`/`runGen1` return `String?` instead of `boolean` (null=success)
+
+#### Root cause discovered
+All user's library games (Gunslugs, Residual, Saints Row 2, Stargunner, etc.) are old pre-Galaxy GOG games — `content-system.gog.com builds?generation=1/2` returns `{"total_count":0,"items":[]}` for all of them. Installer fallback is needed for this library.
+
+#### Status: UNTESTED — installer fallback not yet verified working
+- Need to confirm: `api.gog.com/products/{id}?expand=downloads` response structure (`downlink` vs `manualUrl` field names)
+- Need to confirm: redirect chain works correctly for GOG installer URLs
+- Need to confirm: installer .exe actually downloads and shows in GameHub
+
+#### Files touched
+- `extension/GogDownloadManager.java`
+
+---
+
 ### [pre] — v0.3.3-pre — fix(gog): correct download pipeline API hosts + depot manifest (2026-03-23)
 **Commit:** `325e4b0`  |  **Tag:** v0.3.3-pre  |  **CI:** ✅ run 23456432070 (APK uploaded; duplicate release cleaned up manually)
 
