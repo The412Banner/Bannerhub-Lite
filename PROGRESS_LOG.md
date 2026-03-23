@@ -7,6 +7,22 @@
 
 ---
 
+### [pre] — v0.3.3-pre — fix(gog): correct download pipeline API hosts + depot manifest (2026-03-23)
+**Commit:** `325e4b0`  |  **Tag:** v0.3.3-pre  |  **CI:** pending
+
+#### What changed
+- **GogDownloadManager.java** — 5 download pipeline bugs fixed:
+  1. builds URL: `api.gog.com` → `content-system.gog.com` (Gen 1 + Gen 2) — root cause of "no builds" error
+  2. secure_link URL: `www.gog.com` → `content-system.gog.com`; use `baseProductId` from `products[0].productId`
+  3. depot `manifest` field is a hash, not a URL; build CDN URL: `gog-cdn-fastly.gog.com/content-system/v2/meta/<hash[0:2]>/<hash[2:4]>/<hash>`
+  4. language filter: add `"en"` and `"english"` checks alongside `"en-US"` and `"*"`
+  5. exe detection: read `temp_executable` from `manifest.products[0]` first; fall back to recursive scan
+
+#### Files touched
+- `extension/GogDownloadManager.java`
+
+---
+
 ### [pre] — v0.3.3-pre — feat(gog): full GOG Games integration (2026-03-23)
 **Commit:** `fde7a57`  |  **Tag:** v0.3.3-pre  |  **CI:** ✅ run 23455679718
 
