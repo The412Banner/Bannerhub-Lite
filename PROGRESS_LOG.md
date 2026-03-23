@@ -7,6 +7,38 @@
 
 ---
 
+### [feat] — v0.3.1-pre — Component Manager + Downloader UI upgrade to BannerHub style (2026-03-23)
+**Commit:** `8308819`  |  **Tag:** v0.3.1-pre  |  **CI:** ✅ run 23441811893 (1m46s, Normal APK)
+
+#### What changed
+- **ComponentManagerActivity.java** — full redesign matching BannerHub 5.3.5 style:
+  - Dark theme (0xFF0D0D0D) persistent layout
+  - Header: ← back, orange title "Banners Component Manager", grey count badge, red ✕ All button (hidden when 0 bh dirs)
+  - Search bar (EditText) with live TextWatcher → `applyFilter()` into `filteredComponents[]`
+  - Card-style `ListView` via `ComponentCardAdapter` (BaseAdapter): colored accent strip, name + source line (from `banners_sources` SP), type badge (GradientDrawable per-type color), arrow ›
+  - Empty state TextView
+  - Bottom bar: + Add New (showTypeDialog) | ↓ Download (ComponentDownloadActivity) — explicit 48dp height
+  - `showOptionsDialog` / `showTypeDialog` AlertDialogs replace mode-based list navigation
+  - `cleanSP(name)`: removes 4 SP keys on remove (name, name:type, url_for:name, dl:url)
+  - `getTypeName` / `getTypeColor`: keyword detection + DXVK/VKD3D/Box64/FEX/GPU/WCP color map
+- **ComponentDownloadActivity.java** — full redesign matching BannerHub 5.3.5 style:
+  - Persistent layout built once in `onCreate` (never rebuilt)
+  - Dark theme, orange header with ← back, grey `mStatusText` updating per mode
+  - Hidden `ProgressBar` shown during fetch/download
+  - `DarkAdapter extends BaseAdapter` (white 15sp text, 48dp min height)
+  - Mode 0→1→2: repo → category → asset list
+  - Fetch once per repo into `mAllNames`/`mAllUrls`, filter by type per category click
+  - ✓ prefix for already-downloaded assets via `banners_sources` SP "dl:url" key
+  - `writeSourceSP()`: 4 SP entries (name→repo, dl:url→"1", name:type, url_for:name)
+  - `findNewDir()`: timestamp-scan for newly created component dir post-inject
+  - `detectType(String)`: keyword-based filename → type int
+
+#### Files touched
+- `extension/ComponentManagerActivity.java`
+- `extension/ComponentDownloadActivity.java`
+
+---
+
 ### [release] — v0.3.0 — First stable release (2026-03-20)
 **Commit:** `aaf1f88`  |  **Tag:** v0.3.0  |  **CI:** ✅ success (run 23345254370, 8 APKs)
 
