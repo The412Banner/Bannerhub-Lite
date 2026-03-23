@@ -1,198 +1,60 @@
 # BannerHub Lite
 
-A modified build of **[GameHub Lite](https://github.com/Producdevity/gamehub-lite)** by Producdevity, with BannerHub features ported in.
+A modified build of **[GameHub Lite 5.1.4](https://github.com/Producdevity/gamehub-lite)** with BannerHub features ported in — Component Manager, in-app component downloader, GOG Games tab, performance toggles, CPU core affinity, VRAM unlock, offline Steam skip, root access management, and more. Built with apktool + compiled Java extension (no source code from GameHub).
 
 ---
 
-## What is GameHub Lite?
+## Table of Contents
 
-[GameHub Lite](https://github.com/Producdevity/gamehub-lite) is an Android app that acts as a front-end launcher for **Windows PC game emulation** on Android using Wine/Proton and associated compatibility layers (DXVK, VKD3D-Proton, Box64, FEXCore, GPU drivers). It manages emulation components, Steam game libraries, and Windows environment containers.
-
-This project patches **GameHub Lite 5.1.4** (vanilla, not ReVanced) with additional quality-of-life features originally developed for BannerHub (a separate ReVanced-based mod of GameHub 5.3.5).
+- [BannerHub Lite vs BannerHub](#bannerhub-lite-vs-bannerhub)
+- [Installation](#installation)
+- [Features](#features)
+  - [GOG Games Tab](#gog-games-tab)
+  - [Component Manager](#component-manager)
+  - [Online Component Downloader](#online-component-downloader)
+  - [BCI Launcher Button](#bci-launcher-button)
+  - [Performance Sidebar Toggles](#performance-sidebar-toggles)
+  - [RTS Touch Controls](#rts-touch-controls)
+  - [VRAM Limit Unlock](#vram-limit-unlock)
+  - [Per-Game CPU Core Affinity](#per-game-cpu-core-affinity)
+  - [GPU System Driver Default](#gpu-system-driver-default)
+  - [Offline Steam Launch](#offline-steam-launch)
+  - [Launch Fix (Hardware Whitelist Bypass)](#launch-fix-hardware-whitelist-bypass)
+  - [Settings: Advanced Tab](#settings-advanced-tab)
+  - [UI Tweaks](#ui-tweaks)
+- [How It Works](#how-it-works)
+- [FAQ](#faq)
+- [Credits](#credits)
+- [Build Info](#build-info)
 
 ---
 
 ## BannerHub Lite vs BannerHub
 
-Both projects add the same core set of features. The difference is in the base app they patch.
+Both projects add the same core set of features on top of different GameHub base APKs.
 
 | | BannerHub Lite (this) | [BannerHub](https://github.com/The412Banner/bannerhub) |
 |---|---|---|
-| **APK size** | ~47 MB | ~138 MB |
 | **Base app** | GameHub Lite 5.1.4 — vanilla, no ReVanced | GameHub 5.3.5 — ReVanced |
-| **ReVanced patches** | None (stock GameHub Lite) | Yes (applied to 5.3.5 before BH patches) |
-| **RTS touch controls** | Built into 5.1.4 already — no patch needed | Patched in by BannerHub |
-| **GPU System Driver default** | Yes — new games always default to System Driver | No |
-| **Launch fix (unrecognized hardware)** | Yes — HTTP 404 device check no longer blocks launch | No |
-| **Component description in picker** | Not yet | Yes (shows `profile.json` blurb in game settings) |
+| **APK size** | ~47 MB | ~138 MB |
+| **RTS touch controls** | Built into 5.1.4 — no patch needed | Patched in |
+| **GPU System Driver default** | Yes | No |
+| **Launch fix (hardware whitelist bypass)** | Yes | No |
+| **Component description in game settings picker** | Not yet | Yes |
+| **Sustained Perf toggle behavior** | `setSustainedPerformanceMode` + CPU governor (root) | CPU governor only (root) |
+| **GOG Games tab** | Yes | Yes |
 | **Component Manager** | Yes | Yes |
 | **Online Component Downloader** | Yes (6 repos) | Yes (6 repos) |
 | **CPU Core Affinity** | Yes | Yes |
 | **Extended VRAM limits** | Yes (up to 16 GB) | Yes (up to 16 GB) |
-| **Performance toggles** | Yes (Sustained Perf + Max Adreno) | Yes (Sustained Perf + Max Adreno) |
+| **Performance toggles** | Yes (root required) | Yes (root required) |
 | **Grant Root Access button** | Yes | Yes |
 | **Offline Steam skip** | Yes | Yes |
 | **BCI launcher button** | Yes | Yes |
 
-**Choose BannerHub Lite if** you are running GameHub Lite 5.1.4 (the most common community build) and want a vanilla base with no ReVanced dependency.
+**Choose BannerHub Lite** if you are running GameHub Lite 5.1.4 (the most common community build) and want a smaller, vanilla base without a ReVanced dependency.
 
-**Choose BannerHub if** you are running GameHub 5.3.5 ReVanced and want the latest codebase features (newer API, component description display, etc.).
-
----
-
-## What BannerHub Lite adds
-
-| Feature | Description |
-|---|---|
-| **My Games** tab rename | The "Dashboard" sidebar tab is renamed to "My Games" |
-| **BCI launcher button** | Button in the top-right toolbar that opens [BannersComponentInjector](https://github.com/The412Banner/BannersComponentInjector) if installed, otherwise shows a toast |
-| **Component Manager** | Full sidebar "Components" entry — inject, add, remove, backup, and download emulation components |
-| **Online Component Downloader** | Browse 6 community repos by category and install components directly from within the app |
-| **Offline Steam skip** | If not Steam-logged-in and offline, skips the login dialog and attempts to launch the game offline anyway |
-| **CPU Core Affinity** | Per-game checkbox dialog to pin Wine to specific CPU cores using bitmask presets; 11 fixed presets + dynamic label for custom combos |
-| **Extended VRAM limits** | Adds 6 GB, 8 GB, 12 GB, and 16 GB options to the VRAM allocation selector |
-| **GPU System Driver default** | New games automatically default to System Driver — prevents launch crashes on first-time setup |
-| **Sustained Performance toggle** | Sidebar switch — enables `setSustainedPerformanceMode` + sets CPU scaling governor to `performance` via root (Root+) |
-| **Max Adreno Clocks toggle** | Sidebar switch — pins GPU minimum frequency to maximum via `/sys/class/kgsl/kgsl-3d0/devfreq/` using root (Root) |
-| **Grant Root Access button** | Settings → Advanced tab — explicit root grant button with warning dialog; no automatic root popup on app open |
-| **Launch fix** | Games launch correctly on devices not in GameHub's hardware whitelist (previously blocked by HTTP 404 errors from the device check API) |
-
-> **RTS touch controls** are already built into the GameHub Lite 5.1.4 base APK — no patch needed.
-
----
-
-## Component Manager
-
-The Component Manager is accessible from the left sidebar under "Components". It gives you direct control over the emulation components installed in GameHub without needing an external app.
-
-### Main screen
-The Component Manager opens with a dark card-style list of all installed components. Each card shows:
-- A **colored accent strip** on the left (color-coded by type: DXVK=blue, VKD3D=purple, Box64=green, FEX=orange, GPU=yellow)
-- The **component name** and, if downloaded via the Online Downloader, the **source repo** on a second line
-- A **type badge** (DXVK / VKD3D / Box64 / FEX / GPU) derived from the component name or saved at download time
-- An arrow indicating it is tappable
-
-The **header** shows the total component count and a red **✕ All** button (visible only when BannerHub-added components are present).
-
-Use the **search bar** to filter by component name.
-
-The **bottom bar** has two buttons:
-- **+ Add New** — type picker dialog to install from file
-- **↓ Download** — opens the Online Component Downloader
-
-### Adding a new component
-1. Tap **+ Add New** in the bottom bar
-2. A dialog appears — select the component type:
-   - **DXVK** — DirectX → Vulkan translation layer
-   - **VKD3D-Proton** — DirectX 12 → Vulkan translation layer
-   - **Box64** — x86-64 CPU emulator
-   - **FEXCore** — alternative x86-64 CPU emulator
-   - **GPU Driver / Turnip** — custom Vulkan GPU driver (Adreno / Turnip / Mesa)
-3. Pick a `.wcp`, `.zip`, or `.xz` file from your device
-4. The component is extracted and registered with GameHub automatically — it will appear in game settings component pickers immediately
-
-### Per-component options
-Tap any installed component card to open an options dialog:
-- **Inject / Replace file...** — copy a file into the component's folder (replaces existing)
-- **Backup to Downloads** — copies the component folder to `Downloads/BannerHub/<name>/`
-- **Remove** — deletes the component folder, unregisters it from GameHub, and clears all saved download metadata (with confirmation)
-
-### Remove All safety
-
-**✕ All** only removes components that BannerHub Lite installed. It will never touch components that GameHub installed through its own UI.
-
-Every component BannerHub Lite installs (via file injection or online download) gets a hidden `.bh_injected` marker file stamped inside the component folder at the time of installation. Remove All checks every folder for this marker before deleting — folders without it are skipped entirely. The confirmation dialog shows the exact number of BannerHub-added components that will be removed and states that GameHub-installed components will not be affected.
-
-### Supported file formats
-| Format | Used for |
-|---|---|
-| `.wcp` | Standard WCP archive — zstd-compressed tar containing `profile.json` + DLL directories |
-| `.wcp.xz` / XZ-compressed WCP | FEXCore nightlies and some other repos |
-| `.zip` | GPU drivers / Turnip — flat zip containing `meta.json` + `.so` libraries |
-
----
-
-## Online Component Downloader
-
-Browse and install components directly from community repos without leaving the app. Open it from the **↓ Download** button in the Component Manager.
-
-### Navigation
-1. **Select a source** — choose one of 6 community repos
-2. **Select a component type** — filter by DXVK / VKD3D / Box64 / FEXCore / GPU Driver
-3. **Tap a component** — downloads and installs it automatically
-
-Components you have already downloaded show a **✓** prefix. After installation, the component's source repo, type, and download URL are saved so the Component Manager can display the source badge and clean up properly on remove.
-
-### Repos
-| Repo | Source |
-|---|---|
-| Arihany WCPHub | [WinlatorWCPHub/pack.json](https://github.com/Arihany/WinlatorWCPHub) |
-| Kimchi GPU Drivers | [Nightlies/kimchi_drivers.json](https://github.com/The412Banner/Nightlies) |
-| StevenMXZ GPU Drivers | [Nightlies/stevenmxz_drivers.json](https://github.com/The412Banner/Nightlies) |
-| MTR GPU Drivers | [Nightlies/mtr_drivers.json](https://github.com/The412Banner/Nightlies) |
-| Whitebelyash GPU Drivers | [Nightlies/white_drivers.json](https://github.com/The412Banner/Nightlies) |
-| The412Banner Nightlies | [Nightlies/nightlies_components.json](https://github.com/The412Banner/Nightlies) |
-
----
-
-## CPU Core Affinity
-
-Found in per-game settings under CPU configuration. Tap the CPU Core Affinity row to open a checkbox dialog with 8 individual core toggles.
-
-**Fixed presets:**
-| Preset | Bitmask | Description |
-|---|---|---|
-| No Limit | 0x00 | All cores, no pinning |
-| Cores 4–7 Performance | 0xF0 | Performance cluster only |
-| Cores 0–3 Efficiency | 0x0F | Efficiency cluster only |
-| Core 0–7 (individual) | 0x01–0x80 | Pin to a single core |
-
-For any custom combination of cores, the label shows e.g. **"Core 0 + Core 4 + Core 7 (Prime)"**.
-
-The selected bitmask is passed directly to Wine's `WINEMU_CPU_AFFINITY` environment variable.
-
----
-
-## Extended VRAM Limits
-
-The VRAM allocation selector in game settings now includes:
-
-| Option | Value |
-|---|---|
-| (existing) | up to 4 GB |
-| 6 GB | 0x1800 |
-| 8 GB | 0x2000 |
-| 12 GB | 0x3000 |
-| 16 GB | 0x4000 |
-
----
-
-## Performance Toggles
-
-Found in the game/emulation sidebar under the performance section. Both require root (`su`). If root is not available, the toggles are shown at 50% opacity and cannot be tapped.
-
-**Sustained Performance** (Root+)
-- Calls Android's `Window.setSustainedPerformanceMode(true)` — reduces thermal throttling by capping the device to a sustained power envelope
-- Sets CPU scaling governor to `performance` (on) or `schedutil` (off) via `su -c`
-- Best for long gaming sessions where consistent frame pacing matters more than peak performance
-
-**Max Adreno Clocks** (Root)
-- Pins GPU minimum frequency to maximum via `su -c "echo <max> > /sys/class/kgsl/kgsl-3d0/devfreq/min_freq"`
-- Forces the Adreno GPU to run at its highest clock speed at all times
-- Useful for benchmarking or GPU-bound games where the driver is underclocking
-
----
-
-## Root Access
-
-BannerHub Lite never triggers a root popup automatically. Root is only requested when you explicitly tap **Grant Root Access** in **Settings → Advanced**.
-
-Tapping the button shows a warning dialog covering:
-- What root is used for (Sustained Performance, Max Adreno Clocks)
-- Device compatibility caveats
-- Battery and thermal considerations
-
-Once granted, the root status is stored in preferences and the performance toggles become active. Tapping the button again while root is granted offers a **Revoke** option.
+**Choose BannerHub** if you are running GameHub 5.3.5 ReVanced and want the latest codebase features.
 
 ---
 
@@ -200,37 +62,353 @@ Once granted, the root status is stored in preferences and the performance toggl
 
 ### Choosing your APK
 
-8 APK variants are built — pick the one that matches the package name of your GameHub Lite installation:
+8 APK variants are built — pick the one matching the package name of your existing GameHub Lite installation:
 
-| APK | Package name | Use when |
-|---|---|---|
-| Normal | `gamehub.lite` | Standard GameHub Lite |
-| PuBG | `com.tencent.ig` | GameHub Lite PUBG variant |
-| AnTuTu | `com.antutu.ABenchMark` | AnTuTu variant |
-| alt-AnTuTu | `com.antutu.benchmark.full` | AnTuTu Full variant |
-| PuBG-CrossFire | `com.tencent.tmgp.cf` | CrossFire variant |
-| Ludashi | `com.ludashi.aibench` | Ludashi / Aibench variant |
-| Genshin | `com.mihoyo.genshinimpact` | Genshin variant |
-| Original | `com.xiaoji.egggame` | Original/EggGame variant |
+| APK | Package | App label |
+|-----|---------|-----------|
+| Normal | `gamehub.lite` | BannerHub Lite |
+| PuBG | `com.tencent.ig` | BannerHub Lite PuBG |
+| AnTuTu | `com.antutu.ABenchMark` | BannerHub Lite AnTuTu |
+| alt-AnTuTu | `com.antutu.benchmark.full` | BannerHub Lite AnTuTu |
+| CrossFire | `com.tencent.tmgp.cf` | BannerHub Lite CrossFire |
+| Ludashi | `com.ludashi.aibench` | BannerHub Lite Ludashi |
+| Genshin | `com.mihoyo.genshinimpact` | BannerHub Lite Genshin |
+| Original | `com.xiaoji.egggame` | BannerHub Lite Original |
 
 ### Steps
-1. **Uninstall** your existing GameHub Lite first — this APK is signed with a different key (AOSP testkey) and cannot be installed alongside the original
+
+1. **Uninstall** your existing GameHub Lite — BannerHub Lite is signed with AOSP testkey (a different certificate) and cannot update over the original
 2. Download the correct variant APK from [Releases](../../releases)
 3. Install and launch
 
-> Your game library, containers, and settings are stored in app data — they will be preserved if you back them up before uninstalling, but a fresh install will start clean.
+> Your game library, containers, and settings are stored in app data. They will be lost on uninstall unless you back them up first.
 
 ---
 
-## How components are registered
+## Features
 
-When you install a component via BannerHub Lite (inject from file or download from repo), it:
+### GOG Games Tab
+
+Accessible via the left side menu → **GOG**.
+
+#### Authentication
+
+- **OAuth2 login** — a WebView opens GOG's standard authorization page. After login, the authorization code is exchanged for an access token + refresh token, stored in `bh_gog_prefs` SharedPreferences
+- **Auto token refresh** — before every API call, the token expiry is checked. If expired, a silent refresh request is issued using the stored refresh token. Manual re-login is never required unless you uninstall
+- **Login persistence** — your session survives restarts and reboots
+
+#### Library
+
+- **Library sync** — on login or manual refresh, your full GOG library is fetched (Generation 1 and Generation 2 games both included)
+- **Metadata per game** — title, developer, description, cover image, download size, Gen 1 / Gen 2 badge
+- **Game cards** — scrollable list with cover art, title, developer, Gen badge, download size, and install/progress/Add button per game
+
+#### Download Pipeline
+
+BannerHub Lite supports three download methods depending on the age of the game:
+
+**Generation 2 (Galaxy-era games):**
+1. Fetches the build manifest from GOG's content-system API
+2. Downloads and parses the depot manifest to get the full file list
+3. Downloads each file with per-file progress shown in real time (filename + percentage)
+
+**Generation 1 (legacy pre-Galaxy games):**
+1. Fetches builds using the `generation=1` parameter
+2. Downloads each file using `Range` HTTP requests (resumable byte-range download)
+
+**Installer fallback (very old pre-Galaxy games with no content-system builds at all):**
+
+Some titles pre-date the content-system entirely and return `total_count: 0` for all build queries. For these, BannerHub Lite falls back to the legacy installer download:
+1. Calls `api.gog.com/products/{id}?expand=downloads`
+2. Reads `downlink` or `manualUrl` from the downloads object
+3. Follows redirects to the final CDN URL and downloads the Windows installer `.exe` directly
+
+#### Install Flow
+
+- Tapping **Install** opens a confirmation dialog with download size and available storage before anything starts downloading
+- A `ProgressBar` + status text replaces the Install button during download (Fetching build info → Fetching manifest → Downloading files X% → Complete)
+- On completion, an **Add** button appears. Tapping it opens GameHub's game import dialog, pre-filled with the executable path
+- An **Installed** checkmark appears on the card immediately when the download finishes — no restart needed
+
+#### Post-Install
+
+- **Persistent install state** — on every app open, already-installed game cards show the checkmark and Add button automatically
+- **Uninstall** — the game detail dialog includes an Uninstall button that deletes the install directory, removes all stored prefs, and refreshes the card list
+
+---
+
+### Component Manager
+
+Accessible via the left side menu → **Components**.
+
+Gives you full control over the emulation components GameHub uses — DXVK, VKD3D, Box64, FEXCore, and GPU Driver entries that appear in per-game settings.
+
+#### Card UI
+
+Each installed component shows as a card with:
+
+- **Color-coded left accent strip** — DXVK (blue), VKD3D (purple), Box64 (green), FEXCore (orange), GPU Driver (yellow)
+- **Type badge** derived from component name or saved at download time
+- **Source badge** — components downloaded via BannerHub Lite show the repo they came from
+- **Install count** in the header
+- **Live search bar** — filter cards by name in real time
+
+The header shows a red **Remove All** button when BannerHub-managed components are present.
+
+#### Actions
+
+| Action | How to trigger | What it does |
+|--------|---------------|-------------|
+| **Add New Component** | Tap "+ Add New" in the bottom bar | Type picker → file picker → injects as a new component slot; appears in GameHub's pickers immediately |
+| **Inject / Replace** | Tap a card → "Inject / Replace file..." | Replaces the component's contents; folder is cleared first |
+| **Backup** | Tap a card → "Backup to Downloads" | Copies the component folder to `Downloads/BannerHub/<name>/` |
+| **Remove** | Tap a card → "Remove" | Deletes folder, unregisters from GameHub, clears download metadata (confirmation required) |
+| **Remove All** | Tap "Remove All" in header | Removes only BannerHub-managed components (marked with a `.bh_injected` file). GameHub-installed components are never touched |
+
+#### How Components are Registered
+
+When BannerHub Lite installs a component (inject from file or download from repo):
 
 1. Extracts the archive into `files/usr/home/components/<name>/`
-2. Reads `profile.json` (WCP) or `meta.json` (ZIP) to get the component name, version, and description
-3. Registers the component with GameHub's internal `EmuComponents` system via reflection — this is the same registry GameHub uses for components downloaded through its own UI
-4. Stamps a `.bh_injected` marker file in the component folder so BannerHub knows which components it manages
-5. The component immediately appears in game settings component pickers (DXVK selector, Box64 selector, GPU Driver selector, etc.) without needing to restart the app
+2. Reads `profile.json` (WCP) or `meta.json` (ZIP) to get name, version, and description
+3. Registers the component with GameHub's internal `EmuComponents` system via reflection — the same registry GameHub uses for its own downloads
+4. Stamps a `.bh_injected` marker file in the folder so Remove All knows what it manages
+5. The component appears in game settings pickers immediately — no app restart needed
+
+#### Supported File Formats
+
+| Format | Used for | Extraction |
+|--------|---------|-----------|
+| `.wcp` (zstd-compressed tar) | DXVK, VKD3D, Box64 | Preserves `system32/` + `syswow64/` structure |
+| `.wcp` (XZ-compressed tar) | FEXCore nightlies | Flat extraction to component root |
+| `.zip` | GPU Drivers / Turnip / adrenotools | Flat extraction — `meta.json` + `.so` files at root |
+
+---
+
+### Online Component Downloader
+
+Browse and install components from community repos directly within the app. Open it from the **Download** button in the Component Manager.
+
+#### Navigation
+
+Three-level navigation: **Repo** → **Type** → **Asset list**
+
+- Assets already installed via BannerHub Lite show a checkmark; it clears when the component is removed
+- Tapping an asset downloads it to cache and installs it automatically with a progress screen
+
+#### Built-in Sources
+
+| Source | What it provides |
+|--------|----------------|
+| [Arihany WCPHub](https://github.com/Arihany/WinlatorWCPHub) | DXVK, VKD3D, Box64, FEXCore, GPU Drivers |
+| [The412Banner Nightlies](https://github.com/The412Banner/Nightlies) | DXVK, VKD3D-Proton, Box64, FEXCore, GPU Drivers |
+| Kimchi GPU Drivers (K11MCH1 / AdrenoToolsDrivers) | GPU Drivers only |
+| StevenMXZ GPU Drivers | GPU Drivers only |
+| MTR GPU Drivers (MaxesTechReview) | GPU Drivers only |
+| Whitebelyash GPU Drivers (freedreno Turnip CI) | GPU Drivers only |
+
+---
+
+### BCI Launcher Button
+
+A shortcut button in GameHub's **top-right toolbar** opens [BannersComponentInjector](https://github.com/The412Banner/BannersComponentInjector) (`com.banner.inject`) directly. If BCI is not installed, a toast is shown instead.
+
+BCI is a companion app providing SAF-based component management, virtual container access, and Steam shadercache browsing without root.
+
+---
+
+### Performance Sidebar Toggles
+
+Located in the in-game **Performance sidebar tab**. Both toggles persist their state in `bh_prefs` and re-apply when the sidebar opens.
+
+Root access is checked once when you grant it in **Settings → Advanced**. The toggles read that stored result — no root permission popup appears every time you open the Performance tab.
+
+> **WARNING — USE AT YOUR OWN RISK**
+>
+> These toggles override your device's thermal management. Forcing the CPU and GPU to run at maximum frequency continuously generates significantly more heat than normal operation. Sustained high temperatures can cause permanent damage to your device's processor, battery, and other components. Device manufacturers do not support or warrant against damage caused by overriding performance governors. By using these toggles you accept full responsibility for any damage, data loss, throttling, unexpected shutdowns, or reduced component lifespan that results. **Do not leave these enabled unattended. Monitor your device temperature. Disable them immediately if your device becomes uncomfortably hot.**
+
+Both toggles require root. Without root, both are greyed out at 50% opacity and have no click listener — tapping them does nothing.
+
+#### Sustained Performance Mode
+
+**Requires root.**
+
+| | Without root | With root |
+|---|---|---|
+| **Behavior** | Greyed out, non-interactive | `setSustainedPerformanceMode(true)` + CPU `performance` governor via `su` |
+| **Disable** | N/A | `setSustainedPerformanceMode(false)` + CPU `schedutil` governor via `su` |
+
+BannerHub Lite's Sustained Perf toggle does two things when enabled (both require root to activate):
+
+**1. `Window.setSustainedPerformanceMode(true)`**
+
+An Android API (available since Android 7.0) that hints the system to maintain a thermally-stable performance envelope rather than allowing burst clocks followed by thermal throttle-back. It is designed to keep frame times consistent over long sessions by trading peak frequency for stability. Support and effectiveness vary by device and OEM kernel.
+
+**2. CPU governor: `performance`**
+
+The CPU frequency governor controls how the kernel picks a clock speed for each core. The `performance` governor always selects the maximum available frequency regardless of load, eliminating all downclocking while the toggle is active. On disable, `schedutil` is restored — a load-tracking governor that scales frequency dynamically based on CPU utilisation.
+
+Shell commands issued (with `su`):
+```sh
+# Enable
+for f in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo performance > "$f"; done
+
+# Disable
+for f in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo schedutil > "$f"; done
+```
+
+#### Max Adreno Clocks
+
+**Requires root. Adreno GPUs only (Qualcomm Snapdragon devices).**
+
+| | Without root | With root |
+|---|---|---|
+| **Behavior** | Greyed out, non-interactive | Locks GPU clock floor = GPU clock ceiling |
+| **Disable** | N/A | Removes the floor — DVFS returns to normal |
+
+Qualcomm Adreno GPUs are managed by the **KGSL** (Kernel Graphics Support Layer) driver, which exposes a devfreq interface at `/sys/class/kgsl/kgsl-3d0/devfreq/`. BannerHub Lite sets the DVFS **minimum frequency** equal to the current **maximum frequency**, leaving the GPU no lower clock level to fall back to:
+
+```sh
+# Enable — read max_freq and write it to min_freq
+cat /sys/class/kgsl/kgsl-3d0/devfreq/max_freq > /sys/class/kgsl/kgsl-3d0/devfreq/min_freq
+
+# Disable — remove the floor
+echo 0 > /sys/class/kgsl/kgsl-3d0/devfreq/min_freq
+```
+
+Writing to `/sys/class/kgsl/` is a privileged sysfs operation — it requires root. This sets a hard floor at the kernel driver level; the GPU physically cannot clock below maximum unless the kernel thermal governor intervenes at an emergency level. The tradeoff is significantly increased heat and battery drain, as the GPU never idles.
+
+**Use both toggles together** for maximum sustained CPU + GPU performance. Root is required for both.
+
+---
+
+### RTS Touch Controls
+
+RTS touch controls are **built into GameHub Lite 5.1.4** — no patch is needed. Enable them via the **Controls tab** in the in-game sidebar.
+
+| Gesture | Mouse action |
+|---------|-------------|
+| Single tap | Move cursor + left-click |
+| Drag | Hold LMB while dragging (box selection) |
+| Long press (300 ms) | Right-click |
+| Double-tap (250 ms / 50 px) | Double left-click |
+| Two-finger pan | Camera pan |
+| Pinch to zoom | Mouse wheel scroll |
+
+Tap the **gear icon** in the Controls tab to configure two-finger and pinch behavior.
+
+---
+
+### VRAM Limit Unlock
+
+PC game settings → **VRAM Limit** now includes **6 GB, 8 GB, 12 GB, and 16 GB** options alongside the original 512 MB–4 GB range.
+
+Useful for games or translation layers (DXVK, VKD3D) that read the reported VRAM value at startup and limit texture quality or refuse to run below a threshold.
+
+---
+
+### Per-Game CPU Core Affinity
+
+PC game settings → **CPU Core Affinity** opens a checkbox dialog to pin the game process to specific CPU cores.
+
+#### Core Labels
+
+| Core(s) | Label |
+|---------|-------|
+| Core 0–3 | Efficiency |
+| Core 4–6 | Performance |
+| Core 7 | Prime |
+
+Labels reflect the typical cluster naming on Snapdragon SoCs. The exact frequency of each core depends on your device.
+
+#### Fixed Presets
+
+| Preset | Bitmask |
+|--------|---------|
+| No Limit | 0x00 — all cores, no pinning |
+| Cores 4–7 (Performance + Prime) | 0xF0 |
+| Cores 0–3 (Efficiency) | 0x0F |
+| Single core (0–7) | 0x01–0x80 |
+
+For any custom combination, the label shows e.g. **"Core 0 + Core 4 + Core 7"**. The selected bitmask is passed directly to Wine's CPU affinity setting.
+
+---
+
+### GPU System Driver Default
+
+New games in BannerHub Lite automatically default the GPU Driver setting to **System Driver** instead of leaving it unset. This prevents launch crashes on first-time setup where a custom driver is selected but not installed, which is one of the most common causes of black-screen failures on new devices.
+
+---
+
+### Offline Steam Launch
+
+When Steam's auto-login request fails at cold start and no network is available, BannerHub Lite detects the condition and skips the Steam login screen entirely. The launch pipeline proceeds using the locally cached Steam configuration, allowing you to play installed Steam games without an internet connection.
+
+---
+
+### Launch Fix (Hardware Whitelist Bypass)
+
+GameHub Lite performs an HTTP device-check API call at launch time to verify the device is on a supported hardware list. On many devices this returns HTTP 404 (device not in the list), which blocks game launch entirely.
+
+BannerHub Lite bypasses this check — the 404 response is treated as a pass, not a failure. Games launch correctly regardless of whether the device is in GameHub's whitelist.
+
+---
+
+### Settings: Advanced Tab
+
+| Setting | What it does |
+|---------|-------------|
+| **EmuReady API** | Toggle EmuReady compatibility checks (defaults off on fresh installs) |
+| **CPU Usage Display** | Show/hide the CPU usage overlay during gameplay |
+| **Performance Metrics** | Show/hide the full performance metrics overlay |
+| **Sustained Performance Mode** | Same toggle as the sidebar one — accessible here outside of a running game |
+| **Grant Root Access** | Shows a 5-point warning dialog explaining what root is used for. On confirmation, runs `su -c id` on a background thread and stores the result. The Performance sidebar reads this pref — no unsolicited root popup every time you open the Performance tab. Tapping again while root is granted offers a Revoke option |
+
+---
+
+### UI Tweaks
+
+- The **"Dashboard"** sidebar tab is renamed to **"My Games"** for clarity.
+
+---
+
+## How It Works
+
+1. The original GameHub Lite 5.1.4 APK (vanilla, no ReVanced) is stored as a permanent release asset under the [`base-apk`](../../releases/tag/base-apk) tag.
+2. CI downloads the base APK, decompiles it with apktool, overlays the `patches/` directory, and builds all 8 package variants.
+3. All new BannerHub Lite code is written in Java, compiled via `javac` + `d8` to `classes11.dex`. GameHub Lite 5.1.4 uses `classes.dex` through `classes10.dex` — `classes11` has no conflict.
+4. The rebuilt APK is zipaligned and signed with AOSP testkey (v1 + v2 + v3).
+5. The CI matrix uploads all 8 variant APKs to the GitHub Release.
+
+No external dex is injected into the base classes — the extension code is self-contained in `classes11.dex`.
+
+---
+
+## FAQ
+
+**Q: Does BannerHub Lite require root?**
+
+Most features work without root. The only features that require root are the two Performance sidebar toggles (Sustained Performance Mode and Max Adreno Clocks) — both are greyed out and non-interactive on non-rooted devices. Everything else — GOG tab, Component Manager, downloader, VRAM unlock, CPU affinity, offline modes, launch fix, and settings — works on any non-rooted device.
+
+**Q: Will this replace my existing GameHub Lite?**
+
+Yes — because BannerHub Lite is signed with a different certificate (AOSP testkey), Android treats it as a different signer and will not allow an in-place update. You must uninstall your existing GameHub Lite first. Your game library and containers stored in app data will be lost unless you back them up beforehand.
+
+**Q: Why does Max Adreno Clocks require root?**
+
+BannerHub Lite writes directly to `/sys/class/kgsl/kgsl-3d0/devfreq/min_freq` — a privileged sysfs node. Some emulators use the KGSL ioctl interface (`/dev/kgsl-3d0`) instead, which is accessible to unprivileged apps, but that sends a hint the GPU driver can still override under thermal pressure. The sysfs write is a hard floor the GPU cannot ignore short of a kernel thermal emergency — at the cost of requiring root.
+
+**Q: Max Adreno Clocks is greyed out on my device — is it broken?**
+
+If it is greyed out, root has not been granted yet. Go to **Settings → Advanced → Grant Root Access** and follow the prompt. If root is granted and it is still greyed out, your device may not have an Adreno GPU (this toggle is Adreno/Qualcomm-only) or the sysfs path does not exist on your kernel.
+
+**Q: My GOG game has no builds available — what does that mean?**
+
+Your game may be a very old pre-Galaxy title that pre-dates GOG's content system. BannerHub Lite will automatically fall back to the installer download path, which fetches the Windows `.exe` installer directly from GOG's download API.
+
+**Q: Where are GOG games installed?**
+
+Inside the app's private storage: `Android/data/<package>/files/gog_games/<title>/`. These files are only accessible via a file manager with root, or if you grant SAF access via BCI.
 
 ---
 
@@ -240,23 +418,25 @@ When you install a component via BannerHub Lite (inject from file or download fr
 - **[Producdevity](https://github.com/Producdevity/gamehub-lite)** — current maintainer of GameHub Lite (base app, all core emulation functionality)
 - **[The412Banner/BannerHub](https://github.com/The412Banner/bannerhub)** — original source of all BannerHub features ported into this project
 - **The412Banner** — BannerHub Lite patches (this repo)
+- **[The GameNative Team](https://github.com/utkarshdalal/GameNative)** — GOG API pipeline, authentication flow, and download architecture research
 
 **Community component repos:**
-- [StevenMXZ](https://github.com/StevenMXZ) — GPU drivers
 - [Arihany](https://github.com/Arihany/WinlatorWCPHub) — WCPHub (DXVK, VKD3D, Box64, FEXCore)
-- [K11MCH1 (AdrenoToolsDrivers)](https://github.com/K11MCH1/AdrenoToolsDrivers) — Kimchi GPU drivers
-- [whitebelyash](https://github.com/whitebelyash/freedreno_Turnip-CI) — Freedreno Turnip CI drivers
+- [K11MCH1 / AdrenoToolsDrivers](https://github.com/K11MCH1/AdrenoToolsDrivers) — Kimchi GPU drivers
+- [whitebelyash](https://github.com/whitebelyash/freedreno_Turnip-CI) — freedreno Turnip CI drivers
+- [StevenMXZ](https://github.com/StevenMXZ) — GPU drivers
 - [MaxesTechReview (MTR)](https://github.com/MaxesTechReview) — GPU drivers
 - [The412Banner/Nightlies](https://github.com/The412Banner/Nightlies) — nightly builds (DXVK, VKD3D, Box64, FEXCore, GPU drivers)
 
 ---
 
-## Build info
+## Build Info
 
-- Base APK: `GameHub-Lite-v5.1.4.apk` — stored in the [`base-apk`](../../releases/tag/base-apk) release
-- CI: GitHub Actions — `build.yml` builds all 8 variants on `v*` stable tags; `build-quick.yml` builds Normal APK only on `v*-pre*` tags
-- Signed with AOSP testkey (v1 + v2 + v3 signatures)
-- Extension code compiled to `classes11.dex` (5.1.4 uses `classes.dex` through `classes10.dex` — no conflict)
+- **Base APK:** `GameHub-Lite-v5.1.4.apk` — stored in the [`base-apk`](../../releases/tag/base-apk) release (vanilla, non-ReVanced)
+- **CI:** `build.yml` — 8-variant matrix build on `v*` stable tags; `build-quick.yml` — Normal APK only on `v*-pre*` tags
+- **Extension:** Java source in `extension/` compiled to `classes11.dex` via `javac` + `d8`
+- **Signing:** AOSP testkey (`testkey.pk8` / `testkey.x509.pem`), v1 + v2 + v3 signatures via apksigner
 
 ---
+
 <sub>☕ [Support on Ko-fi](https://ko-fi.com/the412banner)</sub>
