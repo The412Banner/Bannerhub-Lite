@@ -66,14 +66,23 @@ Both projects add the same core set of features. The difference is in the base a
 The Component Manager is accessible from the left sidebar under "Components". It gives you direct control over the emulation components installed in GameHub without needing an external app.
 
 ### Main screen
-- **+ Add New Component** — opens a type selection menu to install a new component from a file or online repo
-- **Component list** — shows all installed component folders; tap any to see options
-- **Remove All Components** — removes all components you added through BannerHub Lite; only appears when at least one BannerHub-added component is present (see [Remove All safety](#remove-all-safety) below)
+The Component Manager opens with a dark card-style list of all installed components. Each card shows:
+- A **colored accent strip** on the left (color-coded by type: DXVK=blue, VKD3D=purple, Box64=green, FEX=orange, GPU=yellow)
+- The **component name** and, if downloaded via the Online Downloader, the **source repo** on a second line
+- A **type badge** (DXVK / VKD3D / Box64 / FEX / GPU) derived from the component name or saved at download time
+- An arrow indicating it is tappable
+
+The **header** shows the total component count and a red **✕ All** button (visible only when BannerHub-added components are present).
+
+Use the **search bar** to filter by component name.
+
+The **bottom bar** has two buttons:
+- **+ Add New** — type picker dialog to install from file
+- **↓ Download** — opens the Online Component Downloader
 
 ### Adding a new component
-1. Tap **+ Add New Component**
-2. Select the component type:
-   - **Download from Online Repos** — browse online repos (see below)
+1. Tap **+ Add New** in the bottom bar
+2. A dialog appears — select the component type:
    - **DXVK** — DirectX → Vulkan translation layer
    - **VKD3D-Proton** — DirectX 12 → Vulkan translation layer
    - **Box64** — x86-64 CPU emulator
@@ -83,15 +92,14 @@ The Component Manager is accessible from the left sidebar under "Components". It
 4. The component is extracted and registered with GameHub automatically — it will appear in game settings component pickers immediately
 
 ### Per-component options
-Tap any installed component to get:
-- **Inject/Replace file...** — copy a file into the component's folder (replaces existing)
-- **Backup** — copies the component folder to `Downloads/BannerHub/<name>/`
-- **Remove** — deletes the component folder and unregisters it from GameHub (with confirmation)
-- **Back** — return to the component list
+Tap any installed component card to open an options dialog:
+- **Inject / Replace file...** — copy a file into the component's folder (replaces existing)
+- **Backup to Downloads** — copies the component folder to `Downloads/BannerHub/<name>/`
+- **Remove** — deletes the component folder, unregisters it from GameHub, and clears all saved download metadata (with confirmation)
 
 ### Remove All safety
 
-**Remove All Components** only removes components that BannerHub Lite installed. It will never touch components that GameHub installed through its own UI.
+**✕ All** only removes components that BannerHub Lite installed. It will never touch components that GameHub installed through its own UI.
 
 Every component BannerHub Lite installs (via file injection or online download) gets a hidden `.bh_injected` marker file stamped inside the component folder at the time of installation. Remove All checks every folder for this marker before deleting — folders without it are skipped entirely. The confirmation dialog shows the exact number of BannerHub-added components that will be removed and states that GameHub-installed components will not be affected.
 
@@ -106,7 +114,14 @@ Every component BannerHub Lite installs (via file injection or online download) 
 
 ## Online Component Downloader
 
-Browse and install components directly from community repos without leaving the app.
+Browse and install components directly from community repos without leaving the app. Open it from the **↓ Download** button in the Component Manager.
+
+### Navigation
+1. **Select a source** — choose one of 6 community repos
+2. **Select a component type** — filter by DXVK / VKD3D / Box64 / FEXCore / GPU Driver
+3. **Tap a component** — downloads and installs it automatically
+
+Components you have already downloaded show a **✓** prefix. After installation, the component's source repo, type, and download URL are saved so the Component Manager can display the source badge and clean up properly on remove.
 
 ### Repos
 | Repo | Source |
@@ -117,9 +132,6 @@ Browse and install components directly from community repos without leaving the 
 | MTR GPU Drivers | [Nightlies/mtr_drivers.json](https://github.com/The412Banner/Nightlies) |
 | Whitebelyash GPU Drivers | [Nightlies/white_drivers.json](https://github.com/The412Banner/Nightlies) |
 | The412Banner Nightlies | [Nightlies/nightlies_components.json](https://github.com/The412Banner/Nightlies) |
-
-### Category filter
-After selecting a repo, filter by: **DXVK** / **VKD3D** / **Box64** / **FEXCore** / **GPU Driver** / **All**
 
 ---
 
