@@ -599,11 +599,9 @@ public final class GogDownloadManager {
             if (depot == null) return;
             for (int i = 0; i < depot.length(); i++) {
                 JSONObject entry = depot.getJSONObject(i);
-                String type = entry.optString("type", "DepotItem");
-                if (!"DepotItem".equals(type)) continue;
-                String path = entry.optString("path");
+                String path = entry.optString("path", "");
                 JSONArray chunks = entry.optJSONArray("chunks");
-                if (path == null || chunks == null) continue;
+                if (path.isEmpty() || chunks == null || chunks.length() == 0) continue;
 
                 DepotFile df = new DepotFile(path);
                 for (int c = 0; c < chunks.length(); c++) {
