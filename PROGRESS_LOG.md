@@ -8,7 +8,7 @@
 ---
 
 ### [fix] — v0.3.3-pre — fix: GOG Gen2 depot manifest 0-files bug + compressedMd5 (2026-03-24)
-**Commit:** `pending`  |  **Tag:** v0.3.3-pre
+**Commit:** `51b848f`  |  **Tag:** v0.3.3-pre
 #### What changed
 - `parseDepotManifest()`: `root.optJSONArray("depot")` → `root.optJSONObject("depot").optJSONArray("files")` — depot is a JSONObject wrapper, not an array
 - Chunk hash: prefer `compressedMd5` over `md5` for CDN URL construction

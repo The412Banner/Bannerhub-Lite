@@ -582,7 +582,7 @@ Before `:goto_0` (the no-op fall-through), checks `p0 == 0x64`. If match: calls 
 ## Entry 011 — Fix GOG Gen2 depot manifest parsing: 0 files bug + compressedMd5 (v0.3.3-pre)
 
 ### Commit
-`pending`  |  **Tag:** v0.3.3-pre
+`51b848f`  |  **Tag:** v0.3.3-pre
 
 ### Files touched
 - `extension/GogDownloadManager.java` — `parseDepotManifest()` two-bug fix
@@ -597,7 +597,7 @@ Secondary bug: chunk hash key was `"md5"` but CDN chunk URL construction require
 - `chunk.optString("md5")` → `chunk.optString("compressedMd5")` with `md5` fallback
 
 ### CI result
-⏳ Pending
+✅ Success — run 23512613663
 
 ---
 
