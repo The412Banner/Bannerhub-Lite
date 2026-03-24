@@ -251,6 +251,8 @@ public final class GogDownloadManager {
                     continue;
                 }
 
+                dbg.append("depot[").append(i).append("] manifest=")
+                   .append(dmStr.substring(0, Math.min(500, dmStr.length()))).append("\n");
                 int before = files.size();
                 parseDepotManifest(dmStr, files);
                 dbg.append("depot[").append(i).append("] added ").append(files.size() - before).append(" files\n");
