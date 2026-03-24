@@ -7,6 +7,18 @@
 
 ---
 
+### [feat] — v0.3.3-pre — GOG library cache + parallel fetches + refresh button (2026-03-24)
+**Commit:** `b462b1c`  |  **Tag:** v0.3.3-pre
+#### What changed
+- Cache: game list saved to SharedPrefs (`gog_library_cache`) after every sync; renders instantly on next open while background sync runs silently
+- Parallel fetches: 5-thread `ExecutorService` for per-game metadata + generation checks (~3-5x speedup)
+- Refresh (↺) button added to header; disabled during sync, re-enabled on completion
+- Extracted `fetchGame()` helper; added `showGames()`, `loadCachedGames()`, `saveCachedGames()`, `enableRefresh()`
+#### Files touched
+- `extension/GogGamesActivity.java`
+
+---
+
 ### [fix] — v0.3.3-pre — Add Game navigates to dashboard immediately; uninstall resets card (2026-03-24)
 **Commit:** `f394751`  |  **Tag:** v0.3.3-pre
 #### What changed
