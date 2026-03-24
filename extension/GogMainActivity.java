@@ -50,6 +50,13 @@ public class GogMainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        // If GogGamesActivity stored a pending launch, finish this activity
+        // so LandscapeLauncherMainActivity resumes and fires checkPendingLaunch.
+        if (getSharedPreferences("bh_gog_prefs", 0)
+                .getString("pending_gog_exe", null) != null) {
+            finish();
+            return;
+        }
         refreshView();
     }
 

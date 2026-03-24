@@ -414,14 +414,14 @@ public class GogGamesActivity extends Activity {
         });
 
         // Card tap → detail dialog
-        card.setOnClickListener(v -> showDetailDialog(game, checkmark));
+        card.setOnClickListener(v -> showDetailDialog(game, checkmark, actionBtn));
         gameListLayout.addView(card, cardLp);
     }
 
     // ── Dialogs ───────────────────────────────────────────────────────────────
 
     /** Detail dialog: description + Uninstall + Copy to Downloads. */
-    private void showDetailDialog(GogGame game, View checkmark) {
+    private void showDetailDialog(GogGame game, View checkmark, Button actionBtn) {
         AlertDialog.Builder b = new AlertDialog.Builder(this);
         b.setTitle(game.title);
 
@@ -435,7 +435,7 @@ public class GogGamesActivity extends Activity {
 
         String installedExe = prefs.getString("gog_exe_" + game.gameId, null);
         if (installedExe != null) {
-            b.setNegativeButton("Uninstall", (dialog, which) -> uninstall(game, checkmark));
+            b.setNegativeButton("Uninstall", (dialog, which) -> uninstall(game, checkmark, actionBtn));
             b.setNeutralButton("Launch / Add", (dialog, which) ->
                     GogLaunchHelper.triggerLaunch(this, installedExe));
         }
@@ -443,7 +443,7 @@ public class GogGamesActivity extends Activity {
         b.show();
     }
 
-    private void uninstall(GogGame game, View checkmark) {
+    private void uninstall(GogGame game, View checkmark, Button actionBtn) {
         String dirName = prefs.getString("gog_dir_" + game.gameId, null);
         if (dirName != null) {
             new Thread(() -> {
@@ -456,6 +456,9 @@ public class GogGamesActivity extends Activity {
                         .apply();
                 uiHandler.post(() -> {
                     checkmark.setVisibility(View.GONE);
+                    actionBtn.setText("Install");
+                    actionBtn.setBackgroundColor(0xFF7033FF);
+                    actionBtn.setEnabled(true);
                     Toast.makeText(this, game.title + " uninstalled", Toast.LENGTH_SHORT).show();
                 });
             }).start();
