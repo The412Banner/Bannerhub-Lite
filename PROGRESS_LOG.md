@@ -7,6 +7,22 @@
 
 ---
 
+### [pre] — v0.3.3-pre — feat: auto-fire EditImportedGameInfoDialog after GOG install (2026-03-24)
+**Commit:** `0e74759`  |  **Tag:** v0.3.3-pre  |  **CI:** ✅ run 23493840256
+
+#### What changed
+- **GogLaunchHelper.java** (new) — `triggerLaunch(Activity, exePath)`: saves `pending_gog_exe` to SharedPrefs + calls `finish()` to return to main activity; `checkPendingLaunch(Activity)`: reads pref, invokes `g3(exePath)` via reflection on `LandscapeLauncherMainActivity` → opens `EditImportedGameInfoDialog` with path pre-filled, clears pref
+- **GogGamesActivity.java** — `onComplete()` now calls `GogLaunchHelper.triggerLaunch()` instead of showing "Add to Launcher" manual instructions dialog; detail dialog "Launch / Add" button also calls `triggerLaunch` directly; `showAddDialog()` removed
+- **build.yml + build-quick.yml** — new smali patch: inject `GogLaunchHelper.checkPendingLaunch(Activity)` call after `super.onResume()` in `LandscapeLauncherMainActivity.onResume()`
+
+#### Files touched
+- `extension/GogLaunchHelper.java` (new)
+- `extension/GogGamesActivity.java`
+- `.github/workflows/build.yml`
+- `.github/workflows/build-quick.yml`
+
+---
+
 ### [pre] — v0.3.3-pre — fix(gog): installer fallback — manualUrl typo + multi-hop redirect (2026-03-24)
 **Commit:** `dc2ceea`  |  **Tag:** v0.3.3-pre  |  **CI:** ✅ run 23492458134
 
