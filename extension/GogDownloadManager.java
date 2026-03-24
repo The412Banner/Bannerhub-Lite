@@ -463,7 +463,7 @@ public final class GogDownloadManager {
                     if (files != null && files.length() > 0) {
                         JSONObject f = files.getJSONObject(0);
                         manualUrl = f.optString("downlink", null);
-                        if (manualUrl == null) manualUrl = f.optString("downlink", null);
+                        if (manualUrl == null) manualUrl = f.optString("manualUrl", null);
                         fileName  = f.optString("filename", game.title + "_installer.exe");
                     }
                     if (manualUrl == null) manualUrl = inst.optString("manualUrl", null);
@@ -502,25 +502,56 @@ public final class GogDownloadManager {
         }
     }
 
-    /** Follows HTTP redirects on the GOG manualUrl to get the actual download URL. */
+    /**
+     * Follows HTTP redirects on the GOG manualUrl to get the actual download URL.
+     * Handles: relative URLs, multi-hop redirects (up to 5), and GOG API endpoints
+     * that return 200 JSON with a nested "downlink" field instead of a redirect.
+     */
     private static String resolveRedirect(String url, String token) {
         try {
             // GOG manualUrl is relative like /downloader/get/... — prepend host
             if (url.startsWith("/")) url = "https://www.gog.com" + url;
-            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-            conn.setConnectTimeout(TIMEOUT);
-            conn.setReadTimeout(TIMEOUT);
-            conn.setInstanceFollowRedirects(false);
-            if (token != null) conn.setRequestProperty("Authorization", "Bearer " + token);
-            int code = conn.getResponseCode();
-            String location = conn.getHeaderField("Location");
-            conn.disconnect();
-            if ((code == 301 || code == 302 || code == 303 || code == 307 || code == 308)
-                    && location != null) {
-                return location;
+            for (int hop = 0; hop < 5; hop++) {
+                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setConnectTimeout(TIMEOUT);
+                conn.setReadTimeout(TIMEOUT);
+                conn.setInstanceFollowRedirects(false);
+                if (token != null) conn.setRequestProperty("Authorization", "Bearer " + token);
+                int code = conn.getResponseCode();
+                String location = conn.getHeaderField("Location");
+                if (code == 301 || code == 302 || code == 303 || code == 307 || code == 308) {
+                    conn.disconnect();
+                    if (location == null) return null;
+                    if (location.startsWith("/")) location = "https://www.gog.com" + location;
+                    url = location;
+                    continue;
+                }
+                if (code == 200) {
+                    // Some GOG API endpoints return JSON {"downlink":"https://..."} instead of redirect
+                    String ct = conn.getContentType();
+                    if (ct != null && ct.contains("application/json")) {
+                        StringBuilder sb = new StringBuilder();
+                        try (BufferedReader br = new BufferedReader(
+                                new InputStreamReader(conn.getInputStream(), "UTF-8"))) {
+                            String line;
+                            while ((line = br.readLine()) != null) sb.append(line);
+                        }
+                        conn.disconnect();
+                        JSONObject json = new JSONObject(sb.toString());
+                        String inner = json.optString("downlink", null);
+                        if (inner != null && !inner.isEmpty()) {
+                            url = inner;
+                            continue; // follow the inner URL
+                        }
+                    } else {
+                        conn.disconnect();
+                    }
+                    return url; // final URL
+                }
+                conn.disconnect();
+                return null; // unexpected response
             }
-            if (code == 200) return url; // already the final URL
-            return null;
+            return null; // too many hops
         } catch (Exception e) {
             return null;
         }
