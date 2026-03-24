@@ -7,6 +7,18 @@
 
 ---
 
+### [fix] — v0.3.3-pre — Add Game navigates to dashboard immediately; uninstall resets card (2026-03-24)
+**Commit:** `f394751`  |  **Tag:** v0.3.3-pre
+#### What changed
+- `GogMainActivity.onResume()`: if `pending_gog_exe` is set, call `finish()` immediately — cascades back to `LandscapeLauncherMainActivity` where `checkPendingLaunch` fires `g3()`
+- `uninstall()`: now also resets `actionBtn` to "Install" (purple, enabled) on UI thread after deletion
+- `showDetailDialog` + `uninstall` now accept `actionBtn` parameter
+#### Files touched
+- `extension/GogMainActivity.java`
+- `extension/GogGamesActivity.java`
+
+---
+
 ### [fix] — v0.3.3-pre — Don't auto-trigger EditImportedGameInfoDialog after install (2026-03-24)
 **Commit:** `44be31e`  |  **Tag:** v0.3.3-pre
 #### What changed
