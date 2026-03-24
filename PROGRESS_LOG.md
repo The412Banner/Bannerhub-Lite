@@ -7,6 +7,17 @@
 
 ---
 
+### [fix] — v0.3.3-pre — Don't auto-trigger EditImportedGameInfoDialog after install (2026-03-24)
+**Commit:** `44be31e`  |  **Tag:** v0.3.3-pre
+#### What changed
+- After install completes: show "✓ Installed" + set button to "Add Game" (green), do nothing else
+- "Add Game" tap (and existing "Add to Launcher") both call `triggerLaunch` → `pending_gog_exe` → `finish()` → `onResume` → `g3()`
+- Removed auto-`triggerLaunch` call on `onComplete`
+#### Files touched
+- `extension/GogGamesActivity.java`
+
+---
+
 ### [fix] — v0.3.3-pre — fix: remove DepotItem type filter, skip by empty path/chunks (2026-03-24)
 **Commit:** `abc293e`  |  **Tag:** v0.3.3-pre
 #### What changed
