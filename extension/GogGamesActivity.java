@@ -30,6 +30,10 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * Displays the signed-in user's GOG library as scrollable game cards.
@@ -54,11 +58,14 @@ public class GogGamesActivity extends Activity {
 
     private static final String TAG = "BH_GOG";
 
+    private static final String CACHE_KEY = "gog_library_cache";
+
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
     private TextView syncText;
     private LinearLayout gameListLayout;
     private ScrollView scrollView;
     private SharedPreferences prefs;
+    private Button refreshBtn;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -67,7 +74,13 @@ public class GogGamesActivity extends Activity {
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences("bh_gog_prefs", 0);
         buildUi();
-        startSync();
+        // Show cached list instantly, then sync in background
+        List<GogGame> cached = loadCachedGames();
+        if (cached != null && !cached.isEmpty()) {
+            showGames(cached);
+            setSync(cached.size() + " game(s) — cached  •  tap ↺ to refresh");
+        }
+        startSync(cached == null || cached.isEmpty());
     }
 
     // ── UI construction ───────────────────────────────────────────────────────
@@ -101,6 +114,15 @@ public class GogGamesActivity extends Activity {
         titleTV.setPadding(dp(12), 0, 0, 0);
         header.addView(titleTV, new LinearLayout.LayoutParams(0, -2, 1f));
 
+        refreshBtn = new Button(this);
+        refreshBtn.setText("↺");
+        refreshBtn.setTextColor(0xFFFFFFFF);
+        refreshBtn.setBackgroundColor(0xFF333333);
+        refreshBtn.setTextSize(16f);
+        refreshBtn.setPadding(dp(12), 0, dp(12), 0);
+        refreshBtn.setOnClickListener(v -> startSync(true));
+        header.addView(refreshBtn, new LinearLayout.LayoutParams(-2, dp(40)));
+
         root.addView(header, new LinearLayout.LayoutParams(-1, -2));
 
         // Sync status text
@@ -128,33 +150,35 @@ public class GogGamesActivity extends Activity {
 
     // ── Library sync (background thread) ─────────────────────────────────────
 
-    private void startSync() {
-        new Thread(this::syncLibrary, "gog-sync").start();
+    private void startSync(boolean showProgress) {
+        uiHandler.post(() -> {
+            if (refreshBtn != null) refreshBtn.setEnabled(false);
+            if (showProgress) setSync("Loading GOG library…");
+        });
+        new Thread(() -> syncLibrary(showProgress), "gog-sync").start();
     }
 
-    private void syncLibrary() {
+    private void syncLibrary(boolean showProgress) {
         try {
-            setSync("Checking token…");
+            if (showProgress) setSync("Checking token…");
 
-            // Proactive token expiry check
             String token = prefs.getString("access_token", null);
-            if (token == null) { setSync("Not logged in"); return; }
+            if (token == null) { setSync("Not logged in"); enableRefresh(); return; }
 
-            int loginTime  = prefs.getInt("bh_gog_login_time", 0);
-            int expiresIn  = prefs.getInt("bh_gog_expires_in", 3600);
-            int nowSec     = (int) (System.currentTimeMillis() / 1000L);
+            int loginTime = prefs.getInt("bh_gog_login_time", 0);
+            int expiresIn = prefs.getInt("bh_gog_expires_in", 3600);
+            int nowSec    = (int) (System.currentTimeMillis() / 1000L);
             if (loginTime == 0 || nowSec >= loginTime + expiresIn) {
-                setSync("Refreshing token…");
+                if (showProgress) setSync("Refreshing token…");
                 String newToken = GogTokenRefresh.refresh(this);
-                if (newToken == null) { setSync("Session expired — please sign in again"); return; }
+                if (newToken == null) { setSync("Session expired — please sign in again"); enableRefresh(); return; }
                 token = newToken;
             }
 
-            setSync("Fetching game list…");
+            if (showProgress) setSync("Fetching game list…");
 
-            // Step 1: owned game IDs
             String gamesJson = httpGet("https://embed.gog.com/user/data/games", token);
-            if (gamesJson == null) { setSync("Failed to fetch library"); return; }
+            if (gamesJson == null) { setSync("Failed to fetch library"); enableRefresh(); return; }
 
             List<String> ids = new ArrayList<>();
             try {
@@ -162,108 +186,155 @@ public class GogGamesActivity extends Activity {
                 JSONArray ownedArr = obj.optJSONArray("owned");
                 if (ownedArr != null) {
                     for (int i = 0; i < ownedArr.length(); i++) {
-                        ids.add(String.valueOf(ownedArr.getLong(i)));
+                        String id = String.valueOf(ownedArr.getLong(i));
+                        if (!"1801418160".equals(id)) ids.add(id);
                     }
                 }
             } catch (Exception e) {
-                setSync("Error parsing library"); return;
+                setSync("Error parsing library"); enableRefresh(); return;
             }
 
-            if (ids.isEmpty()) { setSync("No games found in library"); return; }
+            if (ids.isEmpty()) { setSync("No games found in library"); enableRefresh(); return; }
 
-            // Step 2: per-ID metadata fetch
+            if (showProgress) setSync("Syncing " + ids.size() + " games…");
+
+            // Parallel fetch — 5 threads
             final String finalToken = token;
-            List<GogGame> games = new ArrayList<>();
-            int count = 0;
+            ExecutorService pool = Executors.newFixedThreadPool(5);
+            List<Future<GogGame>> futures = new ArrayList<>();
             for (String id : ids) {
-                // Skip known non-game IDs
-                if ("1801418160".equals(id)) continue;
-                count++;
-                setSync("Syncing game " + count + " / " + ids.size() + "…");
+                futures.add(pool.submit(() -> fetchGame(id, finalToken)));
+            }
+            pool.shutdown();
 
+            List<GogGame> games = new ArrayList<>();
+            for (Future<GogGame> f : futures) {
                 try {
-                    String productJson = httpGet(
-                            "https://api.gog.com/products/" + id
-                            + "?expand=downloads,description", finalToken);
-                    if (productJson == null) continue;
-
-                    JSONObject prod = new JSONObject(productJson);
-                    if (prod.optBoolean("is_secret", false)) continue;
-                    if ("dlc".equals(prod.optString("game_type"))) continue;
-
-                    // Title
-                    JSONObject title = prod.optJSONObject("title");
-                    String titleStr = title != null ? title.optString("*") : null;
-                    if (titleStr == null) titleStr = prod.optString("title");
-                    if (titleStr == null || titleStr.isEmpty()) continue;
-
-                    // Image URL
-                    JSONObject images = prod.optJSONObject("images");
-                    String imageUrl = images != null ? images.optString("background") : "";
-                    if (imageUrl == null) imageUrl = "";
-
-                    // Description
-                    JSONObject descObj = prod.optJSONObject("description");
-                    String desc = descObj != null ? descObj.optString("lead") : "";
-                    if (desc == null) desc = "";
-
-                    // Developer
-                    JSONObject company = prod.optJSONObject("developers");
-                    String developer = "";
-                    if (company instanceof JSONObject) {
-                        developer = company.optString("name", "");
-                    } else {
-                        // Sometimes it's a string
-                        developer = prod.optString("developer", "");
-                    }
-
-                    // Category / genre
-                    JSONArray genres = prod.optJSONArray("genres");
-                    String category = "";
-                    if (genres != null && genres.length() > 0) {
-                        JSONObject g = genres.optJSONObject(0);
-                        if (g != null) category = g.optString("name", "");
-                    }
-
-                    // Generation
-                    int generation = 0;
-                    try {
-                        String buildsJson2 = httpGet(
-                                "https://api.gog.com/products/" + id
-                                + "/os/windows/builds?generation=2", finalToken);
-                        if (buildsJson2 != null) {
-                            JSONObject bObj = new JSONObject(buildsJson2);
-                            JSONArray bitems = bObj.optJSONArray("items");
-                            if (bitems != null && bitems.length() > 0) generation = 2;
-                        }
-                    } catch (Exception ignored) {}
-                    if (generation == 0) generation = 1;
-
-                    // Store generation
-                    prefs.edit().putInt("gog_gen_" + id, generation).apply();
-
-                    games.add(new GogGame(id, titleStr, imageUrl, desc, developer, category, generation));
-                } catch (Exception e) {
-                    Log.w(TAG, "Skipping product " + id + ": " + e.getMessage());
-                }
+                    GogGame g = f.get();
+                    if (g != null) games.add(g);
+                } catch (Exception ignored) {}
             }
 
-            // Build cards on main thread
+            saveCachedGames(games);
+
             final List<GogGame> finalGames = games;
             uiHandler.post(() -> {
-                gameListLayout.removeAllViews();
                 if (finalGames.isEmpty()) {
                     setSync("No compatible games found");
-                    return;
+                } else {
+                    showGames(finalGames);
+                    setSync(finalGames.size() + " game(s) — tap a card to install");
                 }
-                for (GogGame g : finalGames) addGameCard(g);
-                setSync(finalGames.size() + " game(s) — tap a card to install");
-                scrollView.setVisibility(View.VISIBLE);
+                enableRefresh();
             });
         } catch (Exception e) {
             Log.e(TAG, "syncLibrary error", e);
             setSync("Error: " + e.getMessage());
+            enableRefresh();
         }
+    }
+
+    /** Fetches metadata + generation for a single game ID. Returns null to skip. */
+    private GogGame fetchGame(String id, String token) {
+        try {
+            String productJson = httpGet(
+                    "https://api.gog.com/products/" + id + "?expand=downloads,description", token);
+            if (productJson == null) return null;
+
+            JSONObject prod = new JSONObject(productJson);
+            if (prod.optBoolean("is_secret", false)) return null;
+            if ("dlc".equals(prod.optString("game_type"))) return null;
+
+            JSONObject titleObj = prod.optJSONObject("title");
+            String titleStr = titleObj != null ? titleObj.optString("*") : null;
+            if (titleStr == null) titleStr = prod.optString("title");
+            if (titleStr == null || titleStr.isEmpty()) return null;
+
+            JSONObject images = prod.optJSONObject("images");
+            String imageUrl = images != null ? images.optString("background", "") : "";
+            if (imageUrl == null) imageUrl = "";
+
+            JSONObject descObj = prod.optJSONObject("description");
+            String desc = descObj != null ? descObj.optString("lead", "") : "";
+            if (desc == null) desc = "";
+
+            JSONObject company = prod.optJSONObject("developers");
+            String developer = company != null ? company.optString("name", "") : prod.optString("developer", "");
+            if (developer == null) developer = "";
+
+            JSONArray genres = prod.optJSONArray("genres");
+            String category = "";
+            if (genres != null && genres.length() > 0) {
+                JSONObject g = genres.optJSONObject(0);
+                if (g != null) category = g.optString("name", "");
+            }
+
+            int generation = 1;
+            try {
+                String buildsJson = httpGet(
+                        "https://api.gog.com/products/" + id + "/os/windows/builds?generation=2", token);
+                if (buildsJson != null) {
+                    JSONObject bObj = new JSONObject(buildsJson);
+                    JSONArray bitems = bObj.optJSONArray("items");
+                    if (bitems != null && bitems.length() > 0) generation = 2;
+                }
+            } catch (Exception ignored) {}
+
+            prefs.edit().putInt("gog_gen_" + id, generation).apply();
+            return new GogGame(id, titleStr, imageUrl, desc, developer, category, generation);
+        } catch (Exception e) {
+            Log.w(TAG, "fetchGame " + id + " error: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private void showGames(List<GogGame> games) {
+        gameListLayout.removeAllViews();
+        for (GogGame g : games) addGameCard(g);
+        scrollView.setVisibility(View.VISIBLE);
+    }
+
+    private void enableRefresh() {
+        uiHandler.post(() -> { if (refreshBtn != null) refreshBtn.setEnabled(true); });
+    }
+
+    private List<GogGame> loadCachedGames() {
+        String json = prefs.getString(CACHE_KEY, null);
+        if (json == null) return null;
+        try {
+            JSONArray arr = new JSONArray(json);
+            List<GogGame> games = new ArrayList<>();
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.getJSONObject(i);
+                games.add(new GogGame(
+                        o.getString("gameId"),
+                        o.getString("title"),
+                        o.optString("imageUrl", ""),
+                        o.optString("description", ""),
+                        o.optString("developer", ""),
+                        o.optString("category", ""),
+                        o.optInt("generation", 1)));
+            }
+            return games;
+        } catch (Exception e) { return null; }
+    }
+
+    private void saveCachedGames(List<GogGame> games) {
+        try {
+            JSONArray arr = new JSONArray();
+            for (GogGame g : games) {
+                JSONObject o = new JSONObject();
+                o.put("gameId", g.gameId);
+                o.put("title", g.title);
+                o.put("imageUrl", g.imageUrl);
+                o.put("description", g.description);
+                o.put("developer", g.developer);
+                o.put("category", g.category);
+                o.put("generation", g.generation);
+                arr.put(o);
+            }
+            prefs.edit().putString(CACHE_KEY, arr.toString()).apply();
+        } catch (Exception ignored) {}
     }
 
     // ── Game card builder ─────────────────────────────────────────────────────
