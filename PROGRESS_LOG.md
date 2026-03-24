@@ -7,6 +7,16 @@
 
 ---
 
+### [fix] — v0.3.3-pre — fix: remove DepotItem type filter, skip by empty path/chunks (2026-03-24)
+**Commit:** `abc293e`  |  **Tag:** v0.3.3-pre
+#### What changed
+- Removed `!"DepotItem".equals(type)` guard — actual GOG type string unknown, was skipping all entries
+- Now filters by `path.isEmpty() || chunks == null || chunks.length() == 0` only
+#### Files touched
+- `extension/GogDownloadManager.java`
+
+---
+
 ### [fix] — v0.3.3-pre — fix: GOG depot manifest 'items' key + DepotItem type filter (2026-03-24)
 **Commit:** `05f8a67`  |  **Tag:** v0.3.3-pre
 #### What changed
