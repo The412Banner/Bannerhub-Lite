@@ -7,6 +7,16 @@
 
 ---
 
+### [fix] — v0.3.3-pre — fix: GOG depot manifest 'items' key + DepotItem type filter (2026-03-24)
+**Commit:** `05f8a67`  |  **Tag:** v0.3.3-pre
+#### What changed
+- `parseDepotManifest()`: `depot.optJSONArray("files")` → `depot.optJSONArray("items")` — GOG v2 format uses `items` not `files`
+- Directory filter: `optBoolean("directory")` → `!"DepotItem".equals(type)` — GOG uses type strings not boolean flag
+#### Files touched
+- `extension/GogDownloadManager.java`
+
+---
+
 ### [fix] — v0.3.3-pre — fix: GOG Gen2 depot manifest 0-files bug + compressedMd5 (2026-03-24)
 **Commit:** `51b848f`  |  **Tag:** v0.3.3-pre
 #### What changed

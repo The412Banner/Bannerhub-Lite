@@ -579,6 +579,22 @@ Before `:goto_0` (the no-op fall-through), checks `p0 == 0x64`. If match: calls 
 
 ---
 
+## Entry 012 — Fix GOG depot manifest: 'items' key + DepotItem type filter (v0.3.3-pre)
+
+### Commit
+`05f8a67`  |  **Tag:** v0.3.3-pre
+
+### Files touched
+- `extension/GogDownloadManager.java` — `parseDepotManifest()` key fix
+
+### Root cause analysis
+Previous fix used `depot.optJSONArray("files")` but the real GOG v2 depot manifest structure is `{ "depot": { "items": [...] } }`. The key is `"items"`, not `"files"`. Also, directory/symlink filtering used `optBoolean("directory")` which is always false — entries actually use `"type": "DepotDir"` / `"DepotLink"`. Fixed to only collect entries where `type == "DepotItem"`.
+
+### CI result
+✅ Success — run 23513735563
+
+---
+
 ## Entry 011 — Fix GOG Gen2 depot manifest parsing: 0 files bug + compressedMd5 (v0.3.3-pre)
 
 ### Commit
@@ -597,7 +613,7 @@ Secondary bug: chunk hash key was `"md5"` but CDN chunk URL construction require
 - `chunk.optString("md5")` → `chunk.optString("compressedMd5")` with `md5` fallback
 
 ### CI result
-✅ Success — run 23512613663
+✅ Success — run 23512613663 (superseded by Entry 012)
 
 ---
 
