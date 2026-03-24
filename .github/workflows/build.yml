@@ -1031,6 +1031,29 @@ jobs:
               'SettingBtnHolder.w(): handle Grant Root Access click (contentType=0x64)'
           )
 
+          # Patch N: LandscapeLauncherMainActivity.onResume() — GOG pending launch check
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity.smali',
+              (
+                  '    invoke-super {p0}, Lcom/xj/base/base/activity/BaseVmActivity;->onResume()V\n'
+                  '\n'
+                  '    const/4 v0, 0x1\n'
+                  '\n'
+                  '    iput-boolean v0, p0, Lcom/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity;->i:Z\n'
+              ),
+              (
+                  '    invoke-super {p0}, Lcom/xj/base/base/activity/BaseVmActivity;->onResume()V\n'
+                  '\n'
+                  '    # BannerHub Lite: fire EditImportedGameInfoDialog for GOG installs\n'
+                  '    invoke-static {p0}, Lapp/revanced/extension/gamehub/GogLaunchHelper;->checkPendingLaunch(Landroid/app/Activity;)V\n'
+                  '\n'
+                  '    const/4 v0, 0x1\n'
+                  '\n'
+                  '    iput-boolean v0, p0, Lcom/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity;->i:Z\n'
+              ),
+              'LandscapeLauncherMainActivity.onResume(): GOG pending launch check'
+          )
+
           print("\nAll patches applied successfully.")
           PYEOF
 

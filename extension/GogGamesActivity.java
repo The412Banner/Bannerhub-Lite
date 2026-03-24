@@ -369,7 +369,10 @@ public class GogGamesActivity extends Activity {
         // Button click handler
         actionBtn.setOnClickListener(v -> {
             if ("Add to Launcher".equals(actionBtn.getText().toString())) {
-                showAddDialog(game);
+                String exePath = prefs.getString("gog_exe_" + game.gameId, null);
+                if (exePath != null) {
+                    GogLaunchHelper.triggerLaunch(this, exePath);
+                }
                 return;
             }
             // Start install
@@ -389,12 +392,16 @@ public class GogGamesActivity extends Activity {
                 @Override public void onComplete(String exePath) {
                     uiHandler.post(() -> {
                         progressBar.setProgress(100);
-                        statusTV.setText("Install complete!");
                         checkmark.setVisibility(View.VISIBLE);
-                        actionBtn.setText("Add to Launcher");
-                        actionBtn.setBackgroundColor(0xFF2E7D32);
-                        actionBtn.setEnabled(true);
-                        actionBtn.setOnClickListener(vv -> showAddDialog(game));
+                        if (exePath != null && !exePath.isEmpty()) {
+                            statusTV.setText("Opening GameHub import…");
+                            GogLaunchHelper.triggerLaunch(GogGamesActivity.this, exePath);
+                        } else {
+                            statusTV.setText("Installed — no exe found");
+                            actionBtn.setText("Add to Launcher");
+                            actionBtn.setBackgroundColor(0xFF2E7D32);
+                            actionBtn.setEnabled(true);
+                        }
                     });
                 }
                 @Override public void onError(String msg) {
@@ -430,31 +437,14 @@ public class GogGamesActivity extends Activity {
 
         b.setPositiveButton("Close", null);
 
-        boolean installed = prefs.getString("gog_exe_" + game.gameId, null) != null;
-        if (installed) {
+        String installedExe = prefs.getString("gog_exe_" + game.gameId, null);
+        if (installedExe != null) {
             b.setNegativeButton("Uninstall", (dialog, which) -> uninstall(game, checkmark));
-            b.setNeutralButton("Copy to Downloads", (dialog, which) -> copyToDownloads(game));
+            b.setNeutralButton("Launch / Add", (dialog, which) ->
+                    GogLaunchHelper.triggerLaunch(this, installedExe));
         }
 
         b.show();
-    }
-
-    /** "Add to Launcher" dialog: shows install path + instruction. */
-    private void showAddDialog(GogGame game) {
-        String exePath = prefs.getString("gog_exe_" + game.gameId, null);
-        String installPath = exePath != null ? exePath : "(no executable found)";
-
-        new AlertDialog.Builder(this)
-                .setTitle("Add to Launcher")
-                .setMessage("Executable path:\n" + installPath
-                        + "\n\nTo add this game to GameHub Lite:\n"
-                        + "1. Go to My Games\n"
-                        + "2. Tap '+' → Browse\n"
-                        + "3. Navigate to the path above\n\n"
-                        + "Or use 'Copy to Downloads' to move the game to internal storage first.")
-                .setPositiveButton("OK", null)
-                .setNeutralButton("Copy to Downloads", (d, w) -> copyToDownloads(game))
-                .show();
     }
 
     private void uninstall(GogGame game, View checkmark) {
