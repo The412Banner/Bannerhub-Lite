@@ -579,6 +579,28 @@ Before `:goto_0` (the no-op fall-through), checks `p0 == 0x64`. If match: calls 
 
 ---
 
+## Entry 011 — Fix GOG Gen2 depot manifest parsing: 0 files bug + compressedMd5 (v0.3.3-pre)
+
+### Commit
+`pending`  |  **Tag:** v0.3.3-pre
+
+### Files touched
+- `extension/GogDownloadManager.java` — `parseDepotManifest()` two-bug fix
+
+### Root cause analysis
+`parseDepotManifest()` called `root.optJSONArray("depot")` but the real GOG v2 depot manifest structure is `{ "depot": { "files": [ ... ] } }` — `depot` is a JSONObject, not an array. `optJSONArray` returned null immediately, yielding 0 files from every depot, causing the Gen2 download path to always fall back to the installer exe.
+
+Secondary bug: chunk hash key was `"md5"` but CDN chunk URL construction requires `"compressedMd5"`. Fixed to prefer `compressedMd5`, falling back to `md5`.
+
+### Fix applied
+- `root.optJSONArray("depot")` → `root.optJSONObject("depot").optJSONArray("files")`
+- `chunk.optString("md5")` → `chunk.optString("compressedMd5")` with `md5` fallback
+
+### CI result
+⏳ Pending
+
+---
+
 ## Entry 010 — Full GOG Games Integration (v0.3.3-pre)
 
 ### Commit

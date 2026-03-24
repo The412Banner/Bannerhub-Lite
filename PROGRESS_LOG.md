@@ -7,6 +7,16 @@
 
 ---
 
+### [fix] — v0.3.3-pre — fix: GOG Gen2 depot manifest 0-files bug + compressedMd5 (2026-03-24)
+**Commit:** `pending`  |  **Tag:** v0.3.3-pre
+#### What changed
+- `parseDepotManifest()`: `root.optJSONArray("depot")` → `root.optJSONObject("depot").optJSONArray("files")` — depot is a JSONObject wrapper, not an array
+- Chunk hash: prefer `compressedMd5` over `md5` for CDN URL construction
+#### Files touched
+- `extension/GogDownloadManager.java`
+
+---
+
 ### [pre] — v0.3.3-pre — feat: auto-fire EditImportedGameInfoDialog after GOG install (2026-03-24)
 **Commit:** `0e74759`  |  **Tag:** v0.3.3-pre  |  **CI:** ✅ run 23493840256
 

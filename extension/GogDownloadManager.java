@@ -591,7 +591,9 @@ public final class GogDownloadManager {
     private static void parseDepotManifest(String json, List<DepotFile> out) {
         try {
             JSONObject root = new JSONObject(json);
-            JSONArray depot = root.optJSONArray("depot");
+            JSONObject depotObj = root.optJSONObject("depot");
+            if (depotObj == null) return;
+            JSONArray depot = depotObj.optJSONArray("files");
             if (depot == null) return;
             for (int i = 0; i < depot.length(); i++) {
                 JSONObject entry = depot.getJSONObject(i);
@@ -604,7 +606,8 @@ public final class GogDownloadManager {
                 DepotFile df = new DepotFile(path);
                 for (int c = 0; c < chunks.length(); c++) {
                     JSONObject chunk = chunks.getJSONObject(c);
-                    String md5 = chunk.optString("md5");
+                    String md5 = chunk.optString("compressedMd5");
+                    if (md5 == null || md5.isEmpty()) md5 = chunk.optString("md5");
                     if (md5 != null && !md5.isEmpty()) df.chunks.add(new DepotFile.ChunkRef(md5));
                 }
                 if (!df.chunks.isEmpty()) out.add(df);
