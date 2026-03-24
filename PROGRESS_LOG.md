@@ -7,6 +7,21 @@
 
 ---
 
+### [pre] — v0.3.3-pre — fix(gog): installer fallback — manualUrl typo + multi-hop redirect (2026-03-24)
+**Commit:** `dc2ceea`  |  **Tag:** v0.3.3-pre  |  **CI:** ✅ run 23492458134
+
+#### What changed
+- **GogDownloadManager.java** — two bugs fixed in `runInstaller()`:
+  1. `f.optString("downlink")` was called twice (copy-paste); second call now correctly uses `"manualUrl"` — file-level `manualUrl` was never checked as fallback
+  2. `resolveRedirect()` followed only 1 hop; updated to follow up to 5 hops; also handles GOG API endpoints that return `200 {"downlink":"..."}` JSON (api.gog.com/products/{id}/downlinks/*) instead of a 302 redirect
+
+#### Status: UNTESTED — installer fallback still needs real-device verification
+
+#### Files touched
+- `extension/GogDownloadManager.java`
+
+---
+
 ## [docs] — v0.3.3-pre — Thorough README rewrite with heat disclaimer (2026-03-23)
 **Commit:** `153c649`  |  **Tag:** v0.3.3-pre (docs only, no CI)
 **What changed:** Full README rewrite. Added Table of Contents. Every feature section expanded: GOG tab covers all three download pipelines, Component Manager covers card UI/actions/registration flow, Performance toggles have prominent heat/damage disclaimer and accurate technical explanation (sysfs KGSL min_freq, setSustainedPerformanceMode, CPU governor — both root-only, greyed out without root). Added RTS gesture table, CPU affinity presets table, GPU default, launch fix, FAQ (6 questions), How It Works (classes11 dex injection), Build Info.
