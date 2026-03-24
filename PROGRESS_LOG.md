@@ -7,6 +7,16 @@
 
 ---
 
+### [release] — v0.3.3 — Stable: Full GOG Games tab (2026-03-24)
+**Commit:** `f7d38d4`  |  **Tag:** v0.3.3  |  **CI:** ✅ (8 APKs)
+#### What changed
+- Stable release cutting all v0.3.3-pre work: full GOG Games tab (OAuth2, Gen2/Gen1/installer download, library cache, parallel sync, refresh button, cover art, percentage, Add Game flow, Uninstall, Copy to Downloads, path normalization)
+- README updated: GOG tab marked live, full feature description updated
+#### Files touched
+- README.md
+
+---
+
 ### [feat] — v0.3.3-pre — GOG library cache + parallel fetches + refresh button (2026-03-24)
 **Commit:** `b462b1c`  |  **Tag:** v0.3.3-pre
 #### What changed
