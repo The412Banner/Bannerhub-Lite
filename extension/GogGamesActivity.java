@@ -254,7 +254,9 @@ public class GogGamesActivity extends Activity {
             if (titleStr == null || titleStr.isEmpty()) return null;
 
             JSONObject images = prod.optJSONObject("images");
-            String imageUrl = images != null ? images.optString("background", "") : "";
+            String imageUrl = images != null ? images.optString("icon", "") : "";
+            if (imageUrl == null || imageUrl.isEmpty())
+                imageUrl = images != null ? images.optString("background", "") : "";
             if (imageUrl == null) imageUrl = "";
 
             JSONObject descObj = prod.optJSONObject("description");
