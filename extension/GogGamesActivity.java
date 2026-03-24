@@ -436,8 +436,8 @@ public class GogGamesActivity extends Activity {
         String installedExe = prefs.getString("gog_exe_" + game.gameId, null);
         if (installedExe != null) {
             b.setNegativeButton("Uninstall", (dialog, which) -> uninstall(game, checkmark, actionBtn));
-            b.setNeutralButton("Launch / Add", (dialog, which) ->
-                    GogLaunchHelper.triggerLaunch(this, installedExe));
+            b.setNeutralButton("Copy to Downloads", (dialog, which) ->
+                    copyToDownloads(game));
         }
 
         b.show();
