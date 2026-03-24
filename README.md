@@ -42,7 +42,7 @@ Both projects add the same core set of features on top of different GameHub base
 | **Launch fix (hardware whitelist bypass)** | Yes | No |
 | **Component description in game settings picker** | Not yet | Yes |
 | **Sustained Perf toggle behavior** | `setSustainedPerformanceMode` + CPU governor (root) | CPU governor only (root) |
-| **GOG Games tab** | Coming soon | Yes |
+| **GOG Games tab** | Yes | Yes |
 | **Component Manager** | Yes | Yes |
 | **Online Component Downloader** | Yes (6 repos) | Yes (6 repos) |
 | **CPU Core Affinity** | Yes | Yes |
@@ -89,21 +89,20 @@ Both projects add the same core set of features on top of different GameHub base
 
 ### GOG Games Tab
 
-> **Coming soon** — GOG Games is not yet available in BannerHub Lite. It is in active development and will be added in an upcoming release. See [BannerHub](https://github.com/The412Banner/bannerhub) for the fully working GOG tab in the meantime.
-
 Accessible via the left side menu → **GOG**.
 
 #### Authentication
 
-- **OAuth2 login** — a WebView opens GOG's standard authorization page. After login, the authorization code is exchanged for an access token + refresh token, stored in `bh_gog_prefs` SharedPreferences
-- **Auto token refresh** — before every API call, the token expiry is checked. If expired, a silent refresh request is issued using the stored refresh token. Manual re-login is never required unless you uninstall
+- **OAuth2 login** — a WebView opens GOG's standard authorization page. The access token is stored in `bh_gog_prefs` SharedPreferences
+- **Auto token refresh** — expiry is checked before every API call; silent refresh issued if expired. Manual re-login is never required unless you uninstall
 - **Login persistence** — your session survives restarts and reboots
 
 #### Library
 
-- **Library sync** — on login or manual refresh, your full GOG library is fetched (Generation 1 and Generation 2 games both included)
-- **Metadata per game** — title, developer, description, cover image, download size, Gen 1 / Gen 2 badge
-- **Game cards** — scrollable list with cover art, title, developer, Gen badge, download size, and install/progress/Add button per game
+- **Instant load from cache** — the library is cached after every sync and displayed immediately on next open. A background sync runs silently to update it
+- **↺ Refresh button** — in the top-right of the library header; forces a fresh full sync
+- **Parallel sync** — game metadata and generation checks are fetched on a 5-thread pool (~3–5x faster than sequential)
+- **Game cards** — scrollable list with cover art (square icon image), title, Gen 1 / Gen 2 badge, developer, ✓ Installed checkmark, progress bar, and Install / Add Game button per game
 
 #### Download Pipeline
 
@@ -111,31 +110,31 @@ BannerHub Lite supports three download methods depending on the age of the game:
 
 **Generation 2 (Galaxy-era games):**
 1. Fetches the build manifest from GOG's content-system API
-2. Downloads and parses the depot manifest to get the full file list
-3. Downloads each file with per-file progress shown in real time (filename + percentage)
+2. Downloads and parses the depot manifest to get the full file list (paths normalized for Android)
+3. Downloads each file chunk-by-chunk; per-file filename + percentage shown in real time next to the game title
 
 **Generation 1 (legacy pre-Galaxy games):**
 1. Fetches builds using the `generation=1` parameter
-2. Downloads each file using `Range` HTTP requests (resumable byte-range download)
+2. Downloads each file using `Range` HTTP requests
 
-**Installer fallback (very old pre-Galaxy games with no content-system builds at all):**
+**Installer fallback (very old pre-Galaxy games with no content-system builds):**
 
-Some titles pre-date the content-system entirely and return `total_count: 0` for all build queries. For these, BannerHub Lite falls back to the legacy installer download:
+Some titles pre-date the content-system entirely. For these, BannerHub Lite falls back to:
 1. Calls `api.gog.com/products/{id}?expand=downloads`
 2. Reads `downlink` or `manualUrl` from the downloads object
-3. Follows redirects to the final CDN URL and downloads the Windows installer `.exe` directly
+3. Follows up to 5 redirect hops to the final CDN URL and downloads the Windows installer `.exe` directly
 
 #### Install Flow
 
-- Tapping **Install** opens a confirmation dialog with download size and available storage before anything starts downloading
-- A `ProgressBar` + status text replaces the Install button during download (Fetching build info → Fetching manifest → Downloading files X% → Complete)
-- On completion, an **Add** button appears. Tapping it opens GameHub's game import dialog, pre-filled with the executable path
-- An **Installed** checkmark appears on the card immediately when the download finishes — no restart needed
+- Tapping **Install** starts the download immediately with a progress bar + status text and a live percentage counter next to the game title
+- On completion, **✓ Installed** appears on the card and the button changes to **Add Game** (green)
+- Tapping **Add Game** saves the exe path, closes the GOG screen, and automatically opens GameHub's game import dialog with the path pre-filled — no manual navigation needed
 
 #### Post-Install
 
-- **Persistent install state** — on every app open, already-installed game cards show the checkmark and Add button automatically
-- **Uninstall** — the game detail dialog includes an Uninstall button that deletes the install directory, removes all stored prefs, and refreshes the card list
+- **Persistent install state** — already-installed games show the checkmark and Add Game button on every open
+- **Uninstall** — tap the game card → detail dialog → Uninstall; deletes the install folder, clears prefs, and resets the card to Install immediately
+- **Copy to Downloads** — tap the game card → detail dialog → Copy to Downloads; copies the game folder to `Download/GOG Games/<title>/` using MediaStore (no storage permission required on Android 10+)
 
 ---
 
