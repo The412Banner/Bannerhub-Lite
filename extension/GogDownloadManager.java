@@ -677,6 +677,7 @@ public final class GogDownloadManager {
             HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
             conn.setConnectTimeout(TIMEOUT);
             conn.setReadTimeout(TIMEOUT);
+            conn.setRequestProperty("User-Agent", "GOG Galaxy");
             if (token != null) conn.setRequestProperty("Authorization", "Bearer " + token);
             if (conn.getResponseCode() != 200) { conn.disconnect(); return null; }
             StringBuilder sb = new StringBuilder();
@@ -698,6 +699,7 @@ public final class GogDownloadManager {
             HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
             conn.setConnectTimeout(TIMEOUT);
             conn.setReadTimeout(TIMEOUT);
+            conn.setRequestProperty("User-Agent", "GOG Galaxy");
             if (token != null) conn.setRequestProperty("Authorization", "Bearer " + token);
             if (conn.getResponseCode() != 200) { conn.disconnect(); return null; }
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
