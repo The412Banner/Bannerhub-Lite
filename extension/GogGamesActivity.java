@@ -368,7 +368,8 @@ public class GogGamesActivity extends Activity {
 
         // Button click handler
         actionBtn.setOnClickListener(v -> {
-            if ("Add to Launcher".equals(actionBtn.getText().toString())) {
+            String btnLabel = actionBtn.getText().toString();
+            if ("Add Game".equals(btnLabel) || "Add to Launcher".equals(btnLabel)) {
                 String exePath = prefs.getString("gog_exe_" + game.gameId, null);
                 if (exePath != null) {
                     GogLaunchHelper.triggerLaunch(this, exePath);
@@ -393,15 +394,10 @@ public class GogGamesActivity extends Activity {
                     uiHandler.post(() -> {
                         progressBar.setProgress(100);
                         checkmark.setVisibility(View.VISIBLE);
-                        if (exePath != null && !exePath.isEmpty()) {
-                            statusTV.setText("Opening GameHub import…");
-                            GogLaunchHelper.triggerLaunch(GogGamesActivity.this, exePath);
-                        } else {
-                            statusTV.setText("Installed — no exe found");
-                            actionBtn.setText("Add to Launcher");
-                            actionBtn.setBackgroundColor(0xFF2E7D32);
-                            actionBtn.setEnabled(true);
-                        }
+                        statusTV.setText("Installed");
+                        actionBtn.setText("Add Game");
+                        actionBtn.setBackgroundColor(0xFF2E7D32);
+                        actionBtn.setEnabled(true);
                     });
                 }
                 @Override public void onError(String msg) {
