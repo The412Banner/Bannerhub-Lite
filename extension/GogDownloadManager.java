@@ -860,17 +860,62 @@ public final class GogDownloadManager {
         File src = GogInstallPath.getInstallDir(ctx, dirName);
         if (!src.exists()) return null;
 
-        File downloadsRoot = Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_DOWNLOADS);
-        File dest = new File(new File(downloadsRoot, "GOG Games"), dirName);
-        dest.mkdirs();
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            // Android 10+ — MediaStore.Downloads, no permission needed
+            try {
+                String relPath = "Download/GOG Games/" + dirName;
+                copyDirMediaStore(ctx, src, relPath);
+                return relPath;
+            } catch (Exception e) {
+                Log.e(TAG, "copyToDownloads (MediaStore) failed", e);
+                return null;
+            }
+        } else {
+            // Android 9 and below — direct File copy
+            File dest = new File(
+                    new File(Environment.getExternalStoragePublicDirectory(
+                            Environment.DIRECTORY_DOWNLOADS), "GOG Games"), dirName);
+            dest.mkdirs();
+            try {
+                copyDir(src, dest);
+                return dest.getAbsolutePath();
+            } catch (Exception e) {
+                Log.e(TAG, "copyToDownloads failed", e);
+                return null;
+            }
+        }
+    }
 
-        try {
-            copyDir(src, dest);
-            return dest.getAbsolutePath();
-        } catch (Exception e) {
-            Log.e(TAG, "copyToDownloads failed", e);
-            return null;
+    @android.annotation.TargetApi(android.os.Build.VERSION_CODES.Q)
+    private static void copyDirMediaStore(Context ctx, File src, String relativePath)
+            throws IOException {
+        File[] files = src.listFiles();
+        if (files == null) return;
+        for (File f : files) {
+            if (f.isDirectory()) {
+                copyDirMediaStore(ctx, f, relativePath + "/" + f.getName());
+            } else {
+                android.content.ContentValues cv = new android.content.ContentValues();
+                cv.put(android.provider.MediaStore.Downloads.DISPLAY_NAME, f.getName());
+                cv.put(android.provider.MediaStore.Downloads.RELATIVE_PATH, relativePath + "/");
+                cv.put(android.provider.MediaStore.Downloads.IS_PENDING, 1);
+
+                android.net.Uri uri = ctx.getContentResolver().insert(
+                        android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+                if (uri == null) throw new IOException("MediaStore insert failed: " + f.getName());
+
+                try (java.io.OutputStream os = ctx.getContentResolver().openOutputStream(uri);
+                     FileInputStream fis = new FileInputStream(f)) {
+                    if (os == null) throw new IOException("openOutputStream null");
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = fis.read(buf)) != -1) os.write(buf, 0, n);
+                }
+
+                cv.clear();
+                cv.put(android.provider.MediaStore.Downloads.IS_PENDING, 0);
+                ctx.getContentResolver().update(uri, cv, null, null);
+            }
         }
     }
 
