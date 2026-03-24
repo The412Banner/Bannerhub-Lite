@@ -599,7 +599,8 @@ public final class GogDownloadManager {
             if (depot == null) return;
             for (int i = 0; i < depot.length(); i++) {
                 JSONObject entry = depot.getJSONObject(i);
-                String path = entry.optString("path", "");
+                String path = entry.optString("path", "").replace("\\", "/");
+                if (path.startsWith("/")) path = path.substring(1);
                 JSONArray chunks = entry.optJSONArray("chunks");
                 if (path.isEmpty() || chunks == null || chunks.length() == 0) continue;
 
