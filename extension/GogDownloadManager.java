@@ -593,12 +593,12 @@ public final class GogDownloadManager {
             JSONObject root = new JSONObject(json);
             JSONObject depotObj = root.optJSONObject("depot");
             if (depotObj == null) return;
-            JSONArray depot = depotObj.optJSONArray("files");
+            JSONArray depot = depotObj.optJSONArray("items");
             if (depot == null) return;
             for (int i = 0; i < depot.length(); i++) {
                 JSONObject entry = depot.getJSONObject(i);
-                boolean isDir = entry.optBoolean("directory", false);
-                if (isDir) continue;
+                String type = entry.optString("type", "DepotItem");
+                if (!"DepotItem".equals(type)) continue;
                 String path = entry.optString("path");
                 JSONArray chunks = entry.optJSONArray("chunks");
                 if (path == null || chunks == null) continue;
