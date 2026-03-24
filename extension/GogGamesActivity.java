@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -15,6 +17,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -353,10 +356,49 @@ public class GogGamesActivity extends Activity {
         cardLp.bottomMargin = dp(8);
         card.setFocusable(true);
 
-        // Gen badge
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
+        // ── Top section: [cover art] + [info column] ──────────────────────────
+        LinearLayout topRow = new LinearLayout(this);
+        topRow.setOrientation(LinearLayout.HORIZONTAL);
+        topRow.setGravity(Gravity.TOP);
+
+        // Cover art ImageView
+        ImageView coverIV = new ImageView(this);
+        coverIV.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        GradientDrawable coverBg = new GradientDrawable();
+        coverBg.setColor(0xFF111122);
+        coverBg.setCornerRadius(dp(4));
+        coverIV.setBackground(coverBg);
+        LinearLayout.LayoutParams coverLp = new LinearLayout.LayoutParams(dp(80), dp(80));
+        coverLp.rightMargin = dp(10);
+        topRow.addView(coverIV, coverLp);
+
+        // Load cover image in background
+        if (game.imageUrl != null && !game.imageUrl.isEmpty()) {
+            String url = game.imageUrl.startsWith("//") ? "https:" + game.imageUrl : game.imageUrl;
+            new Thread(() -> {
+                try {
+                    java.net.HttpURLConnection conn =
+                            (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                    conn.setConnectTimeout(10000);
+                    conn.setReadTimeout(10000);
+                    conn.setRequestProperty("User-Agent", "GOG Galaxy");
+                    if (conn.getResponseCode() == 200) {
+                        Bitmap bmp = BitmapFactory.decodeStream(conn.getInputStream());
+                        if (bmp != null) uiHandler.post(() -> coverIV.setImageBitmap(bmp));
+                    }
+                    conn.disconnect();
+                } catch (Exception ignored) {}
+            }, "gog-cover-" + game.gameId).start();
+        }
+
+        // Info column (vertical)
+        LinearLayout infoCol = new LinearLayout(this);
+        infoCol.setOrientation(LinearLayout.VERTICAL);
+
+        // Gen badge + title + percentage row
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
 
         if (game.generation > 0) {
             TextView genBadge = new TextView(this);
@@ -370,17 +412,27 @@ public class GogGamesActivity extends Activity {
             genBadge.setBackground(badgeBg);
             LinearLayout.LayoutParams badgeLp = new LinearLayout.LayoutParams(-2, -2);
             badgeLp.rightMargin = dp(8);
-            row.addView(genBadge, badgeLp);
+            titleRow.addView(genBadge, badgeLp);
         }
 
-        // Title
         TextView titleTV = new TextView(this);
         titleTV.setText(game.title);
         titleTV.setTextColor(0xFFFFFFFF);
         titleTV.setTextSize(15f);
         titleTV.setTypeface(null, Typeface.BOLD);
-        row.addView(titleTV, new LinearLayout.LayoutParams(0, -2, 1f));
-        card.addView(row, new LinearLayout.LayoutParams(-1, -2));
+        titleRow.addView(titleTV, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        // Percentage label (hidden until download starts)
+        TextView pctTV = new TextView(this);
+        pctTV.setTextColor(0xFFFF9800);
+        pctTV.setTextSize(12f);
+        pctTV.setTypeface(null, Typeface.BOLD);
+        pctTV.setVisibility(View.GONE);
+        LinearLayout.LayoutParams pctLp = new LinearLayout.LayoutParams(-2, -2);
+        pctLp.leftMargin = dp(8);
+        titleRow.addView(pctTV, pctLp);
+
+        infoCol.addView(titleRow, new LinearLayout.LayoutParams(-1, -2));
 
         // Category · Developer
         if (!game.category.isEmpty() || !game.developer.isEmpty()) {
@@ -393,8 +445,13 @@ public class GogGamesActivity extends Activity {
             metaTV.setTextSize(11f);
             LinearLayout.LayoutParams metaLp = new LinearLayout.LayoutParams(-1, -2);
             metaLp.topMargin = dp(4);
-            card.addView(metaTV, metaLp);
+            infoCol.addView(metaTV, metaLp);
         }
+
+        topRow.addView(infoCol, new LinearLayout.LayoutParams(0, -2, 1f));
+        card.addView(topRow, new LinearLayout.LayoutParams(-1, -2));
+
+        // ── Below top row ──────────────────────────────────────────────────────
 
         // ✓ Installed checkmark (hidden unless installed)
         TextView checkmark = new TextView(this);
@@ -453,17 +510,21 @@ public class GogGamesActivity extends Activity {
             actionBtn.setBackgroundColor(0xFF555555);
             progressBar.setVisibility(View.VISIBLE);
             statusTV.setVisibility(View.VISIBLE);
+            pctTV.setText("0%");
+            pctTV.setVisibility(View.VISIBLE);
 
             GogDownloadManager.startDownload(this, game, new GogDownloadManager.Callback() {
                 @Override public void onProgress(String msg, int pct) {
                     uiHandler.post(() -> {
                         statusTV.setText(msg);
                         progressBar.setProgress(pct);
+                        pctTV.setText(pct + "%");
                     });
                 }
                 @Override public void onComplete(String exePath) {
                     uiHandler.post(() -> {
                         progressBar.setProgress(100);
+                        pctTV.setVisibility(View.GONE);
                         checkmark.setVisibility(View.VISIBLE);
                         statusTV.setText("Installed");
                         actionBtn.setText("Add Game");
@@ -473,6 +534,7 @@ public class GogGamesActivity extends Activity {
                 }
                 @Override public void onError(String msg) {
                     uiHandler.post(() -> {
+                        pctTV.setVisibility(View.GONE);
                         statusTV.setText("Error: " + msg);
                         actionBtn.setText("Install");
                         actionBtn.setBackgroundColor(0xFF7033FF);
