@@ -7,8 +7,25 @@
 
 ---
 
-### [feat] — v0.3.5-pre — Fancy banner card UI: landscape art + gradient overlay + rounded buttons + A-Z sort (2026-03-25)
+### [feat] — v0.3.5-pre — List/grid view toggle + 3-column grid with install dialog (2026-03-25)
 **Commit:** TBD  |  **Tag:** v0.3.5-pre  |  **CI:** pending
+#### What changed
+- **View toggle button** added to header: shows `⊞` (in list mode → tap to switch to grid) or `☰` (in grid mode → tap to switch to list); preference saved to `bh_gog_prefs` key `view_mode`
+- **List view** reverted to v0.3.4 style (60×60 icon, collapsible cards, inline install controls)
+- **Grid view** (new): 3-column tile layout; each tile = square cover art (90dp tall) + gen badge + title + ✓ indicator; tap → install dialog
+- **Grid install dialog**: shows description/genre/developer + ProgressBar + status; Install button keeps dialog open during download (setCancelable false); on complete rebuilds grid to show ✓; installed games show Add to Launcher + Uninstall
+- **A-Z sort** on every `showGames()` call (both modes)
+- Image loading extracted to `loadImage()` helper; gen badge to `makeGenBadge()` helper
+#### Files touched
+- `extension/GogGamesActivity.java`
+
+---
+
+### [feat] — v0.3.5-pre (abandoned) — Fancy banner card UI: landscape art + gradient overlay (2026-03-25)
+**Commit:** `f7df7c8`  |  **Tag:** v0.3.5-pre (overwritten by retag)
+#### What changed
+- Full-width 140dp landscape banner image; gradient overlay; rounded buttons; A-Z sort
+- Abandoned: user found images looked faded due to gradient overlay; replaced with list/grid toggle
 #### What changed
 - Card redesign: full-width 140dp landscape banner image at top of each card (was 60×60 icon thumbnail)
 - Image source flipped: prefer `images.background` (landscape art) over `images.icon` (square icon)
