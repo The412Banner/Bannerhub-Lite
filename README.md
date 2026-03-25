@@ -441,3 +441,9 @@ Inside the app's private storage: `Android/data/<package>/files/gog_games/<title
 ---
 
 <sub>☕ [Support on Ko-fi](https://ko-fi.com/the412banner)</sub>
+
+---
+
+## AI Disclaimer
+
+All smali edits, patches, and code changes in this project are developed with the assistance of **[Claude AI Sonnet 4.6](https://www.anthropic.com/claude)** by Anthropic. Claude is used to write, review, and modify smali bytecode and Java extension code since this project has no source code to work from — all changes are applied directly to the decompiled APK via apktool.
