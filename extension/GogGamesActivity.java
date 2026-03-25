@@ -802,6 +802,11 @@ public class GogGamesActivity extends Activity {
             }
         });
 
+        tile.setOnLongClickListener(v -> {
+            showDetailDialog(game);
+            return true;
+        });
+
         return tile;
     }
 
