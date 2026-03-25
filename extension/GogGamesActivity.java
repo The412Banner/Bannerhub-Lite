@@ -643,10 +643,14 @@ public class GogGamesActivity extends Activity {
     // ── POSTER view (same grid, taller portrait cards) ────────────────────────
 
     private void addGamesAsPoster(List<GogGame> games) {
-        addGamesAsGrid(games, 160);
+        addGamesAsGrid(games, 176, dp(8));
     }
 
     private void addGamesAsGrid(List<GogGame> games, int artHeightDp) {
+        addGamesAsGrid(games, artHeightDp, dp(3));
+    }
+
+    private void addGamesAsGrid(List<GogGame> games, int artHeightDp, int tileHMargin) {
         int cols = 5;
         int rows = (games.size() + cols - 1) / cols;
         for (int row = 0; row < rows; row++) {
@@ -659,10 +663,10 @@ public class GogGamesActivity extends Activity {
             for (int col = 0; col < cols; col++) {
                 int idx = row * cols + col;
                 if (idx < games.size()) {
-                    rowLayout.addView(makeGridTile(games.get(idx), artHeightDp), makeGridTileLp());
+                    rowLayout.addView(makeGridTile(games.get(idx), artHeightDp), makeGridTileLp(tileHMargin));
                 } else {
                     View spacer = new View(this);
-                    rowLayout.addView(spacer, makeGridTileLp());
+                    rowLayout.addView(spacer, makeGridTileLp(tileHMargin));
                 }
             }
             gameListLayout.addView(rowLayout, rowLp);
@@ -835,10 +839,12 @@ public class GogGamesActivity extends Activity {
         return tile;
     }
 
-    private LinearLayout.LayoutParams makeGridTileLp() {
+    private LinearLayout.LayoutParams makeGridTileLp() { return makeGridTileLp(dp(3)); }
+
+    private LinearLayout.LayoutParams makeGridTileLp(int hMargin) {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1f);
-        lp.leftMargin = dp(3);
-        lp.rightMargin = dp(3);
+        lp.leftMargin = hMargin;
+        lp.rightMargin = hMargin;
         return lp;
     }
 
