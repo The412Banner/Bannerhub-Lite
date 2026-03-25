@@ -462,18 +462,23 @@ public class GogGamesActivity extends Activity {
         titleTV.setTextColor(0xFFFFFFFF);
         titleTV.setTextSize(15f);
         titleTV.setTypeface(null, Typeface.BOLD);
-        titleRow.addView(titleTV, new LinearLayout.LayoutParams(0, -2, 1f));
+        titleTV.setMaxLines(1);
+        titleTV.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        titleRow.addView(titleTV, new LinearLayout.LayoutParams(-2, -2));
 
-        // Installed indicator (always visible in collapsed header, right after title)
+        // Installed indicator — sits immediately after title text
         boolean isInstalledHeader = prefs.getString("gog_exe_" + game.gameId, null) != null;
         TextView collapsedCheckTV = new TextView(this);
-        collapsedCheckTV.setText("✓");
+        collapsedCheckTV.setText(" ✓");
         collapsedCheckTV.setTextColor(0xFF4CAF50);
         collapsedCheckTV.setTextSize(14f);
         collapsedCheckTV.setTypeface(null, Typeface.BOLD);
-        collapsedCheckTV.setPadding(dp(6), 0, 0, 0);
         collapsedCheckTV.setVisibility(isInstalledHeader ? View.VISIBLE : View.GONE);
         titleRow.addView(collapsedCheckTV, new LinearLayout.LayoutParams(-2, -2));
+
+        // Spacer fills remaining width so arrow stays at far right
+        View titleSpacer = new View(this);
+        titleRow.addView(titleSpacer, new LinearLayout.LayoutParams(0, 0, 1f));
 
         topRow.addView(titleRow, new LinearLayout.LayoutParams(0, -2, 1f));
 
