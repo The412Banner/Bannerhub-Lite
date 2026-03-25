@@ -447,3 +447,5 @@ Inside the app's private storage: `Android/data/<package>/files/gog_games/<title
 ## AI Disclaimer
 
 All smali edits, patches, and code changes in this project are developed with the assistance of **[Claude AI Sonnet 4.6](https://www.anthropic.com/claude)** by Anthropic. Claude is used to write, review, and modify smali bytecode and Java extension code since this project has no source code to work from — all changes are applied directly to the decompiled APK via apktool.
+
+Before any stable release is published, all changes are manually debugged and tested by me across multiple devices — both rooted and unrooted.
