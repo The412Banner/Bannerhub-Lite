@@ -7,6 +7,96 @@
 
 ---
 
+### [feat] — v0.3.5-pre — Fancy banner card UI: landscape art + gradient overlay + rounded buttons + A-Z sort (2026-03-25)
+**Commit:** TBD  |  **Tag:** v0.3.5-pre  |  **CI:** pending
+#### What changed
+- Card redesign: full-width 140dp landscape banner image at top of each card (was 60×60 icon thumbnail)
+- Image source flipped: prefer `images.background` (landscape art) over `images.icon` (square icon)
+- Dark gradient overlay (transparent→opaque bottom) on banner so title/badge/arrow are readable over the image
+- Gen badge, title, ✓ indicator, and arrow now live inside the gradient overlay bar
+- Card has rounded corners (10dp) + subtle border + `setClipToOutline(true)` so banner image clips to card shape
+- Action button (Install/Add to Launcher) now has rounded corners (8dp `GradientDrawable`) instead of flat color
+- Button color changed to `0xFF5C35CC` (richer purple) for Install state
+- `pct%` and status text combined into a single horizontal progress row
+- Alphabetical A-Z sort applied on every `showGames()` call
+- `uninstall()` restores rounded button background correctly
+#### Files touched
+- `extension/GogGamesActivity.java`
+
+---
+
+### [release] — v0.3.4 — Stable: search bar + collapsible cards + installed indicator (2026-03-25)
+**Commit:** `ed2f590`  |  **Tag:** v0.3.4  |  **CI:** ✅ (8 APKs)
+#### What changed
+- Stable release of all v0.3.4-pre work: real-time search bar, collapsible cards, tappable arrow, collapsed ✓ indicator
+- README updated with new GOG card UX description
+#### Files touched
+- README.md
+
+---
+
+### [fix] — v0.3.4-pre — Fix ✓ position: immediately after title text (2026-03-25)
+**Commit:** `73cb52c`  |  **Tag:** v0.3.4-pre  |  **CI:** ✅ run 23534241324 (1m37s)
+#### What changed
+- `titleTV` changed to `WRAP_CONTENT` + `ellipsize=END`; `collapsedCheckTV` sits right after it; `titleSpacer` with `weight=1` fills remaining space so arrow stays far right
+#### Files touched
+- `extension/GogGamesActivity.java`
+
+---
+
+### [fix] — v0.3.4-pre — Move collapsed ✓ next to game title (2026-03-25)
+**Commit:** `c91cda4`  |  **Tag:** v0.3.4-pre  |  **CI:** ✅ run 23533990664 (1m38s)
+#### What changed
+- `collapsedCheckTV` moved from `topRow` into `titleRow` so it sits immediately after the title text
+#### Files touched
+- `extension/GogGamesActivity.java`
+
+---
+
+### [feat] — v0.3.4-pre — Installed indicator on collapsed cards (2026-03-25)
+**Commit:** `fef7b6b`  |  **Tag:** v0.3.4-pre  |  **CI:** ✅ run 23533810297 (1m38s)
+#### What changed
+- Green ✓ `collapsedCheckTV` added to always-visible header row; shown when `gog_exe_` pref exists
+- Also shown immediately in `onComplete` callback when install finishes
+#### Files touched
+- `extension/GogGamesActivity.java`
+
+---
+
+### [feat] — v0.3.4-pre — Tappable arrow to collapse card (2026-03-25)
+**Commit:** `787c4d5`  |  **Tag:** v0.3.4-pre  |  **CI:** ✅ run 23533616267 (1m41s)
+#### What changed
+- `arrowTV` gets its own `OnClickListener` — tapping ▲ collapses the card without triggering the detail dialog
+- Resets `expandedSection`/`expandedArrow` to null on collapse
+#### Files touched
+- `extension/GogGamesActivity.java`
+
+---
+
+### [feat] — v0.3.4-pre — Collapsible game cards (2026-03-25)
+**Commit:** `3c19a6f`  |  **Tag:** v0.3.4-pre  |  **CI:** ✅ run 23533324089 (1m43s)
+#### What changed
+- Cards start collapsed: cover art + Gen badge + title + ▼ arrow only
+- First tap expands: reveals category/developer, checkmark, progress bar, status, Install/Add button; arrow → ▲
+- Tap on already-expanded card opens detail dialog (Uninstall / Copy to Downloads)
+- Only one card expanded at a time; new card tap auto-collapses previous
+- `expandedSection` + `expandedArrow` fields track current expanded card
+#### Files touched
+- `extension/GogGamesActivity.java`
+
+---
+
+### [feat] — v0.3.4-pre — Real-time search bar in GOG library (2026-03-25)
+**Commit:** `0d9cd27`  |  **Tag:** v0.3.4-pre  |  **CI:** ✅ run 23532830022 (1m43s)
+#### What changed
+- Search bar (EditText) added below header in `GogGamesActivity`; filters game list per keystroke via `TextWatcher`
+- `applyFilter(query)` does case-insensitive contains match on title, re-renders matching cards only
+- `allGames` field stores full unfiltered list; search state preserved when background sync refreshes
+#### Files touched
+- `extension/GogGamesActivity.java`
+
+---
+
 ### [release] — v0.3.3 — Stable: Full GOG Games tab (2026-03-24)
 **Commit:** `f7d38d4`  |  **Tag:** v0.3.3  |  **CI:** ✅ (8 APKs)
 #### What changed
