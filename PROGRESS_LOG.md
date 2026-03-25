@@ -7,6 +7,20 @@
 
 ---
 
+### [stable] — v0.3.5 — GOG 3-view modes + SteamGridDB covers + poster layout (2026-03-25)
+**Commit:** `70f483c`  |  **Tag:** v0.3.5  |  **CI:** ✅ (8 APKs)
+#### What changed
+- **3-way view toggle** (List / Grid / Poster), saved to `view_mode` SP key
+- **Grid view**: 5-col tiles 105dp, gen badge top-left, title+✓ overlay, tap→action row, long-press→detail dialog
+- **Poster view**: 5-col tiles 176dp tall, dp(16) margins, movie poster proportions
+- **SteamGridDB cover art**: 600×900 vivid portrait covers fetched on sync; fallback GOG icon→background
+- **Html.fromHtml** description in detail dialog — strips raw HTML tags
+- **A-Z sort** in all modes; long-press→detail dialog on grid/poster tiles
+#### Files touched
+- `extension/GogGamesActivity.java`, `README.md`
+
+---
+
 ### [feat] — v0.3.5-pre — 5-col grid: gen badge, title overlay, tap→action row (2026-03-25)
 **Commit:** `74913a2`  |  **Tag:** v0.3.5-pre  |  **CI:** ✅
 #### What changed
