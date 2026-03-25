@@ -808,7 +808,7 @@ public class GogGamesActivity extends Activity {
                             customInstall.setEnabled(true);
                             dialog.setCancelable(true);
                             customInstall.setOnClickListener(vv -> {
-                                GogLaunchHelper.triggerLaunch(this, exePath);
+                                GogLaunchHelper.triggerLaunch(GogGamesActivity.this, exePath);
                                 dialog.dismiss();
                             });
                             // Rebuild grid to show ✓ on tile
