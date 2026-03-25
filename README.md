@@ -102,7 +102,9 @@ Accessible via the left side menu → **GOG**.
 - **Instant load from cache** — the library is cached after every sync and displayed immediately on next open. A background sync runs silently to update it
 - **↺ Refresh button** — in the top-right of the library header; forces a fresh full sync
 - **Parallel sync** — game metadata and generation checks are fetched on a 5-thread pool (~3–5x faster than sequential)
-- **Game cards** — scrollable list with cover art (square icon image), title, Gen 1 / Gen 2 badge, developer, ✓ Installed checkmark, progress bar, and Install / Add Game button per game
+- **Real-time search bar** — filters the game list by title on every keystroke; no network calls, works entirely on the cached in-memory list
+- **Collapsible game cards** — cards start collapsed (cover art + Gen badge + title + ✓ + ▼ arrow). First tap expands to reveal developer, genre, progress bar, and Install / Add Game button. Tap an expanded card to open the detail dialog (Uninstall / Copy to Downloads). Tap the ▲ arrow to collapse without opening the dialog. Only one card is expanded at a time
+- **Installed indicator** — a green ✓ appears next to the game title on collapsed cards so install status is visible at a glance without expanding
 
 #### Download Pipeline
 
