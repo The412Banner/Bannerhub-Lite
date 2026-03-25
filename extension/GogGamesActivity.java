@@ -11,11 +11,14 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -69,6 +72,8 @@ public class GogGamesActivity extends Activity {
     private ScrollView scrollView;
     private SharedPreferences prefs;
     private Button refreshBtn;
+    private EditText searchBar;
+    private List<GogGame> allGames = new ArrayList<>();
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -127,6 +132,24 @@ public class GogGamesActivity extends Activity {
         header.addView(refreshBtn, new LinearLayout.LayoutParams(-2, dp(40)));
 
         root.addView(header, new LinearLayout.LayoutParams(-1, -2));
+
+        // Search bar
+        searchBar = new EditText(this);
+        searchBar.setHint("Search games…");
+        searchBar.setHintTextColor(0xFF666666);
+        searchBar.setTextColor(0xFFFFFFFF);
+        searchBar.setTextSize(14f);
+        searchBar.setBackgroundColor(0xFF222233);
+        searchBar.setPadding(dp(12), dp(8), dp(12), dp(8));
+        searchBar.setSingleLine(true);
+        searchBar.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                applyFilter(s.toString());
+            }
+            @Override public void afterTextChanged(Editable s) {}
+        });
+        root.addView(searchBar, new LinearLayout.LayoutParams(-1, -2));
 
         // Sync status text
         syncText = new TextView(this);
@@ -294,9 +317,29 @@ public class GogGamesActivity extends Activity {
     }
 
     private void showGames(List<GogGame> games) {
-        gameListLayout.removeAllViews();
-        for (GogGame g : games) addGameCard(g);
+        allGames = games;
+        String query = searchBar != null ? searchBar.getText().toString() : "";
+        applyFilter(query);
         scrollView.setVisibility(View.VISIBLE);
+    }
+
+    private void applyFilter(String query) {
+        List<GogGame> filtered;
+        if (query == null || query.trim().isEmpty()) {
+            filtered = allGames;
+        } else {
+            String q = query.trim().toLowerCase();
+            filtered = new ArrayList<>();
+            for (GogGame g : allGames) {
+                if (g.title.toLowerCase().contains(q)) filtered.add(g);
+            }
+        }
+        final List<GogGame> result = filtered;
+        uiHandler.post(() -> {
+            gameListLayout.removeAllViews();
+            for (GogGame g : result) addGameCard(g);
+            scrollView.setVisibility(View.VISIBLE);
+        });
     }
 
     private void enableRefresh() {
