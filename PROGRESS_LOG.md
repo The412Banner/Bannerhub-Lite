@@ -7,15 +7,17 @@
 
 ---
 
-### [feat] — v0.3.5-pre — List/grid view toggle + 3-column grid with install dialog (2026-03-25)
+### [feat] — v0.3.5-pre — 5-col grid: gen badge, title overlay, tap→action row (2026-03-25)
 **Commit:** TBD  |  **Tag:** v0.3.5-pre  |  **CI:** pending
 #### What changed
-- **View toggle button** added to header: shows `⊞` (in list mode → tap to switch to grid) or `☰` (in grid mode → tap to switch to list); preference saved to `bh_gog_prefs` key `view_mode`
-- **List view** reverted to v0.3.4 style (60×60 icon, collapsible cards, inline install controls)
-- **Grid view** (new): 3-column tile layout; each tile = square cover art (90dp tall) + gen badge + title + ✓ indicator; tap → install dialog
-- **Grid install dialog**: shows description/genre/developer + ProgressBar + status; Install button keeps dialog open during download (setCancelable false); on complete rebuilds grid to show ✓; installed games show Add to Launcher + Uninstall
+- **5-column grid** (redesigned from 3-col): matches GameNative Epic tab aesthetic
+- **Art frame** (FrameLayout, 105dp tall): `images.background` landscape art as cover (CENTER_CROP), falls back to `images.icon`
+- **Gen badge** top-left overlay: "Gen 1" (orange) / "Gen 2" (blue), 8sp, rounded bg
+- **Title + ✓ bar** pinned to bottom of art: gradient overlay (bottom black→transparent), 9sp bold, ellipsize END; green ✓ shown if installed
+- **Action row** slides out below art on tap (GONE→VISIBLE): thin 3dp ProgressBar + Install/Add to Launcher button (30dp tall, 10sp); auto-collapses previously expanded tile
+- **View toggle** button in header: `⊞` (list mode) / `☰` (grid mode); saved to `view_mode` SP key
+- **List view** = v0.3.4 style (60×60 icon, collapsible cards, inline install controls)
 - **A-Z sort** on every `showGames()` call (both modes)
-- Image loading extracted to `loadImage()` helper; gen badge to `makeGenBadge()` helper
 #### Files touched
 - `extension/GogGamesActivity.java`
 
