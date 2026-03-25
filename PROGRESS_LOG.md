@@ -8,7 +8,7 @@
 ---
 
 ### [feat] — v0.3.5-pre — 5-col grid: gen badge, title overlay, tap→action row (2026-03-25)
-**Commit:** TBD  |  **Tag:** v0.3.5-pre  |  **CI:** pending
+**Commit:** `74913a2`  |  **Tag:** v0.3.5-pre  |  **CI:** ✅
 #### What changed
 - **5-column grid** (redesigned from 3-col): matches GameNative Epic tab aesthetic
 - **Art frame** (FrameLayout, 105dp tall): `images.background` landscape art as cover (CENTER_CROP), falls back to `images.icon`
