@@ -829,9 +829,13 @@ public class GogGamesActivity extends Activity {
         StringBuilder sb = new StringBuilder();
         if (!game.developer.isEmpty()) sb.append("Developer: ").append(game.developer).append("\n");
         if (!game.category.isEmpty())  sb.append("Genre: ").append(game.category).append("\n");
-        if (!game.description.isEmpty()) sb.append("\n").append(game.description);
         TextView descTV = new TextView(this);
-        descTV.setText(sb.toString().trim());
+        String metaText = sb.toString().trim();
+        String descHtml = game.description.isEmpty() ? "" : game.description;
+        CharSequence descParsed = android.text.Html.fromHtml(
+                metaText.isEmpty() ? descHtml : metaText + "\n\n" + descHtml,
+                android.text.Html.FROM_HTML_MODE_COMPACT);
+        descTV.setText(descParsed);
         descTV.setTextColor(0xFFCCCCCC);
         descTV.setTextSize(12f);
         content.addView(descTV, new LinearLayout.LayoutParams(-1, -2));
