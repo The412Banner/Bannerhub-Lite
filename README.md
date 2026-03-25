@@ -109,8 +109,12 @@ Accessible via the left side menu → **GOG**.
 - **↺ Refresh button** — in the top-right of the library header; forces a fresh full sync
 - **Parallel sync** — game metadata and generation checks are fetched on a 5-thread pool (~3–5x faster than sequential)
 - **Real-time search bar** — filters the game list by title on every keystroke; no network calls, works entirely on the cached in-memory list
-- **Collapsible game cards** — cards start collapsed (cover art + Gen badge + title + ✓ + ▼ arrow). First tap expands to reveal developer, genre, progress bar, and Install / Add Game button. Tap an expanded card to open the detail dialog (Uninstall / Copy to Downloads). Tap the ▲ arrow to collapse without opening the dialog. Only one card is expanded at a time
-- **Installed indicator** — a green ✓ appears next to the game title on collapsed cards so install status is visible at a glance without expanding
+- **3 view modes** — toggle button in the top-right of the library header cycles between List, Grid, and Poster. Your preference is saved across sessions
+  - **List**: collapsible cards (60×60 cover icon, gen badge, title, ✓, ▼ arrow). Tap to expand install controls; tap expanded card → detail dialog; tap ▲ to collapse. One card expanded at a time
+  - **Grid**: 5-column tile layout (105dp art). Gen badge top-left, title + ✓ bar at bottom. Tap → action row slides out (Install / Add to Launcher + progress bar). Long-press → detail dialog
+  - **Poster**: same as grid with 176dp tall portrait cards and wider gaps — movie poster proportions. Pairs with SteamGridDB cover art
+- **SteamGridDB cover art** — grid and poster tiles fetch vivid 600×900 portrait covers from SteamGridDB on library sync; cached so no repeated API calls; falls back to GOG icon then background if not found
+- **Installed indicator** — a green ✓ on every view mode so install status is visible at a glance
 
 #### Download Pipeline
 
