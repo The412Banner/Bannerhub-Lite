@@ -124,15 +124,17 @@ public class GogGamesActivity extends Activity {
 
         // View toggle button — shows icon for mode you'll switch TO
         viewToggleBtn = new Button(this);
-        viewToggleBtn.setText("list".equals(viewMode) ? "⊞" : "☰");
+        viewToggleBtn.setText(viewModeIcon(viewMode));
         viewToggleBtn.setTextColor(0xFFFFFFFF);
         viewToggleBtn.setBackgroundColor(0xFF333333);
         viewToggleBtn.setTextSize(16f);
         viewToggleBtn.setPadding(dp(12), 0, dp(12), 0);
         viewToggleBtn.setOnClickListener(v -> {
-            viewMode = "list".equals(viewMode) ? "grid" : "list";
+            if ("list".equals(viewMode)) viewMode = "grid";
+            else if ("grid".equals(viewMode)) viewMode = "poster";
+            else viewMode = "list";
             prefs.edit().putString(VIEW_MODE_KEY, viewMode).apply();
-            viewToggleBtn.setText("list".equals(viewMode) ? "⊞" : "☰");
+            viewToggleBtn.setText(viewModeIcon(viewMode));
             expandedSection = null;
             expandedArrow = null;
             String q = searchBar != null ? searchBar.getText().toString() : "";
@@ -362,6 +364,9 @@ public class GogGamesActivity extends Activity {
             if ("grid".equals(viewMode)) {
                 gameListLayout.setPadding(dp(4), dp(4), dp(4), dp(4));
                 addGamesAsGrid(result);
+            } else if ("poster".equals(viewMode)) {
+                gameListLayout.setPadding(dp(4), dp(4), dp(4), dp(4));
+                addGamesAsPoster(result);
             } else {
                 gameListLayout.setPadding(dp(8), dp(8), dp(8), dp(8));
                 for (GogGame g : result) addGameCard(g);
@@ -623,9 +628,25 @@ public class GogGamesActivity extends Activity {
         gameListLayout.addView(card, cardLp);
     }
 
-    // ── GRID view: 3-column tile grid ─────────────────────────────────────────
+    private static String viewModeIcon(String mode) {
+        if ("grid".equals(mode)) return "▦";
+        if ("poster".equals(mode)) return "☰";
+        return "⊞";
+    }
+
+    // ── GRID view ─────────────────────────────────────────────────────────────
 
     private void addGamesAsGrid(List<GogGame> games) {
+        addGamesAsGrid(games, 105);
+    }
+
+    // ── POSTER view (same grid, taller portrait cards) ────────────────────────
+
+    private void addGamesAsPoster(List<GogGame> games) {
+        addGamesAsGrid(games, 160);
+    }
+
+    private void addGamesAsGrid(List<GogGame> games, int artHeightDp) {
         int cols = 5;
         int rows = (games.size() + cols - 1) / cols;
         for (int row = 0; row < rows; row++) {
@@ -638,9 +659,8 @@ public class GogGamesActivity extends Activity {
             for (int col = 0; col < cols; col++) {
                 int idx = row * cols + col;
                 if (idx < games.size()) {
-                    rowLayout.addView(makeGridTile(games.get(idx)), makeGridTileLp());
+                    rowLayout.addView(makeGridTile(games.get(idx), artHeightDp), makeGridTileLp());
                 } else {
-                    // Empty filler so last row aligns correctly
                     View spacer = new View(this);
                     rowLayout.addView(spacer, makeGridTileLp());
                 }
@@ -649,7 +669,9 @@ public class GogGamesActivity extends Activity {
         }
     }
 
-    private View makeGridTile(GogGame game) {
+    private View makeGridTile(GogGame game) { return makeGridTile(game, 105); }
+
+    private View makeGridTile(GogGame game, int artHeightDp) {
         boolean isInstalled = prefs.getString("gog_exe_" + game.gameId, null) != null;
 
         LinearLayout tile = new LinearLayout(this);
@@ -667,7 +689,7 @@ public class GogGamesActivity extends Activity {
         ImageView coverIV = new ImageView(this);
         coverIV.setScaleType(ImageView.ScaleType.CENTER_CROP);
         coverIV.setBackgroundColor(0xFF0D0D1A);
-        artFrame.addView(coverIV, new FrameLayout.LayoutParams(-1, dp(105)));
+        artFrame.addView(coverIV, new FrameLayout.LayoutParams(-1, dp(artHeightDp)));
         loadImage(game, coverIV);
 
         // Gen badge — top-left corner
