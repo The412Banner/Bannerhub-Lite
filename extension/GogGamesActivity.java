@@ -466,6 +466,17 @@ public class GogGamesActivity extends Activity {
 
         topRow.addView(titleRow, new LinearLayout.LayoutParams(0, -2, 1f));
 
+        // Installed indicator (always visible in collapsed header)
+        boolean isInstalledHeader = prefs.getString("gog_exe_" + game.gameId, null) != null;
+        TextView collapsedCheckTV = new TextView(this);
+        collapsedCheckTV.setText("✓");
+        collapsedCheckTV.setTextColor(0xFF4CAF50);
+        collapsedCheckTV.setTextSize(14f);
+        collapsedCheckTV.setTypeface(null, Typeface.BOLD);
+        collapsedCheckTV.setPadding(dp(6), 0, 0, 0);
+        collapsedCheckTV.setVisibility(isInstalledHeader ? View.VISIBLE : View.GONE);
+        topRow.addView(collapsedCheckTV, new LinearLayout.LayoutParams(-2, -2));
+
         // Expand/collapse arrow
         TextView arrowTV = new TextView(this);
         arrowTV.setText("▼");
@@ -495,12 +506,12 @@ public class GogGamesActivity extends Activity {
             expandSection.addView(metaTV, metaLp);
         }
 
-        // ✓ Installed checkmark
+        // ✓ Installed checkmark (expanded section)
         TextView checkmark = new TextView(this);
         checkmark.setText("✓ Installed");
         checkmark.setTextColor(0xFF4CAF50);
         checkmark.setTextSize(10f);
-        boolean isInstalled = prefs.getString("gog_exe_" + game.gameId, null) != null;
+        boolean isInstalled = isInstalledHeader;
         checkmark.setVisibility(isInstalled ? View.VISIBLE : View.GONE);
         LinearLayout.LayoutParams ckLp = new LinearLayout.LayoutParams(-1, -2);
         ckLp.topMargin = dp(4);
@@ -574,6 +585,7 @@ public class GogGamesActivity extends Activity {
                         progressBar.setProgress(100);
                         pctTV.setVisibility(View.GONE);
                         checkmark.setVisibility(View.VISIBLE);
+                        collapsedCheckTV.setVisibility(View.VISIBLE);
                         statusTV.setText("Installed");
                         actionBtn.setText("Add Game");
                         actionBtn.setBackgroundColor(0xFF2E7D32);
