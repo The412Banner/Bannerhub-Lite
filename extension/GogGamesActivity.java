@@ -643,14 +643,14 @@ public class GogGamesActivity extends Activity {
     // ── POSTER view (same grid, taller portrait cards) ────────────────────────
 
     private void addGamesAsPoster(List<GogGame> games) {
-        addGamesAsGrid(games, 176, dp(8));
+        addGamesAsGrid(games, 176, dp(16), dp(10));
     }
 
     private void addGamesAsGrid(List<GogGame> games, int artHeightDp) {
-        addGamesAsGrid(games, artHeightDp, dp(3));
+        addGamesAsGrid(games, artHeightDp, dp(3), dp(6));
     }
 
-    private void addGamesAsGrid(List<GogGame> games, int artHeightDp, int tileHMargin) {
+    private void addGamesAsGrid(List<GogGame> games, int artHeightDp, int tileHMargin, int rowBottomMargin) {
         int cols = 5;
         int rows = (games.size() + cols - 1) / cols;
         for (int row = 0; row < rows; row++) {
@@ -658,7 +658,7 @@ public class GogGamesActivity extends Activity {
             rowLayout.setOrientation(LinearLayout.HORIZONTAL);
             rowLayout.setWeightSum(cols);
             LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(-1, -2);
-            rowLp.bottomMargin = dp(6);
+            rowLp.bottomMargin = rowBottomMargin;
 
             for (int col = 0; col < cols; col++) {
                 int idx = row * cols + col;
