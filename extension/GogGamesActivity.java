@@ -293,11 +293,15 @@ public class GogGamesActivity extends Activity {
             if (titleStr == null) titleStr = prod.optString("title");
             if (titleStr == null || titleStr.isEmpty()) return null;
 
-            JSONObject images = prod.optJSONObject("images");
-            String imageUrl = images != null ? images.optString("icon", "") : "";
-            if (imageUrl == null || imageUrl.isEmpty())
-                imageUrl = images != null ? images.optString("background", "") : "";
-            if (imageUrl == null) imageUrl = "";
+            // Try SteamGridDB first for vivid portrait cover art
+            String imageUrl = sgdbFetchCover(titleStr);
+            if (imageUrl.isEmpty()) {
+                JSONObject images = prod.optJSONObject("images");
+                imageUrl = images != null ? images.optString("icon", "") : "";
+                if (imageUrl == null || imageUrl.isEmpty())
+                    imageUrl = images != null ? images.optString("background", "") : "";
+                if (imageUrl == null) imageUrl = "";
+            }
 
             JSONObject descObj = prod.optJSONObject("description");
             String desc = descObj != null ? descObj.optString("lead", "") : "";
@@ -1078,6 +1082,30 @@ public class GogGamesActivity extends Activity {
             conn.disconnect();
             return sb.toString();
         } catch (Exception e) { return null; }
+    }
+
+    private static final String SGDB_KEY = "cf89227f12c773bb1117b6b109ae1659";
+
+    /** Returns the first SteamGridDB 600x900 cover URL for the given game title, or "" on failure. */
+    private static String sgdbFetchCover(String title) {
+        try {
+            String encoded = java.net.URLEncoder.encode(title, "UTF-8");
+            String searchJson = httpGet(
+                    "https://www.steamgriddb.com/api/v2/search/autocomplete/" + encoded, SGDB_KEY);
+            if (searchJson == null) return "";
+            JSONArray results = new JSONObject(searchJson).optJSONArray("data");
+            if (results == null || results.length() == 0) return "";
+            int gameId = results.getJSONObject(0).getInt("id");
+
+            String gridsJson = httpGet(
+                    "https://www.steamgriddb.com/api/v2/grids/game/" + gameId
+                            + "?dimensions=600x900&mimes=image/jpeg,image/png&limit=1",
+                    SGDB_KEY);
+            if (gridsJson == null) return "";
+            JSONArray grids = new JSONObject(gridsJson).optJSONArray("data");
+            if (grids == null || grids.length() == 0) return "";
+            return grids.getJSONObject(0).optString("url", "");
+        } catch (Exception e) { return ""; }
     }
 
     private static void deleteDir(java.io.File dir) {
