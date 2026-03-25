@@ -628,7 +628,7 @@ public class GogGamesActivity extends Activity {
             rowLayout.setOrientation(LinearLayout.HORIZONTAL);
             rowLayout.setWeightSum(cols);
             LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(-1, -2);
-            rowLp.bottomMargin = dp(8);
+            rowLp.bottomMargin = dp(10);
 
             for (int col = 0; col < cols; col++) {
                 int idx = row * cols + col;
@@ -655,50 +655,198 @@ public class GogGamesActivity extends Activity {
         tile.setBackground(tileBg);
         tile.setFocusable(true);
 
-        // Cover art (square thumbnail)
+        // Cover art — 70dp tall (25% smaller than original 90dp)
         ImageView coverIV = new ImageView(this);
         coverIV.setScaleType(ImageView.ScaleType.CENTER_CROP);
         coverIV.setBackgroundColor(0xFF111122);
-        tile.addView(coverIV, new LinearLayout.LayoutParams(-1, dp(90)));
+        tile.addView(coverIV, new LinearLayout.LayoutParams(-1, dp(70)));
         loadImage(game, coverIV);
 
-        // Info row below image: gen badge + title + ✓
+        // Info row: gen badge | title+✓ | arrow
         LinearLayout infoRow = new LinearLayout(this);
         infoRow.setOrientation(LinearLayout.HORIZONTAL);
         infoRow.setGravity(Gravity.CENTER_VERTICAL);
-        infoRow.setPadding(dp(5), dp(4), dp(5), dp(5));
+        infoRow.setPadding(dp(5), dp(4), dp(5), dp(4));
 
         if (game.generation > 0) {
             infoRow.addView(makeGenBadge(game.generation), makeGenBadgeLp());
         }
 
+        LinearLayout titleBlock = new LinearLayout(this);
+        titleBlock.setOrientation(LinearLayout.HORIZONTAL);
+        titleBlock.setGravity(Gravity.CENTER_VERTICAL);
+
         TextView titleTV = new TextView(this);
         titleTV.setText(game.title);
         titleTV.setTextColor(0xFFFFFFFF);
         titleTV.setTextSize(10f);
-        titleTV.setMaxLines(2);
+        titleTV.setMaxLines(1);
         titleTV.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        infoRow.addView(titleTV, new LinearLayout.LayoutParams(0, -2, 1f));
+        titleBlock.addView(titleTV, new LinearLayout.LayoutParams(-2, -2));
 
-        if (isInstalled) {
-            TextView checkTV = new TextView(this);
-            checkTV.setText(" ✓");
-            checkTV.setTextColor(0xFF4CAF50);
-            checkTV.setTextSize(11f);
-            checkTV.setTypeface(null, Typeface.BOLD);
-            infoRow.addView(checkTV, new LinearLayout.LayoutParams(-2, -2));
-        }
+        TextView collapsedCheckTV = new TextView(this);
+        collapsedCheckTV.setText(" ✓");
+        collapsedCheckTV.setTextColor(0xFF4CAF50);
+        collapsedCheckTV.setTextSize(10f);
+        collapsedCheckTV.setTypeface(null, Typeface.BOLD);
+        collapsedCheckTV.setVisibility(isInstalled ? View.VISIBLE : View.GONE);
+        titleBlock.addView(collapsedCheckTV, new LinearLayout.LayoutParams(-2, -2));
+
+        infoRow.addView(titleBlock, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        TextView arrowTV = new TextView(this);
+        arrowTV.setText("▼");
+        arrowTV.setTextColor(0xFF888888);
+        arrowTV.setTextSize(11f);
+        arrowTV.setPadding(dp(4), 0, 0, 0);
+        infoRow.addView(arrowTV, new LinearLayout.LayoutParams(-2, -2));
 
         tile.addView(infoRow, new LinearLayout.LayoutParams(-1, -2));
 
-        tile.setOnClickListener(v -> showGridInstallDialog(game));
+        // ── Expandable section (same pattern as list view) ────────────────────
+        LinearLayout expandSection = new LinearLayout(this);
+        expandSection.setOrientation(LinearLayout.VERTICAL);
+        expandSection.setVisibility(View.GONE);
+        expandSection.setPadding(dp(6), dp(4), dp(6), dp(6));
+
+        if (!game.category.isEmpty() || !game.developer.isEmpty()) {
+            String meta = game.category.isEmpty() ? game.developer
+                        : game.developer.isEmpty() ? game.category
+                        : game.category + " · " + game.developer;
+            TextView metaTV = new TextView(this);
+            metaTV.setText(meta);
+            metaTV.setTextColor(0xFF888888);
+            metaTV.setTextSize(10f);
+            expandSection.addView(metaTV, new LinearLayout.LayoutParams(-1, -2));
+        }
+
+        TextView checkmark = new TextView(this);
+        checkmark.setText("✓ Installed");
+        checkmark.setTextColor(0xFF4CAF50);
+        checkmark.setTextSize(10f);
+        checkmark.setVisibility(isInstalled ? View.VISIBLE : View.GONE);
+        LinearLayout.LayoutParams ckLp = new LinearLayout.LayoutParams(-1, -2);
+        ckLp.topMargin = dp(2);
+        expandSection.addView(checkmark, ckLp);
+
+        ProgressBar progressBar = new ProgressBar(this, null,
+                android.R.attr.progressBarStyleHorizontal);
+        progressBar.setMax(100);
+        progressBar.setProgress(0);
+        progressBar.setVisibility(View.GONE);
+        LinearLayout.LayoutParams pbLp = new LinearLayout.LayoutParams(-1, dp(4));
+        pbLp.topMargin = dp(4);
+        expandSection.addView(progressBar, pbLp);
+
+        TextView pctTV = new TextView(this);
+        pctTV.setTextColor(0xFFFF9800);
+        pctTV.setTextSize(10f);
+        pctTV.setTypeface(null, Typeface.BOLD);
+        pctTV.setVisibility(View.GONE);
+        expandSection.addView(pctTV, new LinearLayout.LayoutParams(-2, -2));
+
+        TextView statusTV = new TextView(this);
+        statusTV.setTextColor(0xFFAAAAAA);
+        statusTV.setTextSize(10f);
+        statusTV.setVisibility(View.GONE);
+        LinearLayout.LayoutParams stLp = new LinearLayout.LayoutParams(-1, -2);
+        stLp.topMargin = dp(1);
+        expandSection.addView(statusTV, stLp);
+
+        Button actionBtn = new Button(this);
+        actionBtn.setText(isInstalled ? "Add to Launcher" : "Install");
+        actionBtn.setTextColor(0xFFFFFFFF);
+        actionBtn.setBackgroundColor(isInstalled ? 0xFF2E7D32 : 0xFF7033FF);
+        actionBtn.setTextSize(11f);
+        LinearLayout.LayoutParams abLp = new LinearLayout.LayoutParams(-1, dp(36));
+        abLp.topMargin = dp(6);
+        expandSection.addView(actionBtn, abLp);
+
+        tile.addView(expandSection, new LinearLayout.LayoutParams(-1, -2));
+
+        // Button click — same logic as list view
+        actionBtn.setOnClickListener(v -> {
+            String btnLabel = actionBtn.getText().toString();
+            if ("Add Game".equals(btnLabel) || "Add to Launcher".equals(btnLabel)) {
+                String exePath = prefs.getString("gog_exe_" + game.gameId, null);
+                if (exePath != null) GogLaunchHelper.triggerLaunch(this, exePath);
+                return;
+            }
+            actionBtn.setEnabled(false);
+            actionBtn.setText("Downloading…");
+            actionBtn.setBackgroundColor(0xFF555555);
+            progressBar.setVisibility(View.VISIBLE);
+            statusTV.setVisibility(View.VISIBLE);
+            pctTV.setText("0%");
+            pctTV.setVisibility(View.VISIBLE);
+
+            GogDownloadManager.startDownload(this, game, new GogDownloadManager.Callback() {
+                @Override public void onProgress(String msg, int pct) {
+                    uiHandler.post(() -> {
+                        statusTV.setText(msg);
+                        progressBar.setProgress(pct);
+                        pctTV.setText(pct + "%");
+                    });
+                }
+                @Override public void onComplete(String exePath) {
+                    uiHandler.post(() -> {
+                        progressBar.setProgress(100);
+                        pctTV.setVisibility(View.GONE);
+                        checkmark.setVisibility(View.VISIBLE);
+                        collapsedCheckTV.setVisibility(View.VISIBLE);
+                        statusTV.setText("Installed");
+                        actionBtn.setText("Add Game");
+                        actionBtn.setBackgroundColor(0xFF2E7D32);
+                        actionBtn.setEnabled(true);
+                    });
+                }
+                @Override public void onError(String msg) {
+                    uiHandler.post(() -> {
+                        pctTV.setVisibility(View.GONE);
+                        statusTV.setText("Error: " + msg);
+                        actionBtn.setText("Install");
+                        actionBtn.setBackgroundColor(0xFF7033FF);
+                        actionBtn.setEnabled(true);
+                        Toast.makeText(GogGamesActivity.this, "Error: " + msg,
+                                Toast.LENGTH_LONG).show();
+                    });
+                }
+            });
+        });
+
+        // Arrow tap: collapse only
+        arrowTV.setOnClickListener(v -> {
+            if (expandSection.getVisibility() == View.VISIBLE) {
+                expandSection.setVisibility(View.GONE);
+                arrowTV.setText("▼");
+                expandedSection = null;
+                expandedArrow = null;
+            }
+        });
+
+        // Tile tap: collapsed → expand; expanded → detail dialog
+        tile.setOnClickListener(v -> {
+            if (expandSection.getVisibility() == View.VISIBLE) {
+                showDetailDialog(game, checkmark, actionBtn);
+            } else {
+                if (expandedSection != null) {
+                    expandedSection.setVisibility(View.GONE);
+                    if (expandedArrow != null) expandedArrow.setText("▼");
+                }
+                expandSection.setVisibility(View.VISIBLE);
+                arrowTV.setText("▲");
+                expandedSection = expandSection;
+                expandedArrow = arrowTV;
+            }
+        });
+
         return tile;
     }
 
     private LinearLayout.LayoutParams makeGridTileLp() {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1f);
-        lp.leftMargin = dp(4);
-        lp.rightMargin = dp(4);
+        lp.leftMargin = dp(6);
+        lp.rightMargin = dp(6);
         return lp;
     }
 
