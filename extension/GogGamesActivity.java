@@ -594,6 +594,16 @@ public class GogGamesActivity extends Activity {
             });
         });
 
+        // Arrow tap: collapse if expanded
+        arrowTV.setOnClickListener(v -> {
+            if (expandSection.getVisibility() == View.VISIBLE) {
+                expandSection.setVisibility(View.GONE);
+                arrowTV.setText("▼");
+                expandedSection = null;
+                expandedArrow = null;
+            }
+        });
+
         // Card tap: collapsed → expand; expanded → detail dialog
         card.setOnClickListener(v -> {
             if (expandSection.getVisibility() == View.VISIBLE) {
