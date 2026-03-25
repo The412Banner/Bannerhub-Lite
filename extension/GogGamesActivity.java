@@ -293,16 +293,12 @@ public class GogGamesActivity extends Activity {
             if (titleStr == null) titleStr = prod.optString("title");
             if (titleStr == null || titleStr.isEmpty()) return null;
 
-            // Use product card cover art (portrait, vivid) — NOT images.background (washed-out ambient)
-            String imageField = prod.optString("image", "");
-            String imageUrl = (!imageField.isEmpty())
-                    ? imageField + "_product_card_v2_mobile_slider_639.jpg"
-                    : "";
-            if (imageUrl.isEmpty()) {
-                JSONObject images = prod.optJSONObject("images");
+            JSONObject images = prod.optJSONObject("images");
+            // Prefer background (landscape art) — crops better to card shape than square icon
+            String imageUrl = images != null ? images.optString("background", "") : "";
+            if (imageUrl == null || imageUrl.isEmpty())
                 imageUrl = images != null ? images.optString("icon", "") : "";
-                if (imageUrl == null) imageUrl = "";
-            }
+            if (imageUrl == null) imageUrl = "";
 
             JSONObject descObj = prod.optJSONObject("description");
             String desc = descObj != null ? descObj.optString("lead", "") : "";
@@ -668,7 +664,7 @@ public class GogGamesActivity extends Activity {
         ImageView coverIV = new ImageView(this);
         coverIV.setScaleType(ImageView.ScaleType.CENTER_CROP);
         coverIV.setBackgroundColor(0xFF0D0D1A);
-        artFrame.addView(coverIV, new FrameLayout.LayoutParams(-1, dp(137)));
+        artFrame.addView(coverIV, new FrameLayout.LayoutParams(-1, dp(105)));
         loadImage(game, coverIV);
 
         // Gen badge — top-left corner
