@@ -803,7 +803,7 @@ public class GogGamesActivity extends Activity {
         });
 
         tile.setOnLongClickListener(v -> {
-            showDetailDialog(game);
+            showDetailDialog(game, checkTV, actionBtn);
             return true;
         });
 
