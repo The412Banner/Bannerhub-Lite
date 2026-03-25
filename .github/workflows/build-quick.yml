@@ -1099,9 +1099,10 @@ jobs:
           fi
 
       - name: Upload release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.tag.outputs.name }}
-          name: BannerHub Lite ${{ steps.tag.outputs.name }}
-          prerelease: true
-          files: Bannerhub-Lite-${{ github.ref_name }}-Normal.apk
+        run: |
+          TAG="${{ steps.tag.outputs.name }}"
+          APK=$(ls Bannerhub-Lite-*.apk | head -1)
+          gh release delete "$TAG" --yes 2>/dev/null || true
+          gh release create "$TAG" --title "BannerHub Lite $TAG" --prerelease "$APK"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
