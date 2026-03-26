@@ -1109,6 +1109,38 @@ jobs:
           - variant: Original
             package: com.xiaoji.egggame
             label: "BannerHub Lite"
+          - variant: Normal-BHApi
+            package: gamehub.lite
+            label: "BannerHub Lite"
+            bhapi: true
+          - variant: PuBG-BHApi
+            package: com.tencent.ig
+            label: "BannerHub Lite PuBG"
+            bhapi: true
+          - variant: AnTuTu-BHApi
+            package: com.antutu.ABenchMark
+            label: "BannerHub Lite AnTuTu"
+            bhapi: true
+          - variant: alt-AnTuTu-BHApi
+            package: com.antutu.benchmark.full
+            label: "BannerHub Lite AnTuTu"
+            bhapi: true
+          - variant: PuBG-CrossFire-BHApi
+            package: com.tencent.tmgp.cf
+            label: "BannerHub Lite PuBG CrossFire"
+            bhapi: true
+          - variant: Ludashi-BHApi
+            package: com.ludashi.aibench
+            label: "BannerHub Lite Ludashi"
+            bhapi: true
+          - variant: Genshin-BHApi
+            package: com.mihoyo.genshinimpact
+            label: "BannerHub Lite Genshin"
+            bhapi: true
+          - variant: Original-BHApi
+            package: com.xiaoji.egggame
+            label: "BannerHub Lite"
+            bhapi: true
 
     steps:
       - name: Checkout
@@ -1138,6 +1170,13 @@ jobs:
           fi
           # Replace @string/app_name reference with literal label
           sed -i 's/android:label="@string\/app_name"/android:label="'"$LABEL"'"/' apktool_out/AndroidManifest.xml
+
+      - name: Patch BannerHub API URL
+        if: ${{ matrix.bhapi == true }}
+        run: |
+          sed -i 's|gamehub-lite-api\.emuready\.workers\.dev|bannerhub-api.the412banner.workers.dev|g' \
+            apktool_out/smali_classes4/com/xj/common/http/EggGameHttpConfig.smali
+          echo "Patched API URL to bannerhub-api.the412banner.workers.dev"
 
       - name: Rebuild APK
         run: |
