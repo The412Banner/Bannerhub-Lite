@@ -21,6 +21,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.Inflater;
 
@@ -51,19 +53,35 @@ public final class GogDownloadManager {
         void onProgress(String msg, int pct);
         void onComplete(String exePath);
         void onError(String msg);
+        /** Called when 2+ exe candidates found — implementor shows picker; call onSelected on any thread. */
+        default void onSelectExe(List<String> candidates, java.util.function.Consumer<String> onSelected) {
+            if (!candidates.isEmpty()) onSelected.accept(candidates.get(0));
+        }
     }
 
     private GogDownloadManager() {}
 
-    public static void startDownload(Context ctx, GogGame game, Callback cb) {
-        new Thread(() -> doDownload(ctx, game, cb), "gog-dl-" + game.gameId).start();
+    /** Starts a download and returns a cancel Runnable (stops thread + deletes partial files). */
+    public static Runnable startDownload(Context ctx, GogGame game, Callback cb) {
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        AtomicReference<File> installDirRef = new AtomicReference<>(null);
+        Thread t = new Thread(() -> doDownload(ctx, game, cb, cancelled, installDirRef),
+                "gog-dl-" + game.gameId);
+        t.start();
+        return () -> {
+            cancelled.set(true);
+            t.interrupt();
+            File dir = installDirRef.get();
+            if (dir != null) new Thread(() -> deleteDir(dir)).start();
+        };
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Main pipeline
     // ─────────────────────────────────────────────────────────────────────────
 
-    private static void doDownload(Context ctx, GogGame game, Callback cb) {
+    private static void doDownload(Context ctx, GogGame game, Callback cb,
+                                    AtomicBoolean cancelled, AtomicReference<File> installDirRef) {
         StringBuilder dbg = new StringBuilder();
         dbg.append("=== BH GOG Debug === game=").append(game.gameId)
            .append(" title=").append(game.title).append("\n");
@@ -97,7 +115,7 @@ public final class GogDownloadManager {
                     : buildsJson.substring(0, Math.min(300, buildsJson.length()))).append("\n");
 
             if (buildsJson != null) {
-                String err = runGen2(ctx, game, token, buildsJson, cb, dbg);
+                String err = runGen2(ctx, game, token, buildsJson, cb, dbg, cancelled, installDirRef);
                 if (err == null) { writeDebug(ctx, dbg); return; }
                 dbg.append("gen2_failed=").append(err).append("\n");
             }
@@ -115,14 +133,14 @@ public final class GogDownloadManager {
                 writeDebug(ctx, dbg);
                 cb.onError("No builds available for this game"); return;
             }
-            String err1 = runGen1(ctx, game, token, builds1Json, cb, dbg);
+            String err1 = runGen1(ctx, game, token, builds1Json, cb, dbg, cancelled, installDirRef);
             if (err1 != null) {
                 dbg.append("gen1_failed=").append(err1).append("\n");
 
                 // Both gen1 and gen2 empty → old installer system, fall back to direct download
                 if ("NO_CS_BUILDS".equals(err1)) {
                     cb.onProgress("No Galaxy builds — trying installer download…", 12);
-                    String installerErr = runInstaller(ctx, game, token, cb, dbg);
+                    String installerErr = runInstaller(ctx, game, token, cb, dbg, cancelled, installDirRef);
                     if (installerErr == null) { writeDebug(ctx, dbg); return; }
                     dbg.append("installer_failed=").append(installerErr).append("\n");
                     writeDebug(ctx, dbg);
@@ -159,7 +177,8 @@ public final class GogDownloadManager {
 
     // Returns null on success, error description string on failure.
     private static String runGen2(Context ctx, GogGame game, String token,
-                                   String buildsJson, Callback cb, StringBuilder dbg) {
+                                   String buildsJson, Callback cb, StringBuilder dbg,
+                                   AtomicBoolean cancelled, AtomicReference<File> installDirRef) {
         try {
             dbg.append("\n--- Gen2 ---\n");
             JSONObject builds = new JSONObject(buildsJson);
@@ -283,12 +302,14 @@ public final class GogDownloadManager {
             // Install dir
             File installPath = GogInstallPath.getInstallDir(ctx, installDir);
             installPath.mkdirs();
+            installDirRef.set(installPath);
             File chunksDir = new File(installPath, ".gog_chunks");
             chunksDir.mkdirs();
 
             // Download + assemble each file
             int total = files.size(), done = 0;
             for (DepotFile df : files) {
+                if (cancelled.get()) return "cancelled";
                 int pct = 15 + (int) ((done / (float) total) * 80);
                 cb.onProgress("Downloading: " + df.relativePath, pct);
                 File outFile = new File(installPath, df.relativePath);
@@ -296,6 +317,7 @@ public final class GogDownloadManager {
 
                 try (FileOutputStream fos = new FileOutputStream(outFile)) {
                     for (DepotFile.ChunkRef chunk : df.chunks) {
+                        if (cancelled.get()) return "cancelled";
                         String cdnPath = buildCdnPath(chunk.hash);
                         String chunkUrl = cdnBase + "/" + cdnPath;
                         byte[] chunkRaw = fetchBytes(chunkUrl, null);
@@ -319,22 +341,39 @@ public final class GogDownloadManager {
             // Delete chunks temp dir
             deleteDir(chunksDir);
 
-            // Find exe — prefer temp_executable hint from manifest, fall back to scan
-            String exePath = null;
+            cb.onProgress("Install complete!", 100);
+
+            // Save install dir pref
+            ctx.getSharedPreferences("bh_gog_prefs", 0).edit()
+                    .putString("gog_dir_" + game.gameId, installDir).apply();
+
+            // Prefer temp_executable hint; fall back to candidate scan
             if (tempExe != null) {
                 File hinted = new File(installPath, tempExe);
-                if (hinted.exists()) exePath = hinted.getAbsolutePath();
+                if (hinted.exists()) {
+                    ctx.getSharedPreferences("bh_gog_prefs", 0).edit()
+                            .putString("gog_exe_" + game.gameId, hinted.getAbsolutePath()).apply();
+                    cb.onComplete(hinted.getAbsolutePath());
+                    return null;
+                }
             }
-            if (exePath == null) exePath = findExe(installPath, game.gameId, installDir);
 
-            // Save prefs
-            SharedPreferences.Editor ed = ctx.getSharedPreferences("bh_gog_prefs", 0).edit();
-            ed.putString("gog_dir_" + game.gameId, installDir);
-            if (exePath != null) ed.putString("gog_exe_" + game.gameId, exePath);
-            ed.apply();
-
-            cb.onProgress("Install complete!", 100);
-            cb.onComplete(exePath != null ? exePath : "");
+            List<String> candidates = collectExeCandidates(installPath);
+            if (candidates.size() == 1) {
+                ctx.getSharedPreferences("bh_gog_prefs", 0).edit()
+                        .putString("gog_exe_" + game.gameId, candidates.get(0)).apply();
+                cb.onComplete(candidates.get(0));
+            } else if (candidates.size() > 1) {
+                cb.onSelectExe(candidates, selected -> {
+                    if (selected != null && !selected.isEmpty()) {
+                        ctx.getSharedPreferences("bh_gog_prefs", 0).edit()
+                                .putString("gog_exe_" + game.gameId, selected).apply();
+                    }
+                    cb.onComplete(selected != null ? selected : "");
+                });
+            } else {
+                cb.onComplete("");
+            }
             return null; // success
         } catch (Exception e) {
             return "exception: " + e;
@@ -347,7 +386,8 @@ public final class GogDownloadManager {
 
     // Returns null on success, error description string on failure.
     private static String runGen1(Context ctx, GogGame game, String token,
-                                   String buildsJson, Callback cb, StringBuilder dbg) {
+                                   String buildsJson, Callback cb, StringBuilder dbg,
+                                   AtomicBoolean cancelled, AtomicReference<File> installDirRef) {
         try {
             dbg.append("\n--- Gen1 ---\n");
             JSONObject builds = new JSONObject(buildsJson);
@@ -402,9 +442,11 @@ public final class GogDownloadManager {
 
             File installPath = GogInstallPath.getInstallDir(ctx, installDir);
             installPath.mkdirs();
+            installDirRef.set(installPath);
 
             int total = files.size(), done = 0;
             for (Gen1File gf : files) {
+                if (cancelled.get()) return "cancelled";
                 int pct = 15 + (int) ((done / (float) total) * 80);
                 cb.onProgress("Downloading: " + gf.path, pct);
                 File outFile = new File(installPath, gf.path);
@@ -413,15 +455,27 @@ public final class GogDownloadManager {
                 done++;
             }
 
-            String exePath = findExe(installPath, game.gameId, installDir);
-
-            SharedPreferences.Editor ed = ctx.getSharedPreferences("bh_gog_prefs", 0).edit();
-            ed.putString("gog_dir_" + game.gameId, installDir);
-            if (exePath != null) ed.putString("gog_exe_" + game.gameId, exePath);
-            ed.apply();
-
             cb.onProgress("Install complete!", 100);
-            cb.onComplete(exePath != null ? exePath : "");
+
+            ctx.getSharedPreferences("bh_gog_prefs", 0).edit()
+                    .putString("gog_dir_" + game.gameId, installDir).apply();
+
+            List<String> candidates = collectExeCandidates(installPath);
+            if (candidates.size() == 1) {
+                ctx.getSharedPreferences("bh_gog_prefs", 0).edit()
+                        .putString("gog_exe_" + game.gameId, candidates.get(0)).apply();
+                cb.onComplete(candidates.get(0));
+            } else if (candidates.size() > 1) {
+                cb.onSelectExe(candidates, selected -> {
+                    if (selected != null && !selected.isEmpty()) {
+                        ctx.getSharedPreferences("bh_gog_prefs", 0).edit()
+                                .putString("gog_exe_" + game.gameId, selected).apply();
+                    }
+                    cb.onComplete(selected != null ? selected : "");
+                });
+            } else {
+                cb.onComplete("");
+            }
             return null; // success
         } catch (Exception e) {
             return "exception: " + e;
@@ -439,7 +493,8 @@ public final class GogDownloadManager {
      * Returns null on success, error string on failure.
      */
     private static String runInstaller(Context ctx, GogGame game, String token,
-                                        Callback cb, StringBuilder dbg) {
+                                        Callback cb, StringBuilder dbg,
+                                        AtomicBoolean cancelled, AtomicReference<File> installDirRef) {
         try {
             dbg.append("\n--- Installer fallback ---\n");
             String productUrl = "https://api.gog.com/products/" + game.gameId + "?expand=downloads";
@@ -485,10 +540,12 @@ public final class GogDownloadManager {
             // Download the installer .exe
             File installDir = GogInstallPath.getInstallDir(ctx, game.title);
             installDir.mkdirs();
+            installDirRef.set(installDir);
             File outFile = new File(installDir, fileName);
 
             cb.onProgress("Downloading installer: " + fileName, 15);
-            downloadWithProgress(downloadUrl, outFile, cb);
+            downloadWithProgress(downloadUrl, outFile, cb, cancelled);
+            if (cancelled.get()) return "cancelled";
 
             // Save prefs
             SharedPreferences.Editor ed = ctx.getSharedPreferences("bh_gog_prefs", 0).edit();
@@ -560,7 +617,7 @@ public final class GogDownloadManager {
     }
 
     /** Downloads url to outFile, reporting progress via cb. */
-    private static void downloadWithProgress(String url, File out, Callback cb) {
+    private static void downloadWithProgress(String url, File out, Callback cb, AtomicBoolean cancelled) {
         try {
             HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
             conn.setConnectTimeout(TIMEOUT);
@@ -571,6 +628,7 @@ public final class GogDownloadManager {
                 byte[] buf = new byte[32768];
                 int n, downloaded = 0;
                 while ((n = is.read(buf)) != -1) {
+                    if (cancelled.get()) return;
                     fos.write(buf, 0, n);
                     downloaded += n;
                     if (total > 0) {
@@ -790,34 +848,71 @@ public final class GogDownloadManager {
     }
 
     /**
-     * Scans {@code installDir} recursively for the first .exe that is not in
-     * a "redist" or "Redist" path (same heuristic as BannerHub).
-     * Returns absolute path or null.
+     * Collects ALL qualifying .exe candidates under {@code dir}, excluding
+     * known helper/redist patterns. Returns absolute paths, shallowest first.
      */
-    static String findExe(File installDir, String gameId, String relDir) {
-        String found = findExeRecursive(installDir);
-        return found;
+    static List<String> collectExeCandidates(File dir) {
+        List<String> result = new ArrayList<>();
+        collectExeRecursive(dir, result);
+        return result;
     }
 
-    private static String findExeRecursive(File dir) {
-        if (!dir.isDirectory()) return null;
+    private static void collectExeRecursive(File dir, List<String> out) {
+        if (!dir.isDirectory()) return;
         File[] files = dir.listFiles();
-        if (files == null) return null;
+        if (files == null) return;
         for (File f : files) {
             if (f.isFile() && f.getName().toLowerCase().endsWith(".exe")) {
                 String path = f.getAbsolutePath().toLowerCase();
-                if (!path.contains("redist") && !path.contains("unins")) {
-                    return f.getAbsolutePath();
+                if (!path.contains("redist") && !path.contains("unins")
+                        && !path.contains("setup") && !path.contains("crash")
+                        && !path.contains("report") && !path.contains("helper")
+                        && !path.contains("dotnet") && !path.contains("vcredist")
+                        && !path.contains("directx")) {
+                    out.add(f.getAbsolutePath());
                 }
             }
         }
         for (File f : files) {
-            if (f.isDirectory()) {
-                String sub = findExeRecursive(f);
-                if (sub != null) return sub;
-            }
+            if (f.isDirectory()) collectExeRecursive(f, out);
         }
-        return null;
+    }
+
+    /**
+     * Fetches the total download size for a game (Gen2 depot sum).
+     * Returns -1 if unavailable. Runs on calling thread — call from background.
+     */
+    public static long fetchGameSize(Context ctx, GogGame game) {
+        try {
+            SharedPreferences prefs = ctx.getSharedPreferences("bh_gog_prefs", 0);
+            String token = prefs.getString("access_token", null);
+            String buildsUrl = "https://content-system.gog.com/products/" + game.gameId
+                    + "/os/windows/builds?generation=2";
+            String buildsJson = httpGet(buildsUrl, null);
+            if (buildsJson == null) buildsJson = httpGet(buildsUrl, token);
+            if (buildsJson == null) return -1;
+            JSONObject builds = new JSONObject(buildsJson);
+            JSONArray items = builds.optJSONArray("items");
+            if (items == null || items.length() == 0) return -1;
+            for (int i = 0; i < items.length(); i++) {
+                JSONObject item = items.getJSONObject(i);
+                if ("windows".equals(item.optString("os"))) {
+                    long size = item.optLong("size_before_download", -1);
+                    if (size > 0) return size;
+                    long comp = item.optLong("compressed_size", -1);
+                    if (comp > 0) return comp;
+                }
+            }
+        } catch (Exception ignored) {}
+        return -1;
+    }
+
+    public static String formatBytes(long bytes) {
+        if (bytes < 0) return "unknown";
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024f);
+        if (bytes < 1024L * 1024 * 1024) return String.format("%.1f MB", bytes / (1024f * 1024));
+        return String.format("%.2f GB", bytes / (1024f * 1024 * 1024));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
