@@ -138,15 +138,19 @@ Some titles pre-date the content-system entirely. For these, BannerHub Lite fall
 
 #### Install Flow
 
-- Tapping **Install** starts the download immediately with a progress bar + status text and a live percentage counter next to the game title
-- On completion, **✓ Installed** appears on the card and the button changes to **Add Game** (green)
-- Tapping **Add Game** saves the exe path, closes the GOG screen, and automatically opens GameHub's game import dialog with the path pre-filled — no manual navigation needed
+- Tapping **Install** opens a confirmation dialog showing the game's download size (fetched from the depot manifest) and your available storage. Nothing downloads until you confirm.
+- During the download, the Install button turns red and becomes **Cancel**. Tapping it stops the download thread and deletes all partial files from the install directory.
+- A progress bar + status text + live percentage counter show during the download.
+- After install, BannerHub Lite scans the install directory for qualifying executables (excluding redist/setup/unins/crash/helper/dotnet/vcredist/directx paths). If exactly one is found it is auto-selected. If two or more are found, a **picker dialog** lets you choose the correct one.
+- On completion, **✓ Installed** appears on the card and the button changes to **Add Game** (green).
+- Tapping **Add Game** opens GameHub's game import dialog with the exe path pre-filled.
 
 #### Post-Install
 
 - **Persistent install state** — already-installed games show the checkmark and Add Game button on every open
-- **Uninstall** — tap the game card → detail dialog → Uninstall; deletes the install folder, clears prefs, and resets the card to Install immediately
-- **Copy to Downloads** — tap the game card → detail dialog → Copy to Downloads; copies the game folder to `Download/GOG Games/<title>/` using MediaStore (no storage permission required on Android 10+)
+- **Set .exe** — long-press any installed game → detail dialog shows the current launch executable filename and a **Set .exe…** button. Tapping it re-scans the install directory and shows the exe picker, letting you correct a wrong selection at any time.
+- **Uninstall** — detail dialog → Uninstall; deletes the install folder, clears prefs, and resets the card to Install immediately
+- **Copy to Downloads** — detail dialog → Copy to Downloads; copies the game folder to `Download/GOG Games/<title>/` using MediaStore (no storage permission required on Android 10+)
 
 ---
 
