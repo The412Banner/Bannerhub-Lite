@@ -879,28 +879,64 @@ public final class GogDownloadManager {
     }
 
     /**
-     * Fetches the total download size for a game (Gen2 depot sum).
+     * Fetches the total download size for a game.
+     * Gen2: fetches manifest → sums depot[].size fields.
+     * Gen1 fallback: checks total_size in build item.
      * Returns -1 if unavailable. Runs on calling thread — call from background.
      */
     public static long fetchGameSize(Context ctx, GogGame game) {
         try {
             SharedPreferences prefs = ctx.getSharedPreferences("bh_gog_prefs", 0);
             String token = prefs.getString("access_token", null);
+
+            // Gen 2: builds → manifest → sum depot sizes
             String buildsUrl = "https://content-system.gog.com/products/" + game.gameId
                     + "/os/windows/builds?generation=2";
             String buildsJson = httpGet(buildsUrl, null);
             if (buildsJson == null) buildsJson = httpGet(buildsUrl, token);
-            if (buildsJson == null) return -1;
-            JSONObject builds = new JSONObject(buildsJson);
-            JSONArray items = builds.optJSONArray("items");
-            if (items == null || items.length() == 0) return -1;
-            for (int i = 0; i < items.length(); i++) {
-                JSONObject item = items.getJSONObject(i);
-                if ("windows".equals(item.optString("os"))) {
-                    long size = item.optLong("size_before_download", -1);
-                    if (size > 0) return size;
-                    long comp = item.optLong("compressed_size", -1);
-                    if (comp > 0) return comp;
+            if (buildsJson != null) {
+                JSONObject builds = new JSONObject(buildsJson);
+                JSONArray items = builds.optJSONArray("items");
+                if (items != null) {
+                    for (int i = 0; i < items.length(); i++) {
+                        JSONObject item = items.getJSONObject(i);
+                        if (!"windows".equals(item.optString("os"))) continue;
+                        String mUrl = item.optString("link");
+                        if (mUrl == null || mUrl.isEmpty()) mUrl = item.optString("meta_url");
+                        if (mUrl == null || mUrl.isEmpty()) break;
+                        byte[] raw = fetchBytes(mUrl, token);
+                        if (raw == null) break;
+                        String mStr = decompressBytes(raw);
+                        if (mStr == null) break;
+                        JSONObject manifest = new JSONObject(mStr);
+                        JSONArray depots = manifest.optJSONArray("depots");
+                        if (depots != null) {
+                            long total = 0;
+                            for (int d = 0; d < depots.length(); d++)
+                                total += depots.getJSONObject(d).optLong("size", 0);
+                            if (total > 0) return total;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Gen 1 fallback: check total_size in build item
+            String builds1Url = "https://content-system.gog.com/products/" + game.gameId
+                    + "/os/windows/builds?generation=1";
+            String builds1Json = httpGet(builds1Url, null);
+            if (builds1Json == null) builds1Json = httpGet(builds1Url, token);
+            if (builds1Json != null) {
+                JSONObject builds1 = new JSONObject(builds1Json);
+                JSONArray items1 = builds1.optJSONArray("items");
+                if (items1 != null) {
+                    for (int i = 0; i < items1.length(); i++) {
+                        JSONObject item = items1.getJSONObject(i);
+                        if (!"windows".equals(item.optString("os"))) continue;
+                        long sz = item.optLong("total_size", 0);
+                        if (sz > 0) return sz;
+                        break;
+                    }
                 }
             }
         } catch (Exception ignored) {}
