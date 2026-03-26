@@ -1,0 +1,1225 @@
+name: Build BHApi APKs
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version label for APK filenames and release (e.g. v0.3.6)'
+        required: false
+        default: ''
+
+jobs:
+
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download base APK
+        run: |
+          gh release download base-apk --pattern "*.apk" -D base/ -R ${{ github.repository }}
+          ls base/
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install apktool
+        run: |
+          APKTOOL_VER=2.9.3
+          mkdir -p $HOME/bin
+          wget -q "https://github.com/iBotPeaches/Apktool/releases/download/v${APKTOOL_VER}/apktool_${APKTOOL_VER}.jar" -O $HOME/bin/apktool.jar
+          wget -q "https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool" -O $HOME/bin/apktool
+          chmod +x $HOME/bin/apktool
+          echo "$HOME/bin" >> $GITHUB_PATH
+          java -jar $HOME/bin/apktool.jar --version
+
+      - name: Decompile APK
+        run: |
+          APK=$(ls base/*.apk | head -1)
+          echo "Decompiling: $APK"
+          java -jar $HOME/bin/apktool.jar d "$APK" -o apktool_out -f
+
+      - name: Patch versionName
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "bhapi")
+          fi
+          VERSION="${VERSION#v}"
+          sed -i "s/^  versionName: .*/  versionName: '$VERSION'/" apktool_out/apktool.yml
+          grep versionName apktool_out/apktool.yml
+
+      - name: Apply all patches
+        run: |
+          python3 << 'PYEOF'
+          import sys, re
+
+          def patch(path, old, new, label):
+              try:
+                  content = open(path, encoding='utf-8').read()
+              except UnicodeDecodeError:
+                  content = open(path, encoding='latin-1').read()
+              if old not in content:
+                  print(f"ERROR: anchor not found in {path} for: {label}")
+                  sys.exit(1)
+              open(path, 'w', encoding='utf-8').write(content.replace(old, new, 1))
+              print(f"OK: {label}")
+
+          # ── 1. AndroidManifest.xml: register activities + queries ─────────────
+          patch(
+              'apktool_out/AndroidManifest.xml',
+              '</application>',
+              '    <activity android:name="app.revanced.extension.gamehub.ComponentManagerActivity"'
+              ' android:label="Components" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.ComponentDownloadActivity"'
+              ' android:label="Download Components" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.GogMainActivity"'
+              ' android:label="GOG Games" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.GogLoginActivity"'
+              ' android:label="GOG Login" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.GogGamesActivity"'
+              ' android:label="GOG Library" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n    </application>',
+              'manifest: register ComponentManager + ComponentDownload + GOG activities'
+          )
+
+          patch(
+              'apktool_out/AndroidManifest.xml',
+              '    </queries>',
+              '        <package android:name="com.banner.inject" />\n    </queries>',
+              'manifest: add BCI to queries'
+          )
+
+          # ── 2. strings.xml: My Games rename ──────────────────────────────────
+          patch(
+              'apktool_out/res/values/strings.xml',
+              '<string name="llauncher_main_page_title_my">Dashboard</string>',
+              '<string name="llauncher_main_page_title_my">My Games</string>',
+              'strings.xml: My Games rename'
+          )
+
+          # ── 3. ids.xml: add new IDs ───────────────────────────────────────────
+          patch(
+              'apktool_out/res/values/ids.xml',
+              '</resources>',
+              '    <item type="id" name="iv_bci_launcher" />\n'
+              '    <item type="id" name="switch_sustained_perf" />\n'
+              '    <item type="id" name="switch_max_adreno_clocks" />\n'
+              '</resources>',
+              'ids.xml: add BCI + perf switch IDs'
+          )
+
+          # ── 4. HomeLeftMenuDialog.Z0(): inject Components menu item ──────────
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog.smali',
+              (
+                  '    if-eqz v3, :cond_1\n\n'
+                  '    iget-object v4, v0, Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog;->m:Ljava/util/List;\n\n'
+                  '    invoke-static {v3, v4}, Lcom/xj/common/view/adapter/MultiViewHolderAdapterKt;->f(Landroidx/recyclerview/widget/RecyclerView$Adapter;Ljava/util/List;)V\n'
+              ),
+              (
+                  '    if-eqz v3, :cond_1\n\n'
+                  '    iget-object v4, v0, Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog;->m:Ljava/util/List;\n'
+                  '    invoke-static {v0, v4}, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->addComponentsMenuItem(Ljava/lang/Object;Ljava/util/List;)V\n\n'
+                  '    iget-object v4, v0, Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog;->m:Ljava/util/List;\n\n'
+                  '    invoke-static {v3, v4}, Lcom/xj/common/view/adapter/MultiViewHolderAdapterKt;->f(Landroidx/recyclerview/widget/RecyclerView$Adapter;Ljava/util/List;)V\n'
+              ),
+              'HomeLeftMenuDialog.Z0(): addComponentsMenuItem injection'
+          )
+
+          # ── 5. HomeLeftMenuDialog$init$1$9$2.a(): intercept click ─────────────
+          inj = (
+              '    iget-object v0, p0, Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog$init$1$9$2;->a:Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog;\n'
+              '    iget-object v1, p0, Lcom/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog$init$1$9$2;->b:Landroidx/fragment/app/FragmentActivity;\n'
+              '    invoke-static {v0, p1, v1}, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->handleMenuItemClick(Ljava/lang/Object;Ljava/lang/Object;Landroid/app/Activity;)Z\n'
+              '    move-result v0\n'
+              '    if-eqz v0, :cond_bh_not_handled\n'
+              '    return-void\n'
+              '    :cond_bh_not_handled\n'
+          )
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog$init$1$9$2.smali',
+              '    const-string v0, "entity"\n',
+              inj + '    const-string v0, "entity"\n',
+              'HomeLeftMenuDialog$init$1$9$2: click intercept injection'
+          )
+
+          # ── 6. LandscapeLauncherMainActivity.initView(): setup BCI button ────
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity.smali',
+              (
+                  '    invoke-virtual/range {p0 .. p0}, Lcom/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity;->X2()V\n'
+                  '\n'
+                  '    return-void\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public final j3()V\n'
+              ),
+              (
+                  '    invoke-virtual/range {p0 .. p0}, Lcom/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity;->X2()V\n'
+                  '\n'
+                  '    invoke-static/range {p0 .. p0}, Lapp/revanced/extension/gamehub/ComponentManagerHelper;->setupBciButton(Landroid/app/Activity;)V\n'
+                  '\n'
+                  '    return-void\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public final j3()V\n'
+              ),
+              'LandscapeLauncherMainActivity.initView(): setupBciButton injection'
+          )
+
+          # ── 7. SteamGameByPcEmuLaunchStrategy: offline Steam skip ─────────────
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/launcher/strategy/SteamGameByPcEmuLaunchStrategy$launch$1$3.smali',
+              (
+                  '    invoke-interface {p1}, Lcom/xj/common/service/ISteamGameService;->l()Z\n'
+                  '\n'
+                  '    move-result v1\n'
+                  '\n'
+                  '    if-nez v1, :cond_8\n'
+              ),
+              (
+                  '    invoke-interface {p1}, Lcom/xj/common/service/ISteamGameService;->l()Z\n'
+                  '\n'
+                  '    move-result v1\n'
+                  '\n'
+                  '    # BannerHub Lite patch: if not logged in but offline, skip login screen\n'
+                  '    if-nez v1, :cond_8\n'
+                  '    invoke-static {}, Lcom/blankj/utilcode/util/NetworkUtils;->r()Z\n'
+                  '    move-result v1\n'
+                  '    if-eqz v1, :cond_8\n'
+              ),
+              'SteamGameByPcEmuLaunchStrategy: offline Steam skip injection'
+          )
+
+          # ── 8. GameSettingViewModel$fetchList$1: appendLocalComponents ──────────
+          patch(
+              'apktool_out/smali_classes4/com/xj/winemu/settings/GameSettingViewModel$fetchList$1.smali',
+              (
+                  '    iget-object v0, v7, Lcom/xj/winemu/settings/GameSettingViewModel$fetchList$1;'
+                  '->$result:Lcom/xj/common/data/model/CommResultEntity;\n\n'
+                  '    invoke-virtual {v0, v13}, Lcom/xj/common/data/model/CommResultEntity;->setData(Ljava/lang/Object;)V\n'
+              ),
+              (
+                  '    iget v0, v7, Lcom/xj/winemu/settings/GameSettingViewModel$fetchList$1;->$contentType:I\n'
+                  '    invoke-static {v13, v0}, Lapp/revanced/extension/gamehub/ComponentInjectorHelper;'
+                  '->appendLocalComponents(Ljava/util/List;I)V\n\n'
+                  '    iget-object v0, v7, Lcom/xj/winemu/settings/GameSettingViewModel$fetchList$1;'
+                  '->$result:Lcom/xj/common/data/model/CommResultEntity;\n\n'
+                  '    invoke-virtual {v0, v13}, Lcom/xj/common/data/model/CommResultEntity;->setData(Ljava/lang/Object;)V\n'
+              ),
+              'GameSettingViewModel$fetchList$1: appendLocalComponents injection'
+          )
+
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/launcher/'
+              'LauncherHelper$fetchStartTypeInfoAndSwitchModeInternal$2$1.smali',
+              (
+                  '    :goto_9\n'
+                  '    invoke-virtual {v0}, Ljava/lang/Throwable;->printStackTrace()V\n'
+                  '\n'
+                  '    instance-of v0, v0, Lcom/drake/net/exception/NetUnknownHostException;\n'
+                  '\n'
+                  '    if-eqz v0, :cond_14\n'
+                  '\n'
+                  '    invoke-static {v13}, Lkotlin/coroutines/jvm/internal/Boxing;->a(Z)Ljava/lang/Boolean;\n'
+                  '\n'
+                  '    move-result-object v0\n'
+                  '\n'
+                  '    return-object v0\n'
+              ),
+              (
+                  '    :goto_9\n'
+                  '    invoke-virtual {v0}, Ljava/lang/Throwable;->printStackTrace()V\n'
+                  '\n'
+                  '    # BannerHub Lite: API 404/ConvertException -> proceed with current launch settings\n'
+                  '    invoke-static {v13}, Lkotlin/coroutines/jvm/internal/Boxing;->a(Z)Ljava/lang/Boolean;\n'
+                  '\n'
+                  '    move-result-object v0\n'
+                  '\n'
+                  '    return-object v0\n'
+              ),
+              'LauncherHelper: API error -> proceed with launch defaults instead of blocking'
+          )
+
+          # Patch 9: EnvironmentController.d() — use stored bitmask directly for CPU affinity
+          patch(
+              'apktool_out/smali_classes4/com/winemu/core/controller/EnvironmentController.smali',
+              (
+                  '    sget-object v0, Lcom/winemu/core/utils/CpuInfoCollector;->a:Lcom/winemu/core/utils/CpuInfoCollector;\n'
+                  '\n'
+                  '    invoke-virtual {v0}, Lcom/winemu/core/utils/CpuInfoCollector;->b()I\n'
+                  '\n'
+                  '    move-result v0\n'
+                  '\n'
+                  '    iget-object v1, p0, Lcom/winemu/core/controller/EnvironmentController;->b:Lcom/winemu/openapi/Config;\n'
+                  '\n'
+                  '    invoke-virtual {v1}, Lcom/winemu/openapi/Config;->x()I\n'
+                  '\n'
+                  '    move-result v1\n'
+                  '\n'
+                  '    sub-int/2addr v0, v1\n'
+                  '\n'
+                  '    if-lez v0, :cond_0\n'
+                  '\n'
+                  '    const/4 v1, 0x1\n'
+                  '\n'
+                  '    shl-int v0, v1, v0\n'
+                  '\n'
+                  '    sub-int/2addr v0, v1\n'
+                  '\n'
+                  '    not-int v0, v0\n'
+                  '\n'
+                  '    iget-object v1, p0, Lcom/winemu/core/controller/EnvironmentController;->f:Lcom/winemu/core/utils/EnvVars;\n'
+              ),
+              (
+                  '    # BannerHub Lite: use stored bitmask directly for CPU affinity (0 = no limit)\n'
+                  '    iget-object v1, p0, Lcom/winemu/core/controller/EnvironmentController;->f:Lcom/winemu/core/utils/EnvVars;\n'
+              ),
+              'EnvironmentController.d(): CPU affinity bitmask direct use'
+          )
+
+          # Patch 10: PcGameSettingOperations.F() — replace count-based CPU list with bitmask presets
+          _CTOR = (
+              'Lcom/xj/winemu/bean/DialogSettingListItemEntity;-><init>'
+              '(IIZLjava/lang/String;Ljava/lang/String;IILjava/lang/String;ILjava/lang/String;'
+              'JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;II'
+              'Lcom/xj/winemu/api/bean/EnvLayerEntity;ZII'
+              'Lkotlin/jvm/internal/DefaultConstructorMarker;)V'
+          )
+          _new_F = (
+              '    # BannerHub Lite: bitmask-based CPU core selector\n'
+              '    # id = bitmask passed to WINEMU_CPU_AFFINITY. 0 = No Limit.\n'
+              '    const/4 v10, 0x0\n    const/4 v13, 0x0\n    const/4 v14, 0x0\n    const/4 v15, 0x0\n'
+              '    const/16 v16, 0x0\n    const/16 v17, 0x0\n    const/16 v18, 0x0\n'
+              '    const-wide/16 v19, 0x0\n'
+              '    const/16 v21, 0x0\n    const/16 v22, 0x0\n    const/16 v23, 0x0\n    const/16 v24, 0x0\n'
+              '    const/16 v25, 0x0\n    const/16 v26, 0x0\n    const/16 v27, 0x0\n    const/16 v28, 0x0\n'
+              '    const/16 v29, 0x0\n    const/16 v30, 0x0\n'
+              '    const v31, 0x1ffff2\n    const/16 v32, 0x0\n'
+          )
+          _entries = [
+              ('0x0',  'No Limit',             'nl'),
+              ('0xf0', 'Cores 4-7 (Performance)', 'p47'),
+              ('0xf',  'Cores 0-3 (Efficiency)',  'e03'),
+              ('0x1',  'Core 0',               'c0'),
+              ('0x2',  'Core 1',               'c1'),
+              ('0x4',  'Core 2',               'c2'),
+              ('0x8',  'Core 3',               'c3'),
+              ('0x10', 'Core 4',               'c4'),
+              ('0x20', 'Core 5',               'c5'),
+              ('0x40', 'Core 6',               'c6'),
+              ('0x80', 'Core 7 (Prime)',        'c7'),
+          ]
+          for hex_id, name, tag in _entries:
+              iid = int(hex_id, 16)
+              id_ins = f'    const/4 v9, {hex_id}\n' if iid < 8 else f'    const/16 v9, {hex_id}\n'
+              _new_F += (
+                  f'    # ---- {name} ----\n'
+                  + id_ins +
+                  f'    if-nez v0, :cond_bh_{tag}_ns\n' if iid == 0 else
+                  id_ins + f'    if-ne v0, v9, :cond_bh_{tag}_ns\n'
+              )
+              _new_F += (
+                  f'    const/4 v11, 0x1\n'
+                  f'    goto :goto_bh_{tag}\n'
+                  f'    :cond_bh_{tag}_ns\n'
+                  f'    const/4 v11, 0x0\n'
+                  f'    :goto_bh_{tag}\n'
+                  f'    const-string v12, "{name}"\n'
+                  f'    new-instance v8, Lcom/xj/winemu/bean/DialogSettingListItemEntity;\n'
+                  f'    invoke-direct/range {{v8 .. v32}}, {_CTOR}\n'
+                  f'    invoke-interface {{v4, v8}}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+              )
+          _new_F += '    return-object v4\n'
+          pcg = 'apktool_out/smali_classes4/com/xj/winemu/settings/PcGameSettingOperations.smali'
+          _content = open(pcg, encoding='utf-8').read()
+          _pat = (r'    sget-object v5, Lcom/winemu/core/utils/CpuInfoCollector;'
+                  r'->a:Lcom/winemu/core/utils/CpuInfoCollector;.*?    :cond_2\n    return-object v4\n')
+          if len(re.findall(_pat, _content, flags=re.DOTALL)) != 1:
+              print('ERROR: F() CPU list pattern not found uniquely'); sys.exit(1)
+          _content = re.sub(_pat, _new_F, _content, count=1, flags=re.DOTALL)
+          open(pcg, 'w', encoding='utf-8').write(_content)
+          print('OK: PcGameSettingOperations.F(): bitmask CPU list')
+
+          # Patch 11: PcGameSettingOperations.I() — bitmask display label
+          patch(
+              pcg,
+              (
+                  '    if-nez p1, :cond_0\n'
+                  '\n'
+                  '    invoke-static {}, Lcom/blankj/utilcode/util/Utils;->a()Landroid/app/Application;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    sget v0, Lcom/xj/language/R$string;->pc_cc_cpu_core_no_limit:I\n'
+                  '\n'
+                  '    invoke-virtual {p1, v0}, Landroid/content/Context;->getString(I)Ljava/lang/String;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    invoke-static {p1}, Lkotlin/jvm/internal/Intrinsics;->d(Ljava/lang/Object;)V\n'
+                  '\n'
+                  '    goto :goto_0\n'
+                  '\n'
+                  '    :cond_0\n'
+                  '    invoke-static {}, Lcom/blankj/utilcode/util/Utils;->a()Landroid/app/Application;\n'
+                  '\n'
+                  '    move-result-object v0\n'
+                  '\n'
+                  '    sget v1, Lcom/xj/language/R$string;->pc_cc_cpu_core:I\n'
+                  '\n'
+                  '    invoke-virtual {v0, v1}, Landroid/content/Context;->getString(I)Ljava/lang/String;\n'
+                  '\n'
+                  '    move-result-object v0\n'
+                  '\n'
+                  '    const-string v1, "getString(...)"\n'
+                  '\n'
+                  '    invoke-static {v0, v1}, Lkotlin/jvm/internal/Intrinsics;->f(Ljava/lang/Object;Ljava/lang/String;)V\n'
+                  '\n'
+                  '    invoke-static {p1}, Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    filled-new-array {p1}, [Ljava/lang/Object;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    const/4 v1, 0x1\n'
+                  '\n'
+                  '    invoke-static {p1, v1}, Ljava/util/Arrays;->copyOf([Ljava/lang/Object;I)[Ljava/lang/Object;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    invoke-static {v0, p1}, Ljava/lang/String;->format(Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    const-string v0, "format(...)"\n'
+                  '\n'
+                  '    invoke-static {p1, v0}, Lkotlin/jvm/internal/Intrinsics;->f(Ljava/lang/Object;Ljava/lang/String;)V\n'
+                  '\n'
+                  '    :goto_0\n'
+                  '    return-object p1\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public final I0(Lkotlin/coroutines/Continuation;)Ljava/lang/Object;\n'
+              ),
+              (
+                  '    # BannerHub Lite: bitmask display label for CPU affinity setting\n'
+                  '    if-nez p1, :cond_bh_nz\n'
+                  '    const-string p1, "No Limit"\n'
+                  '    return-object p1\n'
+                  '    :cond_bh_nz\n'
+                  '    const/16 v0, 0xf0\n'
+                  '    if-ne p1, v0, :cond_bh_p47\n'
+                  '    const-string p1, "Cores 4-7 (Performance)"\n'
+                  '    return-object p1\n'
+                  '    :cond_bh_p47\n'
+                  '    const/16 v0, 0xf\n'
+                  '    if-ne p1, v0, :cond_bh_e03\n'
+                  '    const-string p1, "Cores 0-3 (Efficiency)"\n'
+                  '    return-object p1\n'
+                  '    :cond_bh_e03\n'
+                  '    const/4 v0, 0x1\n'
+                  '    if-ne p1, v0, :cond_bh_c0\n'
+                  '    const-string p1, "Core 0"\n'
+                  '    return-object p1\n'
+                  '    :cond_bh_c0\n'
+                  '    const/4 v0, 0x2\n'
+                  '    if-ne p1, v0, :cond_bh_c1\n'
+                  '    const-string p1, "Core 1"\n'
+                  '    return-object p1\n'
+                  '    :cond_bh_c1\n'
+                  '    const/4 v0, 0x4\n'
+                  '    if-ne p1, v0, :cond_bh_c2\n'
+                  '    const-string p1, "Core 2"\n'
+                  '    return-object p1\n'
+                  '    :cond_bh_c2\n'
+                  '    const/16 v0, 0x8\n'
+                  '    if-ne p1, v0, :cond_bh_c3\n'
+                  '    const-string p1, "Core 3"\n'
+                  '    return-object p1\n'
+                  '    :cond_bh_c3\n'
+                  '    const/16 v0, 0x10\n'
+                  '    if-ne p1, v0, :cond_bh_c4\n'
+                  '    const-string p1, "Core 4"\n'
+                  '    return-object p1\n'
+                  '    :cond_bh_c4\n'
+                  '    const/16 v0, 0x20\n'
+                  '    if-ne p1, v0, :cond_bh_c5\n'
+                  '    const-string p1, "Core 5"\n'
+                  '    return-object p1\n'
+                  '    :cond_bh_c5\n'
+                  '    const/16 v0, 0x40\n'
+                  '    if-ne p1, v0, :cond_bh_c6\n'
+                  '    const-string p1, "Core 6"\n'
+                  '    return-object p1\n'
+                  '    :cond_bh_c6\n'
+                  '    const/16 v0, 0x80\n'
+                  '    if-ne p1, v0, :goto_0\n'
+                  '    const-string p1, "Core 7 (Prime)"\n'
+                  '    return-object p1\n'
+                  '    :goto_0\n'
+                  '    # Custom combination — build "Core X + Core Y" label dynamically\n'
+                  '    new-instance v0, Ljava/lang/StringBuilder;\n'
+                  '    invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V\n'
+                  '    const/4 v1, 0x1\n'
+                  '    and-int/2addr v1, p1\n'
+                  '    if-eqz v1, :cond_bh_nb0\n'
+                  '    const-string v1, "Core 0"\n'
+                  '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
+                  '    :cond_bh_nb0\n'
+                  '    const/4 v1, 0x2\n'
+                  '    and-int/2addr v1, p1\n'
+                  '    if-eqz v1, :cond_bh_nb1\n'
+                  '    invoke-virtual {v0}, Ljava/lang/StringBuilder;->length()I\n'
+                  '    move-result v2\n'
+                  '    if-eqz v2, :cond_bh_nb1_np\n'
+                  '    const-string v1, " + "\n'
+                  '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
+                  '    :cond_bh_nb1_np\n'
+                  '    const-string v1, "Core 1"\n'
+                  '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
+                  '    :cond_bh_nb1\n'
+                  '    const/4 v1, 0x4\n'
+                  '    and-int/2addr v1, p1\n'
+                  '    if-eqz v1, :cond_bh_nb2\n'
+                  '    invoke-virtual {v0}, Ljava/lang/StringBuilder;->length()I\n'
+                  '    move-result v2\n'
+                  '    if-eqz v2, :cond_bh_nb2_np\n'
+                  '    const-string v1, " + "\n'
+                  '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
+                  '    :cond_bh_nb2_np\n'
+                  '    const-string v1, "Core 2"\n'
+                  '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
+                  '    :cond_bh_nb2\n'
+                  '    const/16 v1, 0x8\n'
+                  '    and-int/2addr v1, p1\n'
+                  '    if-eqz v1, :cond_bh_nb3\n'
+                  '    invoke-virtual {v0}, Ljava/lang/StringBuilder;->length()I\n'
+                  '    move-result v2\n'
+                  '    if-eqz v2, :cond_bh_nb3_np\n'
+                  '    const-string v1, " + "\n'
+                  '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
+                  '    :cond_bh_nb3_np\n'
+                  '    const-string v1, "Core 3"\n'
+                  '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
+                  '    :cond_bh_nb3\n'
+                  '    const/16 v1, 0x10\n'
+                  '    and-int/2addr v1, p1\n'
+                  '    if-eqz v1, :cond_bh_nb4\n'
+                  '    invoke-virtual {v0}, Ljava/lang/StringBuilder;->length()I\n'
+                  '    move-result v2\n'
+                  '    if-eqz v2, :cond_bh_nb4_np\n'
+                  '    const-string v1, " + "\n'
+                  '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
+                  '    :cond_bh_nb4_np\n'
+                  '    const-string v1, "Core 4"\n'
+                  '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
+                  '    :cond_bh_nb4\n'
+                  '    const/16 v1, 0x20\n'
+                  '    and-int/2addr v1, p1\n'
+                  '    if-eqz v1, :cond_bh_nb5\n'
+                  '    invoke-virtual {v0}, Ljava/lang/StringBuilder;->length()I\n'
+                  '    move-result v2\n'
+                  '    if-eqz v2, :cond_bh_nb5_np\n'
+                  '    const-string v1, " + "\n'
+                  '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
+                  '    :cond_bh_nb5_np\n'
+                  '    const-string v1, "Core 5"\n'
+                  '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
+                  '    :cond_bh_nb5\n'
+                  '    const/16 v1, 0x40\n'
+                  '    and-int/2addr v1, p1\n'
+                  '    if-eqz v1, :cond_bh_nb6\n'
+                  '    invoke-virtual {v0}, Ljava/lang/StringBuilder;->length()I\n'
+                  '    move-result v2\n'
+                  '    if-eqz v2, :cond_bh_nb6_np\n'
+                  '    const-string v1, " + "\n'
+                  '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
+                  '    :cond_bh_nb6_np\n'
+                  '    const-string v1, "Core 6"\n'
+                  '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
+                  '    :cond_bh_nb6\n'
+                  '    const/16 v1, 0x80\n'
+                  '    and-int/2addr v1, p1\n'
+                  '    if-eqz v1, :cond_bh_nb7\n'
+                  '    invoke-virtual {v0}, Ljava/lang/StringBuilder;->length()I\n'
+                  '    move-result v2\n'
+                  '    if-eqz v2, :cond_bh_nb7_np\n'
+                  '    const-string v1, " + "\n'
+                  '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
+                  '    :cond_bh_nb7_np\n'
+                  '    const-string v1, "Core 7 (Prime)"\n'
+                  '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n'
+                  '    :cond_bh_nb7\n'
+                  '    invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;\n'
+                  '    move-result-object p1\n'
+                  '    return-object p1\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public final I0(Lkotlin/coroutines/Continuation;)Ljava/lang/Object;\n'
+              ),
+              'PcGameSettingOperations.I(): bitmask CPU affinity label'
+          )
+
+          # Patch 12: PcGameSettingOperations.p0() — extend VRAM list with 6/8/12/16 GB
+          _CTOR5 = (
+              'Lcom/xj/winemu/bean/DialogSettingListItemEntity;-><init>'
+              '(IIZLjava/lang/String;Ljava/lang/String;IILjava/lang/String;ILjava/lang/String;'
+              'JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;II'
+              'Lcom/xj/winemu/api/bean/EnvLayerEntity;ZII'
+              'Lkotlin/jvm/internal/DefaultConstructorMarker;)V'
+          )
+          patch(
+              pcg,
+              (
+                  '    invoke-interface {v1, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+                  '\n'
+                  '    return-object v1\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public final p1()Z\n'
+                  '    .locals 3\n'
+              ),
+              (
+                  '    invoke-interface {v1, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+                  '\n'
+                  '    # --- BannerHub Lite: extended VRAM limits (6/8/12/16 GB) ---\n'
+                  '    invoke-virtual/range {p0 .. p0}, Lcom/xj/winemu/settings/PcGameSettingOperations;->M0()I\n'
+                  '    move-result v2\n'
+                  '    const/16 v4, 0x1800\n'
+                  '    if-ne v2, v4, :cond_bh6ns\n'
+                  '    move/from16 v6, v28\n'
+                  '    goto :goto_bh6\n'
+                  '    :cond_bh6ns\n'
+                  '    const/4 v6, 0x0\n'
+                  '    :goto_bh6\n'
+                  '    new-instance v0, Lcom/xj/winemu/bean/DialogSettingListItemEntity;\n'
+                  '    move-object v3, v0\n'
+                  '    const-string v7, "6 GB"\n'
+                  f'    invoke-direct/range {{v3 .. v27}}, {_CTOR5}\n'
+                  '    invoke-interface {v1, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+                  '    const/16 v4, 0x2000\n'
+                  '    if-ne v2, v4, :cond_bh8ns\n'
+                  '    move/from16 v6, v28\n'
+                  '    goto :goto_bh8\n'
+                  '    :cond_bh8ns\n'
+                  '    const/4 v6, 0x0\n'
+                  '    :goto_bh8\n'
+                  '    new-instance v0, Lcom/xj/winemu/bean/DialogSettingListItemEntity;\n'
+                  '    move-object v3, v0\n'
+                  '    const-string v7, "8 GB"\n'
+                  f'    invoke-direct/range {{v3 .. v27}}, {_CTOR5}\n'
+                  '    invoke-interface {v1, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+                  '    const/16 v4, 0x3000\n'
+                  '    if-ne v2, v4, :cond_bh12ns\n'
+                  '    move/from16 v6, v28\n'
+                  '    goto :goto_bh12\n'
+                  '    :cond_bh12ns\n'
+                  '    const/4 v6, 0x0\n'
+                  '    :goto_bh12\n'
+                  '    new-instance v0, Lcom/xj/winemu/bean/DialogSettingListItemEntity;\n'
+                  '    move-object v3, v0\n'
+                  '    const-string v7, "12 GB"\n'
+                  f'    invoke-direct/range {{v3 .. v27}}, {_CTOR5}\n'
+                  '    invoke-interface {v1, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+                  '    const/16 v4, 0x4000\n'
+                  '    if-ne v2, v4, :cond_bh16ns\n'
+                  '    move/from16 v6, v28\n'
+                  '    goto :goto_bh16\n'
+                  '    :cond_bh16ns\n'
+                  '    const/4 v6, 0x0\n'
+                  '    :goto_bh16\n'
+                  '    new-instance v0, Lcom/xj/winemu/bean/DialogSettingListItemEntity;\n'
+                  '    move-object v3, v0\n'
+                  '    const-string v7, "16 GB"\n'
+                  f'    invoke-direct/range {{v3 .. v27}}, {_CTOR5}\n'
+                  '    invoke-interface {v1, v0}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+                  '    # --- end BannerHub Lite extended VRAM limits ---\n'
+                  '\n'
+                  '    return-object v1\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public final p1()Z\n'
+                  '    .locals 3\n'
+              ),
+              'PcGameSettingOperations.p0(): extend VRAM list to 16 GB'
+          )
+
+          # Patch 13a: PcGameSettingOperations.L0() — add 6/8/12/16 GB to if-chain
+          patch(
+              pcg,
+              (
+                  '    const/16 v1, 0x1000\n'
+                  '\n'
+                  '    if-eq v0, v1, :cond_0\n'
+                  '\n'
+                  '    sget v0, Lcom/xj/language/R$string;->pc_cc_cpu_core_no_limit:I\n'
+              ),
+              (
+                  '    const/16 v1, 0x1000\n'
+                  '\n'
+                  '    if-eq v0, v1, :cond_0\n'
+                  '\n'
+                  '    # --- BannerHub Lite: extended VRAM display strings ---\n'
+                  '    const/16 v1, 0x1800\n'
+                  '    if-eq v0, v1, :cond_bh6\n'
+                  '    const/16 v1, 0x2000\n'
+                  '    if-eq v0, v1, :cond_bh8\n'
+                  '    const/16 v1, 0x3000\n'
+                  '    if-eq v0, v1, :cond_bh12\n'
+                  '    const/16 v1, 0x4000\n'
+                  '    if-eq v0, v1, :cond_bh16\n'
+                  '    # --- end BannerHub Lite extended VRAM display strings ---\n'
+                  '\n'
+                  '    sget v0, Lcom/xj/language/R$string;->pc_cc_cpu_core_no_limit:I\n'
+              ),
+              'PcGameSettingOperations.L0(): add 6/8/12/16 GB VRAM display labels (chain)'
+          )
+
+          # Patch 13b: PcGameSettingOperations.L0() — add 6/8/12/16 GB label handlers
+          patch(
+              pcg,
+              (
+                  '    :cond_4\n'
+                  '    const-string v0, "512 MB"\n'
+                  '\n'
+                  '    :goto_0\n'
+                  '    return-object v0\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public final L1(Lcom/xj/winemu/bean/ITranslatorConfig;ZZ)V\n'
+              ),
+              (
+                  '    :cond_4\n'
+                  '    const-string v0, "512 MB"\n'
+                  '\n'
+                  '    goto :goto_0\n'
+                  '\n'
+                  '    :cond_bh6\n'
+                  '    const-string v0, "6 GB"\n'
+                  '\n'
+                  '    goto :goto_0\n'
+                  '\n'
+                  '    :cond_bh8\n'
+                  '    const-string v0, "8 GB"\n'
+                  '\n'
+                  '    goto :goto_0\n'
+                  '\n'
+                  '    :cond_bh12\n'
+                  '    const-string v0, "12 GB"\n'
+                  '\n'
+                  '    goto :goto_0\n'
+                  '\n'
+                  '    :cond_bh16\n'
+                  '    const-string v0, "16 GB"\n'
+                  '\n'
+                  '    :goto_0\n'
+                  '    return-object v0\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public final L1(Lcom/xj/winemu/bean/ITranslatorConfig;ZZ)V\n'
+              ),
+              'PcGameSettingOperations.L0(): add 6/8/12/16 GB VRAM display labels (handlers)'
+          )
+
+          # Patch 14: SelectAndSingleInputDialog$Companion.f() — intercept CONTENT_TYPE_CORE_LIMIT
+          patch(
+              'apktool_out/smali_classes4/com/xj/winemu/settings/SelectAndSingleInputDialog$Companion.smali',
+              (
+                  '    const-string v4, "callback"\n'
+                  '\n'
+                  '    invoke-static {v3, v4}, Lkotlin/jvm/internal/Intrinsics;->g(Ljava/lang/Object;Ljava/lang/String;)V\n'
+                  '\n'
+                  '    move-object/from16 v4, p0\n'
+                  '\n'
+                  '    invoke-virtual {v4, v2, v1}, Lcom/xj/winemu/settings/SelectAndSingleInputDialog$Companion;->c(ILjava/lang/String;)Ljava/util/List;\n'
+              ),
+              (
+                  '    const-string v4, "callback"\n'
+                  '\n'
+                  '    invoke-static {v3, v4}, Lkotlin/jvm/internal/Intrinsics;->g(Ljava/lang/Object;Ljava/lang/String;)V\n'
+                  '\n'
+                  '    # BannerHub Lite: intercept CONTENT_TYPE_CORE_LIMIT -> multi-select checkbox dialog\n'
+                  '    sget-object v4, Lcom/xj/winemu/bean/PcSettingItemEntity;->Companion:Lcom/xj/winemu/bean/PcSettingItemEntity$Companion;\n'
+                  '    invoke-virtual {v4}, Lcom/xj/winemu/bean/PcSettingItemEntity$Companion;->getCONTENT_TYPE_CORE_LIMIT()I\n'
+                  '    move-result v4\n'
+                  '    if-ne v2, v4, :cond_bh_not_cpu\n'
+                  '    invoke-static {v0, v1, v2, v3}, Lapp/revanced/extension/gamehub/CpuMultiSelectHelper;->show(Landroid/view/View;Ljava/lang/String;ILjava/lang/Object;)V\n'
+                  '    return-void\n'
+                  '    :cond_bh_not_cpu\n'
+                  '\n'
+                  '    move-object/from16 v4, p0\n'
+                  '\n'
+                  '    invoke-virtual {v4, v2, v1}, Lcom/xj/winemu/settings/SelectAndSingleInputDialog$Companion;->c(ILjava/lang/String;)Ljava/util/List;\n'
+              ),
+              'SelectAndSingleInputDialog$Companion.f(): CPU core limit -> CpuMultiSelectHelper'
+          )
+
+          # Patch 15: PcGameSettingDataHelper.x() — default new games to System Driver
+          patch(
+              'apktool_out/smali_classes4/com/xj/winemu/settings/PcGameSettingDataHelper.smali',
+              (
+                  '    new-instance p1, Lcom/xj/winemu/settings/PcGameSettingOperations;\n'
+                  '\n'
+                  '    invoke-direct {p1, p0}, Lcom/xj/winemu/settings/PcGameSettingOperations;-><init>(Ljava/lang/String;)V\n'
+                  '\n'
+                  '    return-object p1\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public static final y('
+              ),
+              (
+                  '    new-instance p1, Lcom/xj/winemu/settings/PcGameSettingOperations;\n'
+                  '\n'
+                  '    invoke-direct {p1, p0}, Lcom/xj/winemu/settings/PcGameSettingOperations;-><init>(Ljava/lang/String;)V\n'
+                  '\n'
+                  '    # BannerHub Lite: default new games to System Driver\n'
+                  '    invoke-static {p1}, Lapp/revanced/extension/gamehub/GpuDefaultHelper;->ensureSystemDriver(Ljava/lang/Object;)V\n'
+                  '\n'
+                  '    return-object p1\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public static final y('
+              ),
+              'PcGameSettingDataHelper.x(): default new games to System Driver'
+          )
+
+          # Patch 16: WinEmuDownloadManager.H() — skip GPU download when System Driver selected
+          patch(
+              'apktool_out/smali_classes4/com/xj/winemu/download/WinEmuDownloadManager.smali',
+              (
+                  '    invoke-virtual {p1}, Lcom/xj/winemu/settings/PcGameSettingOperations;->H0()Lcom/xj/winemu/bean/PcSettingDataEntity;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    if-eqz p1, :cond_8\n'
+                  '\n'
+                  '    invoke-virtual {p1}, Lcom/xj/winemu/bean/PcSettingDataEntity;->getName()Ljava/lang/String;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    move-object v3, p1\n'
+                  '\n'
+                  '    goto :goto_5\n'
+                  '\n'
+                  '    :cond_8\n'
+                  '    move-object v3, v8\n'
+                  '\n'
+                  '    :goto_5\n'
+              ),
+              (
+                  '    invoke-virtual {p1}, Lcom/xj/winemu/settings/PcGameSettingOperations;->H0()Lcom/xj/winemu/bean/PcSettingDataEntity;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    # BannerHub Lite: skip GPU download when null or System Driver (id=-1)\n'
+                  '    if-eqz p1, :cond_f\n'
+                  '\n'
+                  '    invoke-virtual {p1}, Lcom/xj/winemu/bean/PcSettingDataEntity;->getId()I\n'
+                  '\n'
+                  '    move-result p1\n'
+                  '\n'
+                  '    const/4 p4, -0x1\n'
+                  '\n'
+                  '    if-eq p1, p4, :cond_f\n'
+                  '\n'
+                  '    invoke-virtual {p2}, Lcom/xj/winemu/api/bean/EnvLayerEntity;->getName()Ljava/lang/String;\n'
+                  '\n'
+                  '    move-result-object v3\n'
+                  '\n'
+                  '    :goto_5\n'
+              ),
+              'WinEmuDownloadManager.H(): skip GPU download when System Driver selected'
+          )
+
+          # Patch 17: GameConfigDownloadAction$checkIsDownloaded$2 — return TRUE for unrecognised fileTypes
+          patch(
+              'apktool_out/smali_classes4/com/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2.smali',
+              (
+                  '    const/4 v1, 0x4\n'
+                  '\n'
+                  '    if-eq p1, v1, :cond_4\n'
+                  '\n'
+                  '    goto :goto_4\n'
+              ),
+              (
+                  '    const/4 v1, 0x4\n'
+                  '\n'
+                  '    if-eq p1, v1, :cond_4\n'
+                  '\n'
+                  '    # BannerHub Lite: unrecognised fileType (GPU driver) — treat as downloaded\n'
+                  '    goto :goto_1\n'
+              ),
+              'GameConfigDownloadAction$checkIsDownloaded$2: return TRUE for unrecognised fileType (GPU driver fix)'
+          )
+
+          # Patch 18: checkIsDownloaded$2 — skip EmuComponents.q() for GPU-type entities
+          patch(
+              'apktool_out/smali_classes4/com/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2.smali',
+              (
+                  '    :cond_4\n'
+                  '    sget-object p1, Lcom/xj/winemu/EmuComponents;->c:Lcom/xj/winemu/EmuComponents$Companion;\n'
+                  '\n'
+                  '    invoke-virtual {p1}, Lcom/xj/winemu/EmuComponents$Companion;->a()Lcom/xj/winemu/EmuComponents;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    iget-object v1, p0, Lcom/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2;->$entity:Lcom/xj/winemu/api/bean/EnvLayerEntity;\n'
+                  '\n'
+                  '    invoke-virtual {v1}, Lcom/xj/winemu/api/bean/EnvLayerEntity;->getName()Ljava/lang/String;\n'
+                  '\n'
+                  '    move-result-object v1\n'
+                  '\n'
+                  '    iput v5, p0, Lcom/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2;->label:I\n'
+                  '\n'
+                  '    invoke-virtual {p1, v1, p0}, Lcom/xj/winemu/EmuComponents;->q(Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;\n'
+              ),
+              (
+                  '    :cond_4\n'
+                  '    # BannerHub Lite: GPU drivers are not registered in EmuComponents after download\n'
+                  '    iget-object v1, p0, Lcom/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2;->$entity:Lcom/xj/winemu/api/bean/EnvLayerEntity;\n'
+                  '\n'
+                  '    invoke-virtual {v1}, Lcom/xj/winemu/api/bean/EnvLayerEntity;->getType()I\n'
+                  '\n'
+                  '    move-result p1\n'
+                  '\n'
+                  '    sget-object v1, Lcom/xj/winemu/api/bean/ComponentType;->GPU:Lcom/xj/winemu/api/bean/ComponentType;\n'
+                  '\n'
+                  '    invoke-virtual {v1}, Lcom/xj/winemu/api/bean/ComponentType;->getType()I\n'
+                  '\n'
+                  '    move-result v1\n'
+                  '\n'
+                  '    if-eq p1, v1, :goto_1\n'
+                  '\n'
+                  '    sget-object p1, Lcom/xj/winemu/EmuComponents;->c:Lcom/xj/winemu/EmuComponents$Companion;\n'
+                  '\n'
+                  '    invoke-virtual {p1}, Lcom/xj/winemu/EmuComponents$Companion;->a()Lcom/xj/winemu/EmuComponents;\n'
+                  '\n'
+                  '    move-result-object p1\n'
+                  '\n'
+                  '    iget-object v1, p0, Lcom/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2;->$entity:Lcom/xj/winemu/api/bean/EnvLayerEntity;\n'
+                  '\n'
+                  '    invoke-virtual {v1}, Lcom/xj/winemu/api/bean/EnvLayerEntity;->getName()Ljava/lang/String;\n'
+                  '\n'
+                  '    move-result-object v1\n'
+                  '\n'
+                  '    iput v5, p0, Lcom/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2;->label:I\n'
+                  '\n'
+                  '    invoke-virtual {p1, v1, p0}, Lcom/xj/winemu/EmuComponents;->q(Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;\n'
+              ),
+              'checkIsDownloaded$2: skip EmuComponents.q() for GPU-type entities (custom driver fix)'
+          )
+
+          # Patch 19: SettingItemViewModel.k() — add Grant Root Access button item (contentType=0x64)
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/vm/SettingItemViewModel.smali',
+              '    invoke-interface {v0, v1}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+              '\n'
+              '    return-object v0\n'
+              '.end method\n'
+              '\n'
+              '.method public final l()Ljava/util/List;',
+              '    invoke-interface {v0, v1}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+              '\n'
+              '    # BannerHub Lite: Grant Root Access button (contentType=0x64) below Clear Cache\n'
+              '    new-instance v1, Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity;\n'
+              '\n'
+              '    invoke-virtual {v9}, Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity$Companion;->getTYPE_BTN()I\n'
+              '\n'
+              '    move-result v11\n'
+              '\n'
+              '    const/16 v12, 0x64\n'
+              '\n'
+              '    const/16 v15, 0xc\n'
+              '\n'
+              '    const/16 v16, 0x0\n'
+              '\n'
+              '    const/4 v13, 0x0\n'
+              '\n'
+              '    const/4 v14, 0x0\n'
+              '\n'
+              '    move-object v10, v1\n'
+              '\n'
+              '    invoke-direct/range {v10 .. v16}, Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity;-><init>(IILandroid/util/SparseArray;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V\n'
+              '\n'
+              '    invoke-interface {v0, v1}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+              '\n'
+              '    return-object v0\n'
+              '.end method\n'
+              '\n'
+              '.method public final l()Ljava/util/List;',
+              'SettingItemViewModel.k(): add Grant Root Access button item (contentType=0x64)'
+          )
+
+          # Patch 20: SettingItemEntity.getContentName() — return label for contentType=0x64
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/data/model/entity/SettingItemEntity.smali',
+              '    :cond_15\n'
+              '    const-string v0, ""\n'
+              '\n'
+              '    :goto_0\n'
+              '    return-object v0',
+              '    :cond_15\n'
+              '    # BannerHub Lite: Grant Root Access button (contentType=0x64)\n'
+              '    const/16 v1, 0x64\n'
+              '\n'
+              '    if-ne v0, v1, :cond_16\n'
+              '\n'
+              '    const-string v0, "Grant Root Access"\n'
+              '\n'
+              '    goto :goto_0\n'
+              '\n'
+              '    :cond_16\n'
+              '    const-string v0, ""\n'
+              '\n'
+              '    :goto_0\n'
+              '    return-object v0',
+              'SettingItemEntity.getContentName(): return label for Grant Root Access (0x64)'
+          )
+
+          # Patch 21: SettingBtnHolder.w() — handle click for contentType=0x64
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/setting/holder/SettingBtnHolder.smali',
+              '    move-result p0\n'
+              '\n'
+              '    sget-object p1, Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity;'
+              '->Companion:Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity$Companion;\n',
+              '    move-result p0\n'
+              '\n'
+              '    # BannerHub Lite: Grant Root Access (contentType=0x64) — injected early while p2 is still a View\n'
+              '    const/16 v0, 0x64\n'
+              '\n'
+              '    if-ne p0, v0, :bh_skip_root_grant\n'
+              '\n'
+              '    invoke-virtual {p2}, Landroid/view/View;->getContext()Landroid/content/Context;\n'
+              '\n'
+              '    move-result-object v0\n'
+              '\n'
+              '    invoke-static {v0}, Lapp/revanced/extension/gamehub/BhRootGrantHelper;->requestRoot(Landroid/content/Context;)V\n'
+              '\n'
+              '    sget-object v0, Lkotlin/Unit;->a:Lkotlin/Unit;\n'
+              '\n'
+              '    return-object v0\n'
+              '\n'
+              '    :bh_skip_root_grant\n'
+              '\n'
+              '    sget-object p1, Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity;'
+              '->Companion:Lcom/xj/landscape/launcher/data/model/entity/SettingItemEntity$Companion;\n',
+              'SettingBtnHolder.w(): handle Grant Root Access click (contentType=0x64)'
+          )
+
+          # Patch N: LandscapeLauncherMainActivity.onResume() — GOG pending launch check
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity.smali',
+              (
+                  '    invoke-super {p0}, Lcom/xj/base/base/activity/BaseVmActivity;->onResume()V\n'
+                  '\n'
+                  '    const/4 v0, 0x1\n'
+                  '\n'
+                  '    iput-boolean v0, p0, Lcom/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity;->i:Z\n'
+              ),
+              (
+                  '    invoke-super {p0}, Lcom/xj/base/base/activity/BaseVmActivity;->onResume()V\n'
+                  '\n'
+                  '    # BannerHub Lite: fire EditImportedGameInfoDialog for GOG installs\n'
+                  '    invoke-static {p0}, Lapp/revanced/extension/gamehub/GogLaunchHelper;->checkPendingLaunch(Landroid/app/Activity;)V\n'
+                  '\n'
+                  '    const/4 v0, 0x1\n'
+                  '\n'
+                  '    iput-boolean v0, p0, Lcom/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity;->i:Z\n'
+              ),
+              'LandscapeLauncherMainActivity.onResume(): GOG pending launch check'
+          )
+
+          print("\nAll patches applied successfully.")
+          PYEOF
+
+      - name: Apply resource patches
+        run: |
+          if [ -d "patches" ] && [ "$(ls -A patches)" ]; then
+            echo "Applying resource patches..."
+            cp -r patches/. apktool_out/
+            echo "Done."
+          fi
+
+      - name: Remove problematic res entries
+        run: |
+          sed -i '/firebase_common_keep\|firebase_crashlytics_keep/d' apktool_out/res/values/public.xml || true
+
+      - name: Patch BannerHub API URL
+        run: |
+          sed -i 's|gamehub-lite-api\.emuready\.workers\.dev|bannerhub-api.the412banner.workers.dev|g' \
+            apktool_out/smali_classes4/com/xj/common/http/EggGameHttpConfig.smali
+          echo "Patched API URL to bannerhub-api.the412banner.workers.dev"
+
+      - name: Upload patched source
+        uses: actions/upload-artifact@v4
+        with:
+          name: apktool_out_bhapi
+          path: apktool_out/
+          retention-days: 1
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - variant: Normal-BHApi
+            package: gamehub.lite
+            label: "BannerHub Lite"
+          - variant: PuBG-BHApi
+            package: com.tencent.ig
+            label: "BannerHub Lite PuBG"
+          - variant: AnTuTu-BHApi
+            package: com.antutu.ABenchMark
+            label: "BannerHub Lite AnTuTu"
+          - variant: alt-AnTuTu-BHApi
+            package: com.antutu.benchmark.full
+            label: "BannerHub Lite AnTuTu"
+          - variant: PuBG-CrossFire-BHApi
+            package: com.tencent.tmgp.cf
+            label: "BannerHub Lite PuBG CrossFire"
+          - variant: Ludashi-BHApi
+            package: com.ludashi.aibench
+            label: "BannerHub Lite Ludashi"
+          - variant: Genshin-BHApi
+            package: com.mihoyo.genshinimpact
+            label: "BannerHub Lite Genshin"
+          - variant: Original-BHApi
+            package: com.xiaoji.egggame
+            label: "BannerHub Lite"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install apktool
+        run: |
+          APKTOOL_VER=2.9.3
+          mkdir -p $HOME/bin
+          wget -q "https://github.com/iBotPeaches/Apktool/releases/download/v${APKTOOL_VER}/apktool_${APKTOOL_VER}.jar" -O $HOME/bin/apktool.jar
+          wget -q "https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool" -O $HOME/bin/apktool
+          chmod +x $HOME/bin/apktool
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      - name: Download patched source
+        uses: actions/download-artifact@v4
+        with:
+          name: apktool_out_bhapi
+          path: apktool_out
+
+      - name: Patch package name and label
+        run: |
+          PKG="${{ matrix.package }}"
+          LABEL="${{ matrix.label }}"
+          if [ "$PKG" != "gamehub.lite" ]; then
+            sed -i "s/gamehub\.lite/$PKG/g" apktool_out/AndroidManifest.xml
+          fi
+          sed -i 's/android:label="@string\/app_name"/android:label="'"$LABEL"'"/' apktool_out/AndroidManifest.xml
+
+      - name: Rebuild APK
+        run: |
+          java -jar $HOME/bin/apktool.jar b apktool_out -o rebuilt-unsigned.apk
+          echo "Rebuild complete: $(du -sh rebuilt-unsigned.apk | cut -f1)"
+
+      - name: Compile and inject extension dex
+        run: |
+          ANDROID_JAR=$(ls $ANDROID_SDK_ROOT/platforms/android-*/android.jar 2>/dev/null | sort -V | tail -1)
+          echo "Using SDK: $ANDROID_JAR"
+
+          mkdir -p ext_classes
+          javac -source 8 -target 8 -cp "$ANDROID_JAR" -d ext_classes extension/*.java
+          echo "Compiled extension classes:"
+          find ext_classes -name "*.class"
+
+          BUILD_TOOLS=$(ls $ANDROID_SDK_ROOT/build-tools | sort -V | tail -1)
+          mkdir -p ext_dex
+          $ANDROID_SDK_ROOT/build-tools/$BUILD_TOOLS/d8 \
+            --release \
+            --min-api 26 \
+            --output ext_dex \
+            $(find ext_classes -name "*.class")
+          echo "Extension dex: $(du -sh ext_dex/classes.dex | cut -f1)"
+
+          cp ext_dex/classes.dex classes11.dex
+          zip -j rebuilt-unsigned.apk classes11.dex
+          echo "Injected classes11.dex"
+
+      - name: Zipalign
+        run: |
+          BUILD_TOOLS=$(ls ${ANDROID_SDK_ROOT}/build-tools | tail -1)
+          ${ANDROID_SDK_ROOT}/build-tools/${BUILD_TOOLS}/zipalign -f -v 4 rebuilt-unsigned.apk rebuilt-aligned.apk
+
+      - name: Sign
+        id: sign
+        run: |
+          BUILD_TOOLS=$(ls ${ANDROID_SDK_ROOT}/build-tools | tail -1)
+          VERSION="${{ github.event.inputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "bhapi")
+          fi
+          APK_NAME="Bannerhub-Lite-${VERSION}-${{ matrix.variant }}.apk"
+          ${ANDROID_SDK_ROOT}/build-tools/${BUILD_TOOLS}/apksigner sign \
+            --key testkey.pk8 \
+            --cert testkey.x509.pem \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --out "$APK_NAME" \
+            rebuilt-aligned.apk
+          echo "Signed: $APK_NAME ($(du -sh "$APK_NAME" | cut -f1))"
+          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.sign.outputs.apk_name }}
+          path: ${{ steps.sign.outputs.apk_name }}
+          retention-days: 1
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: ver
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "bhapi")
+          fi
+          echo "name=${VERSION}-BHApi" >> $GITHUB_OUTPUT
+
+      - name: Download all APK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: Bannerhub-Lite-*.apk
+          merge-multiple: true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.name }}
+          name: BannerHub Lite ${{ steps.ver.outputs.name }}
+          prerelease: true
+          body: |
+            BannerHub Lite — BannerHub API variants
+
+            All 8 APKs in this release are hardcoded to use the BannerHub API:
+            `https://bannerhub-api.the412banner.workers.dev/`
+          files: Bannerhub-Lite-*.apk
