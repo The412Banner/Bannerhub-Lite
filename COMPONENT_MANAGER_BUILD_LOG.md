@@ -6,6 +6,33 @@
 
 ---
 
+## Entry 013 — API Source selector (v0.3.7-pre1)
+
+### What was built
+- **`BhApiSelectorHelper.java`** — new extension class with `getApiSource(Context)`, `setApiSource(Context, int)`, `getEffectiveApiUrl(Context, String)`, `showApiSelectorDialog(Context)`
+- **Settings button (contentType=0x65)** — "API Source" button below "Grant Root Access" in Settings → Advanced
+- **Runtime URL selection** — `EggGameHttpConfig.c(Context)` intercepted; reads pref `api_source` in `bh_prefs` at startup instead of using the build-time hardcoded URL
+- **2-option dialog** — BannerHub API (default, self-hosted GitHub) / EmuReady Proxy (original GameHub Lite backend)
+
+### Why
+Porting BannerHub v2.7.4 API Source selector feature. BH-Lite previously hardcoded the bannerhub-api URL via a build-time sed patch. This adds runtime switching without breaking the existing sed patch (which now sets `field b` = bannerhub-api URL, used as the default when source=0).
+
+### Patches added to build.yml
+- **Patch 22** — `SettingItemViewModel.k()`: add TYPE_BTN item contentType=0x65 after root grant (0x64)
+- **Patch 23** — `SettingItemEntity.getContentName()`: return "API Source" for 0x65
+- **Patch 24** — `SettingBtnHolder.w()`: handle 0x65 click → `BhApiSelectorHelper.showApiSelectorDialog(ctx)`
+- **Patch 25** — `EggGameHttpConfig.c(Context)`: after `sget-object v1 (field b)`, call `BhApiSelectorHelper.getEffectiveApiUrl(p1, v1)` and replace v1 with result before `NetConfig.l()` call
+
+### Files created/modified
+- `extension/BhApiSelectorHelper.java` (new)
+- `.github/workflows/build.yml` (patches 22–25)
+- `PROGRESS_LOG.md`
+
+### CI result
+Pending — v0.3.7-pre1 not yet pushed
+
+---
+
 ## Entry 001 — Initial Component Manager (v0.1.0 init)
 
 ### What was built
