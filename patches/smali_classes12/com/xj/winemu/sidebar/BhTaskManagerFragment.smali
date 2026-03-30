@@ -82,7 +82,7 @@
     invoke-interface {v0, v1, v2}, Landroid/content/SharedPreferences;->getInt(Ljava/lang/String;I)I
     move-result v0
     :try_end_vram
-    .catch Ljava/lang/Exception; {:try_start_vram .. :try_end_vram} :vram_err
+    .catch Ljava/lang/Throwable; {:try_start_vram .. :try_end_vram} :vram_err
 
     if-eqz v0, :vram_unlimited
 
