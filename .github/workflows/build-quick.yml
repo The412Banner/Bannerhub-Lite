@@ -79,6 +79,15 @@ jobs:
               ' android:screenOrientation="sensorLandscape" />\n'
               '    <activity android:name="app.revanced.extension.gamehub.GogGamesActivity"'
               ' android:label="GOG Library" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.AmazonMainActivity"'
+              ' android:label="Amazon Games" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.AmazonLoginActivity"'
+              ' android:label="Amazon Login" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.AmazonGamesActivity"'
+              ' android:label="Amazon Library" android:exported="false"'
               ' android:screenOrientation="sensorLandscape" />\n    </application>',
               'manifest: register activities'
           )
@@ -1023,7 +1032,7 @@ jobs:
               'SettingBtnHolder.w(): handle Grant Root Access click (contentType=0x64)'
           )
 
-          # Patch N: LandscapeLauncherMainActivity.onResume() — GOG pending launch check
+          # Patch N: LandscapeLauncherMainActivity.onResume() — GOG + Amazon pending launch checks
           patch(
               'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity.smali',
               (
@@ -1039,11 +1048,14 @@ jobs:
                   '    # BannerHub Lite: fire EditImportedGameInfoDialog for GOG installs\n'
                   '    invoke-static {p0}, Lapp/revanced/extension/gamehub/GogLaunchHelper;->checkPendingLaunch(Landroid/app/Activity;)V\n'
                   '\n'
+                  '    # BannerHub Lite: fire EditImportedGameInfoDialog for Amazon installs\n'
+                  '    invoke-static {p0}, Lapp/revanced/extension/gamehub/AmazonLaunchHelper;->checkPendingLaunch(Landroid/app/Activity;)V\n'
+                  '\n'
                   '    const/4 v0, 0x1\n'
                   '\n'
                   '    iput-boolean v0, p0, Lcom/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity;->i:Z\n'
               ),
-              'LandscapeLauncherMainActivity.onResume(): GOG pending launch check'
+              'LandscapeLauncherMainActivity.onResume(): GOG + Amazon pending launch checks'
           )
 
           print("\nAll patches applied successfully.")

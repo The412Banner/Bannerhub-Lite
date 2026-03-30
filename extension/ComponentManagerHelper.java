@@ -24,6 +24,7 @@ public final class ComponentManagerHelper {
     private static final String TAG = "BannerHub";
     private static final int COMPONENTS_MENU_ID = 9;
     private static final int GOG_MENU_ID = 10;
+    private static final int AMAZON_MENU_ID = 11;
 
     private ComponentManagerHelper() {}
 
@@ -63,6 +64,12 @@ public final class ComponentManagerHelper {
             //noinspection unchecked
             items.add(gogItem);
             Log.d(TAG, "addComponentsMenuItem: GOG item added (id=" + GOG_MENU_ID + ")");
+
+            Object amazonItem = ctor.newInstance(
+                    AMAZON_MENU_ID, iconRes, "Amazon Games", null, 0x8, null);
+            //noinspection unchecked
+            items.add(amazonItem);
+            Log.d(TAG, "addComponentsMenuItem: Amazon item added (id=" + AMAZON_MENU_ID + ")");
         } catch (Exception e) {
             Log.e(TAG, "addComponentsMenuItem failed", e);
         }
@@ -86,6 +93,14 @@ public final class ComponentManagerHelper {
             if (id == GOG_MENU_ID) {
                 dialog.getClass().getMethod("dismiss").invoke(dialog);
                 Intent intent = new Intent(activity, GogMainActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                activity.startActivity(intent);
+                return true;
+            }
+
+            if (id == AMAZON_MENU_ID) {
+                dialog.getClass().getMethod("dismiss").invoke(dialog);
+                Intent intent = new Intent(activity, AmazonMainActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 activity.startActivity(intent);
                 return true;

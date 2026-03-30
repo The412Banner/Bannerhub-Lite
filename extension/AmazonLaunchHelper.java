@@ -1,5 +1,7 @@
 package app.revanced.extension.gamehub;
 
+import android.app.Activity;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -31,6 +33,25 @@ import java.util.regex.Pattern;
 public class AmazonLaunchHelper {
 
     private static final String TAG = "BH_AMAZON";
+
+    /**
+     * Called from LandscapeLauncherMainActivity.onResume() via smali injection.
+     * If a pending Amazon exe path is stored, invokes g3(exePath) to open
+     * EditImportedGameInfoDialog with the path pre-filled, then clears the pref.
+     */
+    public static void checkPendingLaunch(Activity activity) {
+        SharedPreferences prefs = activity.getSharedPreferences("bh_amazon_prefs", 0);
+        String exe = prefs.getString("pending_amazon_exe", null);
+        if (exe == null || exe.isEmpty()) return;
+
+        prefs.edit().remove("pending_amazon_exe").apply();
+        try {
+            activity.getClass().getMethod("g3", String.class).invoke(activity, exe);
+            Log.d(TAG, "AmazonLaunchHelper: g3 called with " + exe);
+        } catch (Exception e) {
+            Log.e(TAG, "AmazonLaunchHelper: g3 call failed", e);
+        }
+    }
 
     public static class LaunchSpec {
         /** Full winhandler.exe command, e.g. winhandler.exe "A:\game.exe" arg1 */
