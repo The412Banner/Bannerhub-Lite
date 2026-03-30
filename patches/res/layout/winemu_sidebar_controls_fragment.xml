@@ -20,6 +20,7 @@
             <!-- BannerHub Lite: Performance Toggles -->
             <com.xj.winemu.view.SidebarSwitchItemView android:id="@id/switch_sustained_perf" android:layout_width="fill_parent" android:layout_height="@dimen/dp_56" app:switch_title="Sustained Performance (Root+)" />
             <com.xj.winemu.view.SidebarSwitchItemView android:id="@id/switch_max_adreno_clocks" android:layout_width="fill_parent" android:layout_height="@dimen/dp_56" app:switch_title="Max Adreno Clocks (Root)" />
+            <com.xj.winemu.view.SidebarSwitchItemView android:id="@id/switch_winlator_hud" android:layout_width="fill_parent" android:layout_height="@dimen/dp_56" app:switch_title="Winlator HUD" />
             <app.revanced.extension.gamehub.BhPerfSetupDelegate android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
         </com.xj.common.view.focus.focus.view.FocusableLinearLayout>
     </com.xj.common.view.focus.focus.view.FocusableNestedScrollView>

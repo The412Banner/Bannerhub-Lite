@@ -6,11 +6,8 @@ import android.content.SharedPreferences;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.ViewParent;
-import android.widget.LinearLayout;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 
 /**
@@ -81,26 +78,14 @@ public class BhPerfSetupDelegate extends View {
                 }
             }
 
-            // ── Winlator HUD toggle (added programmatically) ──────────────────
-            View hudSwitch = parentView.findViewWithTag("bh_hud_switch");
-            if (hudSwitch == null) {
-                hudSwitch = createSidebarSwitch(ctx);
-                if (hudSwitch != null) {
-                    hudSwitch.setTag("bh_hud_switch");
-                    setTextOnSwitch(hudSwitch, "Winlator HUD");
-                    if (parentView instanceof ViewGroup) {
-                        ((ViewGroup) parentView).addView(hudSwitch,
-                                new LinearLayout.LayoutParams(
-                                        LinearLayout.LayoutParams.MATCH_PARENT,
-                                        LinearLayout.LayoutParams.WRAP_CONTENT));
-                    }
-                }
-            }
+            // ── Winlator HUD toggle ───────────────────────────────────────────
+            int hudId = ctx.getResources().getIdentifier(
+                    "switch_winlator_hud", "id", ctx.getPackageName());
+            View hudSwitch = parentView.findViewById(hudId);
             if (hudSwitch != null) {
                 boolean hudEnabled = prefs.getBoolean("winlator_hud", false);
                 callSetSwitch(hudSwitch, hudEnabled);
-                final View finalHudSwitch = hudSwitch;
-                hudSwitch.setOnClickListener(v -> toggleHud(ctx, prefs, finalHudSwitch));
+                hudSwitch.setOnClickListener(v -> toggleHud(ctx, prefs, v));
             }
         } catch (Exception e) {
             Log.e(TAG, "BhPerfSetupDelegate.onAttachedToWindow failed", e);
@@ -115,52 +100,13 @@ public class BhPerfSetupDelegate extends View {
             callSetSwitch(switchView, newState);
             prefs.edit().putBoolean("winlator_hud", newState).apply();
 
-            // Sync running HUD if WineActivity is available
             try {
                 Class<?> wineClass = Class.forName("com.xj.winemu.WineActivity");
                 Activity activity = (Activity) wineClass.getField("t1").get(null);
-                if (activity != null) {
-                    BhHudInjector.injectOrUpdate(activity);
-                }
+                if (activity != null) BhHudInjector.injectOrUpdate(activity);
             } catch (Exception ignored) {}
         } catch (Exception e) {
             Log.e(TAG, "toggleHud failed", e);
-        }
-    }
-
-    // ── SidebarSwitchItemView creation helpers ─────────────────────────────────
-
-    private static View createSidebarSwitch(Context ctx) {
-        try {
-            Class<?> cls = Class.forName("com.xj.winemu.view.SidebarSwitchItemView");
-            Constructor<?> ctor = cls.getConstructor(Context.class, android.util.AttributeSet.class);
-            return (View) ctor.newInstance(ctx, null);
-        } catch (Exception e) {
-            Log.w(TAG, "createSidebarSwitch failed: " + e.getMessage());
-            return null;
-        }
-    }
-
-    private static void setTextOnSwitch(View view, String text) {
-        try {
-            // SidebarSwitchItemView.j = WinemuSidebarSwitchItemBinding; binding.titleText or first TextView
-            java.lang.reflect.Field jField = view.getClass().getField("j");
-            Object binding = jField.get(view);
-            if (binding == null) return;
-            // Try common field names for the title TextView
-            for (String name : new String[]{"titleText", "title", "tvTitle", "a"}) {
-                try {
-                    java.lang.reflect.Field f = binding.getClass().getDeclaredField(name);
-                    f.setAccessible(true);
-                    Object tv = f.get(binding);
-                    if (tv instanceof android.widget.TextView) {
-                        ((android.widget.TextView) tv).setText(text);
-                        return;
-                    }
-                } catch (NoSuchFieldException ignored) {}
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "setTextOnSwitch failed: " + e.getMessage());
         }
     }
 
