@@ -116,7 +116,7 @@
 .end method
 
 .method public constructor <init>(Landroid/content/Context;Landroid/util/AttributeSet;I)V
-    .locals 3
+    .locals 4
     .param p1    # Landroid/content/Context;
         .annotation build Lorg/jetbrains/annotations/NotNull;
         .end annotation
@@ -254,8 +254,18 @@
 
     invoke-virtual {p3, v0}, Lcom/xj/winemu/view/SidebarTitleItemView;->setClickListener(Lkotlin/jvm/functions/Function0;)V
 
-    # ── BH: Task Manager sidebar tab ─────────────────────────────────
-    sget v0, Lcom/xj/winemu/R$id;->sidebar_taskmanager:I
+    # ── BH: Task Manager sidebar tab (getIdentifier — R$id not extended) ──
+    invoke-virtual {p0}, Landroid/view/View;->getResources()Landroid/content/res/Resources;
+    move-result-object v0
+    const-string v1, "sidebar_taskmanager"
+    const-string v2, "id"
+    invoke-virtual {p0}, Landroid/view/View;->getContext()Landroid/content/Context;
+    move-result-object v3
+    invoke-virtual {v3}, Landroid/content/Context;->getPackageName()Ljava/lang/String;
+    move-result-object v3
+    invoke-virtual {v0, v1, v2, v3}, Landroid/content/res/Resources;->getIdentifier(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)I
+    move-result v0
+    if-eqz v0, :cond_tm_skip
     invoke-virtual {p0, v0}, Landroid/view/View;->findViewById(I)Landroid/view/View;
     move-result-object v0
     if-eqz v0, :cond_tm_skip
