@@ -57,7 +57,7 @@
     .locals 3
     :try_start_vram
     check-cast p0, Lcom/xj/winemu/WineActivity;
-    iget-object v0, p0, Lcom/xj/winemu/WineActivity;->u:Lcom/xj/winemu/api/bean/WineActivityData;
+    iget-object v0, p0, Lcom/xj/winemu/WineActivity;->r:Lcom/xj/winemu/api/bean/WineActivityData;
     if-eqz v0, :vram_unlimited
     iget-object v0, v0, Lcom/xj/winemu/api/bean/WineActivityData;->a:Ljava/lang/String;
     if-eqz v0, :vram_unlimited
