@@ -1070,6 +1070,28 @@ jobs:
               'LandscapeLauncherMainActivity.onResume(): GOG + Amazon + Epic pending launch checks'
           )
 
+          # Patch: WineActivity.onResume() — inject/sync BhFrameRating HUD overlay
+          patch(
+              'apktool_out/smali_classes4/com/xj/winemu/WineActivity.smali',
+              (
+                  '    :cond_1\n'
+                  '    return-void\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public onStop()V\n'
+              ),
+              (
+                  '    :cond_1\n'
+                  '    # BannerHub Lite: inject/sync Winlator HUD overlay\n'
+                  '    invoke-static {p0}, Lapp/revanced/extension/gamehub/BhHudInjector;->injectOrUpdate(Landroid/app/Activity;)V\n'
+                  '    return-void\n'
+                  '.end method\n'
+                  '\n'
+                  '.method public onStop()V\n'
+              ),
+              'WineActivity.onResume(): BhHudInjector.injectOrUpdate injection'
+          )
+
           print("\nAll patches applied successfully.")
           PYEOF
 
