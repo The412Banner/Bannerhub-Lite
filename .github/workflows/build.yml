@@ -105,8 +105,9 @@ jobs:
               '    <item type="id" name="iv_bci_launcher" />\n'
               '    <item type="id" name="switch_sustained_perf" />\n'
               '    <item type="id" name="switch_max_adreno_clocks" />\n'
+              '    <item type="id" name="switch_winlator_hud" />\n'
               '</resources>',
-              'ids.xml: add BCI + perf switch IDs'
+              'ids.xml: add BCI + perf switch IDs + HUD switch'
           )
 
           # ── 4. HomeLeftMenuDialog.Z0(): inject Components menu item ──────────
