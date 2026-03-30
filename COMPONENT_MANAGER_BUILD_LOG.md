@@ -579,6 +579,44 @@ Before `:goto_0` (the no-op fall-through), checks `p0 == 0x64`. If match: calls 
 
 ---
 
+## Entry 014 — BhFrameRating FPS fix: HUDUpdater.g() for Lite 5.1.4 (v0.3.7-pre3)
+
+### Root cause
+`BhFrameRating.readFps()` read `WineActivity.j` expecting `IHudDataProvider`.
+In Lite 5.1.4, `WineActivity.j` is a `Map` — calling `a()` on it always throws, silently returning 0.
+
+### Fix
+Read `WineActivity.i` (type `HUDUpdater`) → call `g()F`.
+`HUDUpdater.g()` locks field `h` (LinkedList of frame times), averages them via `CollectionsKt.J0()`, returns float FPS — same source as the native HUD.
+
+Falls back to the original `WineActivity.j → IHudDataProvider.a()` path for BH 5.3.5 base.
+
+### Files touched
+- `extension/BhFrameRating.java` — `readFps()` rewritten
+
+### CI result
+✅ Success — run 23745432818
+
+---
+
+## Entry 013 — Winlator HUD toggle diagnostic logging (v0.3.7-pre2)
+
+### Problem
+User reported "toggling [Winlator HUD] does nothing." Logcat showed zero BannerHub log entries from the wine process during the session, making it impossible to determine whether the click listener was firing or whether WineActivity.t1 was null.
+
+### What was changed
+- `BhPerfSetupDelegate.onAttachedToWindow()`: added `Log.d(TAG, "hudId=" + hudId + " hudSwitch=" + hudSwitch)` to confirm the switch view is found via `getIdentifier()`
+- `toggleHud()`: added entry log (`newState`) and WineActivity.t1 log
+- Changed `catch (Exception ignored)` to `catch (Exception e) { Log.w(TAG, ...) }` so any cross-process failure is visible
+
+### Files touched
+- `extension/BhPerfSetupDelegate.java`
+
+### CI result
+✅ run 23743094317
+
+---
+
 ## Entry 012 — Fix GOG depot manifest: 'items' key + DepotItem type filter (v0.3.3-pre)
 
 ### Commit

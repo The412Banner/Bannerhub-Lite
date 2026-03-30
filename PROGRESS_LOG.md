@@ -7,6 +7,36 @@
 
 ---
 
+### [fix] — v0.3.7-pre3 — BhFrameRating FPS: HUDUpdater.g() for Lite 5.1.4 (2026-03-30)
+**Commit:** `e899695`  |  **Tag:** v0.3.7-pre3  |  **CI:** ✅ run 23745432818
+#### What changed
+- `BhFrameRating.readFps()`: try `WineActivity.i` (HUDUpdater) → `g()F` first; in Lite 5.1.4 this is the FPS averaged frame-list source the native HUD uses. Falls back to original `WineActivity.j → IHudDataProvider.a()` for BH 5.3.5.
+#### Files touched
+- `extension/BhFrameRating.java`
+
+---
+
+### [fix] — v0.3.7-pre2 — HUD inject: ContentView + ctx-as-Activity + verbose log (2026-03-30)
+**Commit:** `2ddd6ad`  |  **Tag:** v0.3.7-pre2 (retagged)  |  **CI:** ✅ run 23744710461
+#### What changed
+- `toggleHud()`: cast `ctx` directly to Activity (Fragment context IS WineActivity) — eliminates `Class.forName("WineActivity").getField("t1")` reflection that could return null
+- `BhHudInjector.injectOrUpdate()`: use `content view` (android.R.id.content) instead of raw DecorView; add `bringToFront()` on the HUD; verbose `Log.d` at every decision point
+#### Files touched
+- `extension/BhPerfSetupDelegate.java`, `extension/BhHudInjector.java`
+
+---
+
+### [debug] — v0.3.7-pre2 (prev) — HUD toggle diagnostic logging (2026-03-30)
+**Commit:** `37b606b`  |  **Tag:** v0.3.7-pre2  |  **CI:** ✅ run 23743094317
+#### What changed
+- Added `Log.d(TAG, ...)` to `BhPerfSetupDelegate.onAttachedToWindow()` to confirm hudId/hudSwitch found
+- Added entry/WineActivity.t1 logging to `toggleHud()`
+- Changed silent `catch (Exception ignored)` to `Log.w` so cross-process inject failures are visible
+#### Files touched
+- `extension/BhPerfSetupDelegate.java`
+
+---
+
 ### [stable] — v0.3.5 — GOG 3-view modes + SteamGridDB covers + poster layout (2026-03-25)
 **Commit:** `70f483c`  |  **Tag:** v0.3.5  |  **CI:** ✅ (8 APKs)
 #### What changed
@@ -773,3 +803,66 @@ When a game is added for the first time, no per-game GPU driver key exists in SP
 - `extension/GpuDefaultHelper.java` (new)
 - `.github/workflows/build-quick.yml` (patch 15)
 - `.github/workflows/build.yml` (patch 15)
+
+### [pre] — v0.3.7-pre1 — GOG speed + uninstall checkmark fix (2026-03-30)
+**Commit:** `71a16c1`  |  **Tag:** v0.3.7-pre1  |  **CI:** run 23737548528 ✅
+#### What changed
+- GogDownloadManager: real-time speed display (1s sliding window), filename in progress string, onCancelled() callback, cancelled.get() guards per file, cleaner deleteDir on cancel
+- GogGamesActivity: Runnable onUninstalled callback in showDetailDialog(); list card hides collapsedCheckTV + checkmark immediately; grid hides checkTV; AtomicReference → Runnable[] for Java 8; onCancelled() resets + hides progress bar
+#### Files touched
+- extension/GogDownloadManager.java
+- extension/GogGamesActivity.java
+
+### [pre] — v0.3.7-pre1 (retag) — Japanese locale translations (2026-03-30)
+**Commit:** `1d55653`  |  **Tag:** v0.3.7-pre1 (retagged)  |  **CI:** run 23739510968 ✅
+#### What changed
+- Added patches/res/values-ja/strings.xml (3,534 strings) from BannerHub PR #23 (reindex-ot via Crowdin)
+#### Files touched
+- patches/res/values-ja/strings.xml (new)
+
+### [pre] — v0.3.7-pre1 (retag2) — Amazon Games full integration (2026-03-30)
+**Commit:** `22d7414`  |  **Tag:** v0.3.7-pre1 (retagged)  |  **CI:** run 23739962498 ✅
+#### What changed
+- extension/Amazon*.java: 12 files ported from BannerHub (PKCE OAuth2, library sync, manifest.proto, 6-parallel download, SHA-256, launch, SDK DLLs)
+- AmazonLaunchHelper: added checkPendingLaunch(Activity) — reads pending_amazon_exe, calls g3() via reflection
+- ComponentManagerHelper: AMAZON_MENU_ID=11; "Amazon Games" item in side menu; routes click to AmazonMainActivity
+- build-quick.yml: AmazonMainActivity/LoginActivity/GamesActivity in AndroidManifest; onResume smali hook calls AmazonLaunchHelper.checkPendingLaunch()
+#### Files touched
+- extension/AmazonApiClient.java (new)
+- extension/AmazonAuthClient.java (new)
+- extension/AmazonCredentialStore.java (new)
+- extension/AmazonDownloadManager.java (new)
+- extension/AmazonGame.java (new)
+- extension/AmazonGamesActivity.java (new)
+- extension/AmazonLaunchHelper.java (new + checkPendingLaunch)
+- extension/AmazonLoginActivity.java (new)
+- extension/AmazonMainActivity.java (new)
+- extension/AmazonManifest.java (new)
+- extension/AmazonPKCEGenerator.java (new)
+- extension/AmazonSdkManager.java (new)
+- extension/ComponentManagerHelper.java (AMAZON_MENU_ID added)
+- .github/workflows/build-quick.yml (manifest + launch hook)
+
+### [pre] — v0.3.7-pre1 (retag3) — Epic Games Store integration Tasks 5+6 (2026-03-30)
+**Commit:** `9fb87e7`  |  **Tag:** v0.3.7-pre1 (retagged)  |  **CI:** run 23741101476 ✅
+#### What changed
+- Epic Games Store (8 Java files ported + EpicLaunchHelper new): OAuth2 login, catalog sync, chunked manifest download (Fastly/Akamai CDN, hex ChunkFilesizeList, decimal group subfolders), 6-parallel download, speed display, uninstall checkmark fix, launch via g3() reflection
+- ComponentManagerHelper: EPIC_MENU_ID=12; "Epic Games" in side menu
+- build-quick.yml: EpicMainActivity/LoginActivity/GamesActivity in manifest; onResume hook calls EpicLaunchHelper.checkPendingLaunch()
+#### Files touched
+- extension/Epic*.java (8 new) + EpicLaunchHelper.java (new)
+- extension/ComponentManagerHelper.java
+- .github/workflows/build-quick.yml
+
+### [pre] — v0.3.7-pre1 (retag4) — Winlator HUD overlay Task 7 (2026-03-30)
+**Commit:** `f4b75a5`  |  **Tag:** v0.3.7-pre1 (retagged)  |  **CI:** run 23741977080 ✅
+#### What changed
+- BhFrameRating.java: 773-line HUD overlay (API/GPU/CPU/RAM/BAT/TMP/FPS+graph), ported from BannerHub, package changed to app.revanced.extension.gamehub
+- BhHudInjector.java: Java port of BhHudInjector.smali — reads winlator_hud pref, creates/syncs BhFrameRating in DecorView on WineActivity.onResume()
+- BhPerfSetupDelegate.java: adds "Winlator HUD" SidebarSwitchItemView programmatically; wires toggle to BhHudInjector.injectOrUpdate()
+- build-quick.yml: WineActivity.onResume() smali patch calls BhHudInjector.injectOrUpdate(p0) at :cond_1
+#### Files touched
+- extension/BhFrameRating.java (new)
+- extension/BhHudInjector.java (new)
+- extension/BhPerfSetupDelegate.java (HUD toggle added)
+- .github/workflows/build-quick.yml (WineActivity patch)
