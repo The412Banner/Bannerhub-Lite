@@ -82,10 +82,12 @@ public class BhPerfSetupDelegate extends View {
             int hudId = ctx.getResources().getIdentifier(
                     "switch_winlator_hud", "id", ctx.getPackageName());
             View hudSwitch = parentView.findViewById(hudId);
+            Log.d(TAG, "BhPerfSetupDelegate: hudId=" + hudId + " hudSwitch=" + hudSwitch);
             if (hudSwitch != null) {
                 boolean hudEnabled = prefs.getBoolean("winlator_hud", false);
                 callSetSwitch(hudSwitch, hudEnabled);
                 hudSwitch.setOnClickListener(v -> toggleHud(ctx, prefs, v));
+                Log.d(TAG, "BhPerfSetupDelegate: HUD click listener set");
             }
         } catch (Exception e) {
             Log.e(TAG, "BhPerfSetupDelegate.onAttachedToWindow failed", e);
@@ -97,14 +99,18 @@ public class BhPerfSetupDelegate extends View {
     private static void toggleHud(Context ctx, SharedPreferences prefs, View switchView) {
         try {
             boolean newState = !callGetSwitchState(switchView);
+            Log.d(TAG, "toggleHud: newState=" + newState);
             callSetSwitch(switchView, newState);
             prefs.edit().putBoolean("winlator_hud", newState).apply();
 
             try {
                 Class<?> wineClass = Class.forName("com.xj.winemu.WineActivity");
                 Activity activity = (Activity) wineClass.getField("t1").get(null);
+                Log.d(TAG, "toggleHud: WineActivity.t1=" + activity);
                 if (activity != null) BhHudInjector.injectOrUpdate(activity);
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                Log.w(TAG, "toggleHud: WineActivity inject failed: " + e);
+            }
         } catch (Exception e) {
             Log.e(TAG, "toggleHud failed", e);
         }
