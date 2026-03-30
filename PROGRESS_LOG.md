@@ -7,6 +7,24 @@
 
 ---
 
+### [pre] — v0.3.8-pre1 — Wine Task Manager sidebar tab (2026-03-30)
+**Commit:** `b68e654`  |  **Tag:** v0.3.8-pre1
+#### What changed
+- Port of BannerHub's Wine Task Manager to in-game sidebar
+- New sidebar tab with three-bar icon (sidebar_taskmanager)
+- Container Info: CPU cores, RAM, VRam, Device, Android
+- Applications tab (wine* processes) + Processes tab (.exe)
+- Kill button, manual refresh, 3s auto-refresh loop
+- smali_classes12 used (classes11 = Java ext; sequential numbering)
+- WineActivityDrawerContent patched: constructor + a0() dispatch
+#### Files touched
+- patches/smali_classes12/com/xj/winemu/sidebar/BhTask*.smali (8 files)
+- patches/smali_classes4/com/xj/winemu/sidebar/WineActivityDrawerContent.smali
+- patches/res/layout/winemu_activitiy_settings_layout.xml
+- patches/res/drawable/sidebar_taskmanager.xml
+- .github/workflows/build-quick.yml + build.yml (sidebar_taskmanager ID)
+- COMPONENT_MANAGER_BUILD_LOG.md
+
 ### [stable] — v0.3.7 — Amazon + Epic + HUD overlay + Japanese translations (2026-03-30)
 **Commit:** `349a615`  |  **Tag:** v0.3.7  |  **CI:** ✅ run 23752603344
 #### What changed (since v0.3.6)

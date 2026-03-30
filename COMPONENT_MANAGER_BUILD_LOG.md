@@ -37,7 +37,7 @@ Port of BannerHub's Wine Task Manager to BH-Lite as a new in-game sidebar tab.
 - VRam read uses `WineActivity.u` (WineActivityData) → `data.a` (gameId) → `pc_g_setting<id>` SP → `pc_ls_max_memory`
 
 #### CI result
-⏳ Queued
+✅ Success — run 23755477281
 
 **Repo:** https://github.com/The412Banner/Bannerhub-Lite
 **Base APK:** GameHub Lite 5.1.4 (vanilla, non-ReVanced)
