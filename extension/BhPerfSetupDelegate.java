@@ -99,17 +99,16 @@ public class BhPerfSetupDelegate extends View {
     private static void toggleHud(Context ctx, SharedPreferences prefs, View switchView) {
         try {
             boolean newState = !callGetSwitchState(switchView);
-            Log.d(TAG, "toggleHud: newState=" + newState);
+            Log.d(TAG, "toggleHud: newState=" + newState + " ctx=" + ctx.getClass().getSimpleName());
             callSetSwitch(switchView, newState);
             prefs.edit().putBoolean("winlator_hud", newState).apply();
 
-            try {
-                Class<?> wineClass = Class.forName("com.xj.winemu.WineActivity");
-                Activity activity = (Activity) wineClass.getField("t1").get(null);
-                Log.d(TAG, "toggleHud: WineActivity.t1=" + activity);
-                if (activity != null) BhHudInjector.injectOrUpdate(activity);
-            } catch (Exception e) {
-                Log.w(TAG, "toggleHud: WineActivity inject failed: " + e);
+            // ctx IS the host Activity (Fragment context = host WineActivity)
+            Activity activity = (ctx instanceof Activity) ? (Activity) ctx : null;
+            if (activity != null) {
+                BhHudInjector.injectOrUpdate(activity);
+            } else {
+                Log.w(TAG, "toggleHud: ctx is not an Activity — " + ctx.getClass().getName());
             }
         } catch (Exception e) {
             Log.e(TAG, "toggleHud failed", e);

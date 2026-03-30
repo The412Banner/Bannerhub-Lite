@@ -29,31 +29,42 @@ public final class BhHudInjector {
             android.view.Window window = activity.getWindow();
             if (window == null) return;
 
-            View decor = window.getDecorView();
-            if (!(decor instanceof ViewGroup)) return;
-            ViewGroup decorView = (ViewGroup) decor;
+            // Use content view (android.R.id.content) — sits above SurfaceView in Z-order
+            View contentView = window.getDecorView().findViewById(android.R.id.content);
+            if (!(contentView instanceof ViewGroup)) return;
+            ViewGroup container = (ViewGroup) contentView;
 
             boolean hudEnabled = activity.getSharedPreferences("bh_prefs", 0)
                     .getBoolean("winlator_hud", false);
 
-            View existing = decorView.findViewWithTag("bh_frame_rating");
+            Log.d(TAG, "BhHudInjector.injectOrUpdate: hudEnabled=" + hudEnabled
+                    + " container=" + container.getClass().getSimpleName());
+
+            View existing = container.findViewWithTag("bh_frame_rating");
 
             if (existing == null) {
-                if (!hudEnabled) return;
+                if (!hudEnabled) {
+                    Log.d(TAG, "BhHudInjector: HUD disabled, nothing to do");
+                    return;
+                }
 
                 BhFrameRating hud = new BhFrameRating(activity);
                 hud.setTag("bh_frame_rating");
 
-                // TOP | RIGHT gravity
+                // TOP | RIGHT gravity; bringToFront ensures it's above other views
                 FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.WRAP_CONTENT,
                         FrameLayout.LayoutParams.WRAP_CONTENT,
                         android.view.Gravity.TOP | android.view.Gravity.END);
                 hud.setVisibility(View.VISIBLE);
-                decorView.addView(hud, lp);
-                Log.d(TAG, "BhHudInjector: HUD injected");
+                container.addView(hud, lp);
+                hud.bringToFront();
+                Log.d(TAG, "BhHudInjector: HUD injected into "
+                        + container.getClass().getSimpleName());
             } else {
                 existing.setVisibility(hudEnabled ? View.VISIBLE : View.GONE);
+                if (hudEnabled) existing.bringToFront();
+                Log.d(TAG, "BhHudInjector: HUD visibility=" + hudEnabled);
             }
         } catch (Exception e) {
             Log.e(TAG, "BhHudInjector.injectOrUpdate failed", e);
