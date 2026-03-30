@@ -2,14 +2,22 @@
 .super Landroidx/fragment/app/Fragment;
 .source "SourceFile"
 
-# Wine Task Manager sidebar tab — two-tab UI:
+# Wine Task Manager sidebar tab — three-tab UI:
 #   Always visible at top: Container Info (device, Android ver, CPU, RAM)
 #   Tab 0 "Applications" — Wine infra processes (non-.exe)
 #   Tab 1 "Processes"    — Windows .exe processes
-#   Auto-refreshes every 3 seconds while visible
+#   Tab 2 "Launch"       — file browser rooted at WINEPREFIX; tap drive → browse
+#                          directories (yellow ▶) and launchable files (white);
+#                          tap a .exe/.msi/.bat/.cmd to launch via Wine
+#   Auto-refreshes every 3 seconds while visible (tabs 0/1 only)
 
 .field public appsLayout:Landroid/widget/LinearLayout;
 .field public procsLayout:Landroid/widget/LinearLayout;
+.field public launchLayout:Landroid/widget/LinearLayout;
+.field public currentPathText:Landroid/widget/TextView;
+.field public fileListLayout:Landroid/widget/LinearLayout;
+.field public wineRootPath:Ljava/lang/String;
+.field public currentBrowsePath:Ljava/lang/String;
 .field public bhContext:Landroid/content/Context;
 .field public handler:Landroid/os/Handler;
 .field public autoRefresher:Ljava/lang/Runnable;
@@ -446,27 +454,47 @@
     return-object v0
 .end method
 
-# ── showTab — show one content panel, hide the other ─────────────
+# ── showTab — show one content panel, hide the others ─────────────
+# Tab 0 = Applications, Tab 1 = Processes, Tab 2 = Launch
 .method public showTab(I)V
-    .locals 4
+    .locals 5
     const/4 v0, 0x0     # VISIBLE
     const/16 v1, 0x8    # GONE
 
     iget-object v2, p0, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->appsLayout:Landroid/widget/LinearLayout;
     iget-object v3, p0, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->procsLayout:Landroid/widget/LinearLayout;
+    iget-object v4, p0, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->launchLayout:Landroid/widget/LinearLayout;
 
-    # Hide both first
+    # Hide all three first
     invoke-virtual {v2, v1}, Landroid/view/View;->setVisibility(I)V
     invoke-virtual {v3, v1}, Landroid/view/View;->setVisibility(I)V
+    if-eqz v4, :show_selected
+    invoke-virtual {v4, v1}, Landroid/view/View;->setVisibility(I)V
 
-    # Show selected (default: tab 0 = Applications)
+    :show_selected
     const/4 v1, 0x1
     if-eq p1, v1, :show_procs
+    const/4 v1, 0x2
+    if-eq p1, v1, :show_launch
     invoke-virtual {v2, v0}, Landroid/view/View;->setVisibility(I)V
     return-void
 
     :show_procs
     invoke-virtual {v3, v0}, Landroid/view/View;->setVisibility(I)V
+    return-void
+
+    :show_launch
+    if-eqz v4, :return_launch
+    invoke-virtual {v4, v0}, Landroid/view/View;->setVisibility(I)V
+    # First-time init: if currentBrowsePath is null, start background init
+    iget-object v1, p0, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->currentBrowsePath:Ljava/lang/String;
+    if-nez v1, :return_launch
+    new-instance v1, Ljava/lang/Thread;
+    new-instance v2, Lcom/xj/winemu/sidebar/BhInitLaunchRunnable;
+    invoke-direct {v2, p0}, Lcom/xj/winemu/sidebar/BhInitLaunchRunnable;-><init>(Lcom/xj/winemu/sidebar/BhTaskManagerFragment;)V
+    invoke-direct {v1, v2}, Ljava/lang/Thread;-><init>(Ljava/lang/Runnable;)V
+    invoke-virtual {v1}, Ljava/lang/Thread;->start()V
+    :return_launch
     return-void
 .end method
 
@@ -642,6 +670,29 @@
     iput v6, v5, Landroid/widget/LinearLayout$LayoutParams;->weight:F
     invoke-virtual {v3, v4, v5}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V
 
+    # Button "Launch" (tabIndex=2, weight=1)
+    new-instance v4, Landroid/widget/Button;
+    invoke-direct {v4, v0}, Landroid/widget/Button;-><init>(Landroid/content/Context;)V
+    const-string v5, "Launch"
+    invoke-virtual {v4, v5}, Landroid/widget/Button;->setText(Ljava/lang/CharSequence;)V
+    const v5, -0x1
+    invoke-virtual {v4, v5}, Landroid/widget/Button;->setTextColor(I)V
+    const/high16 v5, 0x41200000
+    invoke-virtual {v4, v5}, Landroid/widget/Button;->setTextSize(F)V
+    const/4 v5, 0x0
+    invoke-virtual {v4, v5}, Landroid/widget/TextView;->setAllCaps(Z)V
+    new-instance v5, Lcom/xj/winemu/sidebar/BhTabListener;
+    const/4 v6, 0x2
+    invoke-direct {v5, p0, v6}, Lcom/xj/winemu/sidebar/BhTabListener;-><init>(Lcom/xj/winemu/sidebar/BhTaskManagerFragment;I)V
+    invoke-virtual {v4, v5}, Landroid/widget/Button;->setOnClickListener(Landroid/view/View$OnClickListener;)V
+    new-instance v5, Landroid/widget/LinearLayout$LayoutParams;
+    const/4 v6, 0x0
+    const/4 v7, -0x2
+    invoke-direct {v5, v6, v7}, Landroid/widget/LinearLayout$LayoutParams;-><init>(II)V
+    const/high16 v6, 0x3f800000
+    iput v6, v5, Landroid/widget/LinearLayout$LayoutParams;->weight:F
+    invoke-virtual {v3, v4, v5}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;Landroid/view/ViewGroup$LayoutParams;)V
+
     # Button "↺" (Refresh, no weight — fixed size)
     new-instance v4, Landroid/widget/Button;
     invoke-direct {v4, v0}, Landroid/widget/Button;-><init>(Landroid/content/Context;)V
@@ -674,11 +725,209 @@
     iput-object v3, p0, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->procsLayout:Landroid/widget/LinearLayout;
     invoke-virtual {v2, v3}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
 
+    # ── LAUNCH tab content (GONE initially) ──────────────────────────
+    new-instance v3, Landroid/widget/LinearLayout;
+    invoke-direct {v3, v0}, Landroid/widget/LinearLayout;-><init>(Landroid/content/Context;)V
+    const/4 v4, 0x1   # VERTICAL
+    invoke-virtual {v3, v4}, Landroid/widget/LinearLayout;->setOrientation(I)V
+    const/16 v4, 0x8  # GONE
+    invoke-virtual {v3, v4}, Landroid/view/View;->setVisibility(I)V
+    iput-object v3, p0, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->launchLayout:Landroid/widget/LinearLayout;
+
+    # Current path display
+    new-instance v4, Landroid/widget/TextView;
+    invoke-direct {v4, v0}, Landroid/widget/TextView;-><init>(Landroid/content/Context;)V
+    const-string v5, "/"
+    invoke-virtual {v4, v5}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    const v5, -0x3400    # yellow
+    invoke-virtual {v4, v5}, Landroid/widget/TextView;->setTextColor(I)V
+    const/high16 v5, 0x41200000   # 10.0f sp
+    invoke-virtual {v4, v5}, Landroid/widget/TextView;->setTextSize(F)V
+    const/16 v5, 0x4
+    const/16 v6, 0x8
+    invoke-virtual {v4, v5, v6, v5, v5}, Landroid/widget/TextView;->setPadding(IIII)V
+    iput-object v4, p0, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->currentPathText:Landroid/widget/TextView;
+    invoke-virtual {v3, v4}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
+
+    # File list container
+    new-instance v4, Landroid/widget/LinearLayout;
+    invoke-direct {v4, v0}, Landroid/widget/LinearLayout;-><init>(Landroid/content/Context;)V
+    const/4 v5, 0x1   # VERTICAL
+    invoke-virtual {v4, v5}, Landroid/widget/LinearLayout;->setOrientation(I)V
+    iput-object v4, p0, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->fileListLayout:Landroid/widget/LinearLayout;
+    invoke-virtual {v3, v4}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
+
+    invoke-virtual {v2, v3}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
+
     return-object v1
 
     :return_null
     const/4 v0, 0x0
     return-object v0
+.end method
+
+# ── browseTo — populate the Launch tab for a given directory path ──
+# Called on the main thread.
+# p0 = this, p1 = absolute path to browse
+.method public browseTo(Ljava/lang/String;)V
+    .locals 12
+    # v0  = context (bhContext)
+    # v1  = temp view / string / bool
+    # v2  = fileListLayout
+    # v3  = items String[]
+    # v4  = array length (also reused as temp int before loop)
+    # v5  = loop index
+    # v6  = current item string (from array)
+    # v7  = temp (bool, int, StringBuilder, string)
+    # v8  = absolute item path / dir display name
+    # v9  = dir absolute path / wineRootPath / temp
+    # v10 = TextView row
+    # v11 = click listener
+
+    # Store current path
+    iput-object p1, p0, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->currentBrowsePath:Ljava/lang/String;
+
+    # Update path display
+    iget-object v1, p0, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->currentPathText:Landroid/widget/TextView;
+    if-eqz v1, :get_lists
+    invoke-virtual {v1, p1}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+
+    :get_lists
+    iget-object v2, p0, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->fileListLayout:Landroid/widget/LinearLayout;
+    if-eqz v2, :done
+    invoke-virtual {v2}, Landroid/widget/LinearLayout;->removeAllViews()V
+
+    iget-object v0, p0, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->bhContext:Landroid/content/Context;
+    if-eqz v0, :done
+
+    # ── Up button (only when not at wineRootPath) ─────────────────────
+    iget-object v9, p0, Lcom/xj/winemu/sidebar/BhTaskManagerFragment;->wineRootPath:Ljava/lang/String;
+    if-eqz v9, :no_up
+    invoke-virtual {p1, v9}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v7
+    if-nez v7, :no_up
+
+    # Parent = p1.substring(0, lastIndexOf('/'))
+    const/16 v4, 0x2f    # '/' char code
+    invoke-virtual {p1, v4}, Ljava/lang/String;->lastIndexOf(I)I
+    move-result v7
+    if-lez v7, :no_up
+    const/4 v4, 0x0
+    invoke-virtual {p1, v4, v7}, Ljava/lang/String;->substring(II)Ljava/lang/String;
+    move-result-object v9  # parent path
+
+    new-instance v10, Landroid/widget/TextView;
+    invoke-direct {v10, v0}, Landroid/widget/TextView;-><init>(Landroid/content/Context;)V
+    const-string v7, "\u2191  .."
+    invoke-virtual {v10, v7}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    const v7, -0x3400    # yellow
+    invoke-virtual {v10, v7}, Landroid/widget/TextView;->setTextColor(I)V
+    const/high16 v7, 0x41500000  # 13.0f sp
+    invoke-virtual {v10, v7}, Landroid/widget/TextView;->setTextSize(F)V
+    const/16 v7, 0x8
+    invoke-virtual {v10, v7, v7, v7, v7}, Landroid/widget/TextView;->setPadding(IIII)V
+    new-instance v11, Lcom/xj/winemu/sidebar/BhFolderListener;
+    invoke-direct {v11, p0, v9}, Lcom/xj/winemu/sidebar/BhFolderListener;-><init>(Lcom/xj/winemu/sidebar/BhTaskManagerFragment;Ljava/lang/String;)V
+    invoke-virtual {v10, v11}, Landroid/view/View;->setOnClickListener(Landroid/view/View$OnClickListener;)V
+    invoke-virtual {v2, v10}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
+
+    :no_up
+
+    # ── List directory ────────────────────────────────────────────────
+    invoke-static {p1}, Lapp/revanced/extension/gamehub/BhWineLaunchHelper;->listDir(Ljava/lang/String;)[Ljava/lang/String;
+    move-result-object v3
+    if-eqz v3, :done
+    array-length v4, v3
+    const/4 v5, 0x0
+
+    :loop
+    if-ge v5, v4, :done
+    aget-object v6, v3, v5
+
+    # Directory? (entry name ends with "/")
+    const-string v7, "/"
+    invoke-virtual {v6, v7}, Ljava/lang/String;->endsWith(Ljava/lang/String;)Z
+    move-result v7
+    if-nez v7, :is_dir
+
+    # Launchable file?
+    invoke-static {v6}, Lapp/revanced/extension/gamehub/BhWineLaunchHelper;->isLaunchable(Ljava/lang/String;)Z
+    move-result v7
+    if-eqz v7, :next_item
+
+    # ── Launchable file: white text, ExeLaunchListener ────────────────
+    # Absolute path = p1 + "/" + v6
+    new-instance v7, Ljava/lang/StringBuilder;
+    invoke-direct {v7}, Ljava/lang/StringBuilder;-><init>()V
+    invoke-virtual {v7, p1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v8, "/"
+    invoke-virtual {v7, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v7, v6}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v7}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v8  # absolute path
+
+    new-instance v10, Landroid/widget/TextView;
+    invoke-direct {v10, v0}, Landroid/widget/TextView;-><init>(Landroid/content/Context;)V
+    invoke-virtual {v10, v6}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    const v7, -0x1       # white
+    invoke-virtual {v10, v7}, Landroid/widget/TextView;->setTextColor(I)V
+    const/high16 v7, 0x41500000
+    invoke-virtual {v10, v7}, Landroid/widget/TextView;->setTextSize(F)V
+    const/16 v7, 0x8
+    invoke-virtual {v10, v7, v7, v7, v7}, Landroid/widget/TextView;->setPadding(IIII)V
+    new-instance v11, Lcom/xj/winemu/sidebar/BhExeLaunchListener;
+    invoke-direct {v11, p0, v8}, Lcom/xj/winemu/sidebar/BhExeLaunchListener;-><init>(Lcom/xj/winemu/sidebar/BhTaskManagerFragment;Ljava/lang/String;)V
+    invoke-virtual {v10, v11}, Landroid/view/View;->setOnClickListener(Landroid/view/View$OnClickListener;)V
+    invoke-virtual {v2, v10}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
+    goto :next_item
+
+    :is_dir
+    # Strip trailing "/" to get display name
+    invoke-virtual {v6}, Ljava/lang/String;->length()I
+    move-result v7
+    add-int/lit8 v7, v7, -0x1
+    const/4 v9, 0x0
+    invoke-virtual {v6, v9, v7}, Ljava/lang/String;->substring(II)Ljava/lang/String;
+    move-result-object v8  # dir name (no trailing slash)
+
+    # Absolute path = p1 + "/" + v8
+    new-instance v9, Ljava/lang/StringBuilder;
+    invoke-direct {v9}, Ljava/lang/StringBuilder;-><init>()V
+    invoke-virtual {v9, p1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    const-string v7, "/"
+    invoke-virtual {v9, v7}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v9, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v9}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v9  # absolute dir path
+
+    # ── Directory: yellow text with "▶ " prefix, FolderListener ──────
+    new-instance v10, Landroid/widget/TextView;
+    invoke-direct {v10, v0}, Landroid/widget/TextView;-><init>(Landroid/content/Context;)V
+    new-instance v7, Ljava/lang/StringBuilder;
+    invoke-direct {v7}, Ljava/lang/StringBuilder;-><init>()V
+    const-string v11, "\u25b6 "
+    invoke-virtual {v7, v11}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v7, v8}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {v7}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+    move-result-object v7
+    invoke-virtual {v10, v7}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    const v7, -0x3400    # yellow
+    invoke-virtual {v10, v7}, Landroid/widget/TextView;->setTextColor(I)V
+    const/high16 v7, 0x41500000
+    invoke-virtual {v10, v7}, Landroid/widget/TextView;->setTextSize(F)V
+    const/16 v7, 0x8
+    invoke-virtual {v10, v7, v7, v7, v7}, Landroid/widget/TextView;->setPadding(IIII)V
+    new-instance v11, Lcom/xj/winemu/sidebar/BhFolderListener;
+    invoke-direct {v11, p0, v9}, Lcom/xj/winemu/sidebar/BhFolderListener;-><init>(Lcom/xj/winemu/sidebar/BhTaskManagerFragment;Ljava/lang/String;)V
+    invoke-virtual {v10, v11}, Landroid/view/View;->setOnClickListener(Landroid/view/View$OnClickListener;)V
+    invoke-virtual {v2, v10}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
+
+    :next_item
+    add-int/lit8 v5, v5, 0x1
+    goto :loop
+
+    :done
+    return-void
 .end method
 
 # ── startScan ────────────────────────────────────────────────────
