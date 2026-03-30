@@ -627,9 +627,23 @@ public class BhFrameRating extends LinearLayout implements Runnable {
         return 0;
     }
 
-    /** Reads FPS via WineActivity.j (HudDataProvider) field → a() method. */
+    /** Reads FPS.
+     * Lite 5.1.4: WineActivity.i = HUDUpdater → g()F (averaged frame list).
+     * BH 5.3.5 fallback: WineActivity.j = IHudDataProvider → a()F.
+     */
     private float readFps() {
         if (activity == null) return 0f;
+        // Primary: Lite 5.1.4 path via HUDUpdater.g()
+        try {
+            Field iField = activity.getClass().getField("i");
+            Object hudUpdater = iField.get(activity);
+            if (hudUpdater != null) {
+                Method gMethod = hudUpdater.getClass().getMethod("g");
+                Object result = gMethod.invoke(hudUpdater);
+                if (result instanceof Float) return (float) result;
+            }
+        } catch (Exception ignored) {}
+        // Fallback: BH 5.3.5 path via IHudDataProvider.a()
         try {
             Field jField = activity.getClass().getField("j");
             Object provider = jField.get(activity);
