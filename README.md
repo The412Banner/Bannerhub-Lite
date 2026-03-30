@@ -1,6 +1,6 @@
 # BannerHub Lite
 
-A modified build of **[GameHub Lite 5.1.4](https://github.com/Producdevity/gamehub-lite)** with BannerHub features ported in — GOG, Amazon, and Epic Games Store tabs, Component Manager, in-app component downloader, Winlator HUD overlay, performance toggles, CPU core affinity, VRAM unlock, offline Steam skip, root access management, and more. Built with apktool + compiled Java extension (no source code from GameHub).
+A modified build of **[GameHub Lite 5.1.4](https://github.com/Producdevity/gamehub-lite)** with BannerHub features ported in — GOG, Amazon, and Epic Games Store tabs, Component Manager, in-app component downloader, Wine Task Manager with Launch tab, Winlator HUD overlay, performance toggles, CPU core affinity, VRAM unlock, offline Steam skip, root access management, and more. Built with apktool + compiled Java extension (no source code from GameHub).
 
 ## AI Disclaimer
 
@@ -21,6 +21,7 @@ Before any stable release is published, all changes are manually debugged and te
   - [Component Manager](#component-manager)
   - [Online Component Downloader](#online-component-downloader)
   - [BCI Launcher Button](#bci-launcher-button)
+  - [Wine Task Manager](#wine-task-manager)
   - [Winlator HUD Overlay](#winlator-hud-overlay)
   - [Performance Sidebar Toggles](#performance-sidebar-toggles)
   - [RTS Touch Controls](#rts-touch-controls)
@@ -54,6 +55,7 @@ Both projects add the same core set of features on top of different GameHub base
 | **GOG Games tab** | Yes | Yes |
 | **Amazon Games tab** | Yes | Yes |
 | **Epic Games Store tab** | Yes | Yes |
+| **Wine Task Manager (Apps/Procs/Launch)** | Yes | Yes |
 | **Winlator HUD overlay** | Yes | Yes |
 | **Component Manager** | Yes | Yes |
 | **Online Component Downloader** | Yes (6 repos) | Yes (6 repos) |
@@ -184,6 +186,44 @@ Accessible via the left side menu → **Epic Games**.
 - **6-parallel chunk download** — concurrent download with live speed (MB/s) + percentage display
 - **Exe picker + launch** via GameHub's import dialog
 - **Installed ✓ indicator**, **Uninstall**
+
+---
+
+### Wine Task Manager
+
+Accessible via the **three-bar icon** in the in-game sidebar (between Settings and the keyboard shortcut icon).
+
+#### Container Info
+
+Always visible at the top:
+
+| Field | Source |
+|-------|--------|
+| **CPU Cores** | `WINEMU_CPU_AFFINITY` bitmask from the Wine process environment; falls back to active core count |
+| **Sys RAM** | `/proc/meminfo` — used MB / total MB |
+| **VRam Limit** | `pc_g_setting{gameId}` SharedPreferences → `pc_ls_max_memory`; shows "Unlimited" if unset |
+| **Device** | `Build.MODEL` |
+| **Android** | `Build.VERSION.RELEASE` + API level |
+
+#### Tabs
+
+| Tab | What it shows |
+|-----|--------------|
+| **Applications** | Wine infrastructure processes (non-.exe): wineserver, wine64-preloader, etc. — each with PID and **Kill** button |
+| **Processes** | Windows .exe processes running under Wine — each with PID and **Kill** button |
+| **Launch** | WINEPREFIX file browser — navigate drives and directories |
+
+The Applications and Processes tabs auto-refresh every 3 seconds while the fragment is visible.
+
+#### Launch Tab
+
+When you first open the Launch tab, a background thread reads `WINEPREFIX` from the running Wine process environment and opens `WINEPREFIX/dosdevices/` (which contains drive letter symlinks like `c:`, `d:`, `z:`).
+
+- **Yellow ▶ entries** — directories; tap to navigate into them
+- **↑ ..** — tap to go up one level (not shown at the WINEPREFIX root)
+- **White entries** — launchable files (`.exe`, `.msi`, `.bat`, `.cmd`); tap to launch
+
+Tapping a launchable file shows a **"Launching: filename"** toast, then runs it via `Runtime.exec(wine <path>)` using the Wine process's own environment — the same environment variables (`WINEPREFIX`, `WINELOADER`, etc.) that the already-running Wine session uses.
 
 ---
 
