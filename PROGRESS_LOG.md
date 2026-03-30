@@ -7,6 +7,20 @@
 
 ---
 
+### [stable] — v0.3.7 — Amazon + Epic + HUD overlay + Japanese translations (2026-03-30)
+**Commit:** `349a615`  |  **Tag:** v0.3.7  |  **CI:** ✅ run 23752603344
+#### What changed (since v0.3.6)
+- Amazon Games tab (12 Java files: PKCE OAuth2, GetEntitlements, manifest.proto LZMA/XZ, 6-parallel download, SHA-256, launch, SDK DLLs)
+- Epic Games Store tab (8 Java files: OAuth2, catalog, chunked manifest, Fastly/Akamai CDN, 6-parallel, launch)
+- Winlator HUD overlay: BhFrameRating (API/GPU/CPU/RAM/BAT/TMP/FPS+graph), BhHudInjector, sidebar toggle + opacity SeekBar
+- Japanese translations (3,534 strings from Crowdin)
+- GOG: real-time speed + filename in progress, cancel properly resets state, uninstall checkmark immediate
+- fix: build.yml missing switch_winlator_hud ID (aapt2 link failure on non-Normal variants)
+#### Files touched
+- extension/Amazon*.java (12 files), extension/Epic*.java (8 files), extension/BhFrameRating.java, extension/BhHudInjector.java, extension/BhPerfSetupDelegate.java, extension/ComponentManagerHelper.java, patches/res/layout/winemu_sidebar_controls_fragment.xml, patches/res/values-ja/strings.xml, .github/workflows/build.yml, .github/workflows/build-quick.yml, README.md
+
+---
+
 ### [feat] — v0.3.7-pre4 — HUD opacity SeekBar in Controls sidebar (2026-03-30)
 **Commit:** `5314eac`  |  **Tag:** v0.3.7-pre4  |  **CI:** ✅ run 23751785504
 #### What changed
