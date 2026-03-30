@@ -119,8 +119,9 @@ jobs:
               '    <item type="id" name="switch_sustained_perf" />\n'
               '    <item type="id" name="switch_max_adreno_clocks" />\n'
               '    <item type="id" name="switch_winlator_hud" />\n'
+              '    <item type="id" name="sidebar_taskmanager" />\n'
               '</resources>',
-              'ids.xml: add BCI + perf switch IDs'
+              'ids.xml: add BCI + perf switch IDs + sidebar_taskmanager'
           )
           patch(
               'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/menu/HomeLeftMenuDialog.smali',

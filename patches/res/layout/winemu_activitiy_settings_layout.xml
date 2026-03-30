@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.xj.common.view.focus.focus.view.FocusableFrameLayout android:tag="layout/winemu_activitiy_settings_layout_0" android:clickable="true" android:layout_width="@dimen/dp_370" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <View android:background="@drawable/comm_gradient_background" android:layout_width="fill_parent" android:layout_height="fill_parent" />
+    <com.xj.common.view.focus.focus.view.FocusableLinearLayout android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="fill_parent">
+        <com.xj.common.view.focus.focus.view.FocusableLinearLayout android:orientation="vertical" android:layout_width="@dimen/dp_80" android:layout_height="fill_parent" app:shape_solidColor="#ff101b2e">
+            <com.xj.winemu.view.SidebarTitleItemView android:layout_gravity="center_horizontal" android:id="@id/sidebar_opt" android:layout_width="@dimen/dp_48" android:layout_height="@dimen/dp_48" android:layout_marginTop="@dimen/dp_24" app:sidebar_icon="@drawable/sidebar_operator" />
+            <com.xj.winemu.view.SidebarTitleItemView android:layout_gravity="center_horizontal" android:id="@id/sidebar_performance" android:layout_width="@dimen/dp_48" android:layout_height="@dimen/dp_48" android:layout_marginTop="@dimen/dp_24" app:sidebar_icon="@drawable/sidebar_performance" />
+            <com.xj.winemu.view.SidebarTitleItemView android:layout_gravity="center_horizontal" android:id="@id/sidebar_setting" android:layout_width="@dimen/dp_48" android:layout_height="@dimen/dp_48" android:layout_marginTop="@dimen/dp_24" app:sidebar_icon="@drawable/sidebar_settings" />
+            <com.xj.winemu.view.SidebarTitleItemView android:layout_gravity="center_horizontal" android:id="@+id/sidebar_taskmanager" android:layout_width="@dimen/dp_48" android:layout_height="@dimen/dp_48" android:layout_marginTop="@dimen/dp_24" app:sidebar_icon="@drawable/sidebar_taskmanager" />
+            <View android:layout_width="wrap_content" android:layout_height="0.0dip" android:layout_weight="1.0" />
+            <com.xj.winemu.view.SidebarTitleItemView android:layout_gravity="center_horizontal" android:id="@id/sidebar_keyboard" android:layout_width="@dimen/dp_30" android:layout_height="@dimen/dp_28" android:layout_marginTop="@dimen/dp_24" android:layout_marginBottom="@dimen/dp_39" app:sidebar_icon="@drawable/sidebar_keyboard" />
+        </com.xj.common.view.focus.focus.view.FocusableLinearLayout>
+        <FrameLayout android:id="@id/layout_container" android:layout_width="@dimen/dp_0" android:layout_height="fill_parent" android:layout_weight="1.0" />
+    </com.xj.common.view.focus.focus.view.FocusableLinearLayout>
+</com.xj.common.view.focus.focus.view.FocusableFrameLayout>

@@ -1,5 +1,44 @@
 # BannerHub Lite — Component Manager Build Log
 
+---
+
+### Entry #91 — v0.3.8-pre1 — Wine Task Manager sidebar tab (2026-03-30)
+
+#### What changed
+Port of BannerHub's Wine Task Manager to BH-Lite as a new in-game sidebar tab.
+
+**New smali (patches/smali_classes12/):**
+- `BhTaskManagerFragment.smali` — Fragment: Container Info (CPU/RAM/VRam), two-tab UI (Applications/Processes), auto-refresh 3s
+- `BhTaskManagerFragment$ScanRunnable.smali` — background /proc scanner
+- `BhTaskManagerFragment$UpdateRunnable.smali` — posts scan results to main thread
+- `BhTaskManagerFragment$AutoRefreshRunnable.smali` — 3-second periodic refresh loop
+- `BhTaskManagerFragment$KillListener.smali` — Process.sendSignal(pid, 9)
+- `BhTaskManagerFragment$RefreshListener.smali` — manual refresh button
+- `BhTabListener.smali` — showTab(index) for Applications/Processes tabs
+- `BhTaskClickListener.smali` — Function0 click listener calling `a0("BhTaskManagerFragment")` (BH-Lite uses `a0`, not `U`)
+
+**Smali patch (patches/smali_classes4/.../WineActivityDrawerContent.smali):**
+- Constructor: after sidebar_setting click listener, find `sidebar_taskmanager` view by ID, set `BhTaskClickListener` on it
+- `a0()`: added hashCode case `-0x37c3556e` → creates `BhTaskManagerFragment`
+
+**Layout (patches/res/layout/winemu_activitiy_settings_layout.xml):**
+- Added `SidebarTitleItemView` with `@+id/sidebar_taskmanager` and `@drawable/sidebar_taskmanager` icon between sidebar_setting and the spacer View
+
+**Drawable (patches/res/drawable/sidebar_taskmanager.xml):**
+- Three-bar task manager icon (copied from BannerHub)
+
+**Workflow updates:**
+- `build-quick.yml` + `build.yml`: added `sidebar_taskmanager` to ids.xml patch
+
+#### Root-cause / design notes
+- BH-Lite only has `smali_classes10` → new smali goes in `smali_classes12` (classes11 = Java ext, classes12 = task manager smali; sequential, no gaps)
+- `BhTaskClickListener` calls `a0(String)V` — BH-Lite 5.1.4 name (BannerHub 5.3.5 uses `U(String)V`)
+- `sidebar_taskmanager` ID is added to ids.xml because it's a `@+id/` in the patched layout; not in DataBinding generated class but accessible via `p0.findViewById()`
+- VRam read uses `WineActivity.u` (WineActivityData) → `data.a` (gameId) → `pc_g_setting<id>` SP → `pc_ls_max_memory`
+
+#### CI result
+⏳ Queued
+
 **Repo:** https://github.com/The412Banner/Bannerhub-Lite
 **Base APK:** GameHub Lite 5.1.4 (vanilla, non-ReVanced)
 **Purpose:** Detailed technical log of every change made to the component manager feature — what broke, what was discovered, what was changed, and why. Required for build reproducibility and future context.
