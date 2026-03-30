@@ -7,6 +7,17 @@
 
 ---
 
+### [feat] — v0.3.7-pre4 — HUD opacity SeekBar in Controls sidebar (2026-03-30)
+**Commit:** `5314eac`  |  **Tag:** v0.3.7-pre4  |  **CI:** ✅ run 23751785504
+#### What changed
+- Added `hud_opacity_row` (LinearLayout + TextView label + SeekBar) below HUD toggle in sidebar XML; visible only when HUD is on
+- `BhPerfSetupDelegate`: wires SeekBar to `hud_opacity` pref; calls `BhFrameRating.applyBackgroundOpacity()` live on drag; `toggleHud()` shows/hides the row
+#### Files touched
+- `patches/res/layout/winemu_sidebar_controls_fragment.xml`
+- `extension/BhPerfSetupDelegate.java`
+
+---
+
 ### [fix] — v0.3.7-pre3 — BhFrameRating FPS: HUDUpdater.g() for Lite 5.1.4 (2026-03-30)
 **Commit:** `e899695`  |  **Tag:** v0.3.7-pre3  |  **CI:** ✅ run 23745432818
 #### What changed

@@ -579,6 +579,23 @@ Before `:goto_0` (the no-op fall-through), checks `p0 == 0x64`. If match: calls 
 
 ---
 
+## Entry 015 — HUD opacity SeekBar in Controls sidebar (v0.3.7-pre4)
+
+### What was built
+- `hud_opacity_row` LinearLayout (label + SeekBar) in `winemu_sidebar_controls_fragment.xml`, visibility=gone by default
+- `BhPerfSetupDelegate`: finds row/label/seekbar by resource ID; sets initial progress from `hud_opacity` pref (default 80); `OnSeekBarChangeListener` writes pref + updates label + calls `applyBackgroundOpacity()` live on the found `BhFrameRating` view
+- `applyHudOpacity()` helper: finds `bh_frame_rating` tag on content view, casts to `BhFrameRating`, calls `applyBackgroundOpacity()`
+- `toggleHud()`: updated signature to accept opacityRow, shows/hides it with the HUD state
+
+### Files touched
+- `patches/res/layout/winemu_sidebar_controls_fragment.xml`
+- `extension/BhPerfSetupDelegate.java`
+
+### CI result
+✅ Success — run 23751785504
+
+---
+
 ## Entry 014 — BhFrameRating FPS fix: HUDUpdater.g() for Lite 5.1.4 (v0.3.7-pre3)
 
 ### Root cause
