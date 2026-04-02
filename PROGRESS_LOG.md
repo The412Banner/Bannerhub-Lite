@@ -8,7 +8,7 @@
 ---
 
 ### [pre] — v0.4.1-pre — D-pad nav, Extra Detail HUD (2026-04-02)
-**Commit:** `TBD`  |  **Tag:** v0.4.1-pre
+**Commit:** `3feb03b`  |  **Tag:** v0.4.1-pre  |  **CI:** ✅ run 23911184576
 #### What changed
 - D-pad navigation gold focus highlights: GOG, Epic, Amazon game cards (list + grid + poster view modes) — port from BannerHub
 - Extra Detailed HUD (BhDetailedHud): CPU%/GPU%/BAT/temps/cores/SWAP/FPS+graph — port from BannerHub
