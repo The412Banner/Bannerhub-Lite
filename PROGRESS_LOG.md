@@ -7,7 +7,7 @@
 
 ---
 
-### [pre] — v0.4.1-pre — D-pad nav, Extra Detail HUD (2026-04-02)
+### [pre] — v0.4.1-pre — D-pad nav, Extra Detail HUD, download engine sync (2026-04-02)
 **Commit:** `3feb03b`  |  **Tag:** v0.4.1-pre  |  **CI:** ✅ run 23911184576
 #### What changed
 - D-pad navigation gold focus highlights: GOG, Epic, Amazon game cards (list + grid + poster view modes) — port from BannerHub
@@ -26,6 +26,9 @@
 - extension/BhPerfSetupDelegate.java (Extra Detail checkbox wiring)
 - patches/res/layout/winemu_sidebar_controls_fragment.xml (CheckBox added)
 - .github/workflows/build.yml (Amazon/Epic manifest activities added)
+- extension/GogDownloadManager.java (8-thread parallel, atomic progress)
+- extension/EpicDownloadManager.java (8-thread, streaming decompression, 128KB buffer)
+- extension/AmazonDownloadManager.java (MAX_PARALLEL 6→8)
 
 ### [stable] — v0.4.0 — Wine Task Manager + Launch tab (2026-03-30)
 **Commit:** `b0f7d2d`  |  **Tag:** v0.4.0  |  **CI:** ✅ run 23759258390

@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class AmazonDownloadManager {
 
     private static final String TAG                   = "BH_AMAZON";
-    private static final int    MAX_PARALLEL          = 6;
+    private static final int    MAX_PARALLEL          = 8;
     private static final int    MAX_RETRIES           = 3;
     private static final long   PROGRESS_INTERVAL     = 512L * 1024L;  // 512 KB
     private static final String DOWNLOAD_USER_AGENT   = "nile/0.1 Amazon";
@@ -80,7 +80,14 @@ public class AmazonDownloadManager {
                                    File installDir,
                                    ProgressCallback progress,
                                    CancelChecker cancel) {
+        StringBuilder dbg = new StringBuilder();
+        dbg.append("=== BH Amazon Debug === game=").append(game.productId)
+           .append(" title=").append(game.title).append("\n");
+        dbg.append("entitlementId=").append(game.entitlementId).append("\n");
+
         if (game.entitlementId == null || game.entitlementId.isEmpty()) {
+            dbg.append("ERROR: entitlementId is blank\n");
+            writeDebug(ctx, dbg);
             Log.e(TAG, "entitlementId is blank for: " + game.title);
             return false;
         }
@@ -95,23 +102,34 @@ public class AmazonDownloadManager {
             AmazonApiClient.GameDownloadSpec spec =
                     AmazonApiClient.getGameDownload(accessToken, game.entitlementId);
             if (spec == null) {
+                dbg.append("ERROR: getGameDownload returned null\n");
+                writeDebug(ctx, dbg);
                 Log.e(TAG, "getGameDownload failed for: " + game.title);
                 return false;
             }
+            dbg.append("downloadUrl=").append(spec.downloadUrl).append("\n");
+            dbg.append("versionId=").append(spec.versionId).append("\n");
             log("downloadUrl: " + spec.downloadUrl);
 
             // Step 2: Download manifest
             log("Downloading manifest.proto...");
             String manifestUrl = AmazonApiClient.appendPath(spec.downloadUrl, "manifest.proto");
+            dbg.append("manifestUrl=").append(manifestUrl).append("\n");
             byte[] manifestBytes = AmazonApiClient.getBytes(manifestUrl, accessToken);
             if (manifestBytes == null) {
+                dbg.append("ERROR: manifest download failed\n");
+                writeDebug(ctx, dbg);
                 Log.e(TAG, "manifest download failed");
                 return false;
             }
+            dbg.append("manifestBytes=").append(manifestBytes.length).append("\n");
             log("Manifest downloaded: " + manifestBytes.length + " bytes");
 
             // Step 3: Parse manifest
             AmazonManifest.ParsedManifest manifest = AmazonManifest.parse(manifestBytes);
+            dbg.append("files=").append(manifest.allFiles.size())
+               .append(" totalInstallSize=").append(manifest.totalInstallSize)
+               .append(String.format(" (%.1f MB)\n", manifest.totalInstallSize / 1048576.0));
             log("Manifest parsed: " + manifest.allFiles.size() + " files, "
                     + manifest.totalInstallSize + " bytes total");
 
@@ -119,51 +137,52 @@ public class AmazonDownloadManager {
                 progress.onProgress(0, manifest.totalInstallSize, "Starting…");
             }
 
-            // Step 4: Download files in batches of 6
+            // Step 4: Download all files — MAX_PARALLEL threads
             AtomicLong downloaded      = new AtomicLong(0);
             AtomicLong lastEmit        = new AtomicLong(0);
             AtomicLong lastSpeedMs     = new AtomicLong(System.currentTimeMillis());
             AtomicLong lastSpeedBytes  = new AtomicLong(0);
             AtomicLong currentSpeedBps = new AtomicLong(0);
             List<AmazonManifest.ManifestFile> files = manifest.allFiles;
+            java.util.concurrent.ConcurrentLinkedQueue<String> fileLog =
+                    new java.util.concurrent.ConcurrentLinkedQueue<>();
 
             ExecutorService pool = Executors.newFixedThreadPool(MAX_PARALLEL);
+            List<Future<Boolean>> futures = new ArrayList<>();
+            for (AmazonManifest.ManifestFile file : files) {
+                final String dlUrl = spec.downloadUrl;
+                final String tkn   = accessToken;
+                futures.add(pool.submit(() -> {
+                    boolean ok = downloadFileWithRetry(
+                            file, dlUrl, tkn, installDir,
+                            downloaded, lastEmit, manifest.totalInstallSize,
+                            lastSpeedMs, lastSpeedBytes, currentSpeedBps,
+                            progress, cancel);
+                    if (!ok) fileLog.add("FAIL: " + file.unixPath());
+                    return ok;
+                }));
+            }
+            pool.shutdown();
             try {
-                for (int batchStart = 0; batchStart < files.size(); batchStart += MAX_PARALLEL) {
-                    // Cancellation check between batches
-                    if (cancel != null && cancel.isCancelled()) {
-                        log("Cancelled between batches");
-                        cleanupTmpFiles(installDir);
+                for (Future<Boolean> f : futures) {
+                    if (!f.get()) {
+                        for (String line : fileLog) dbg.append(line).append("\n");
+                        dbg.append("ERROR: a file failed — aborting\n");
+                        writeDebug(ctx, dbg);
+                        log("A file failed — aborting download");
+                        pool.shutdownNow();
                         deleteMarker(installDir, IN_PROGRESS_MARKER);
                         return false;
                     }
-
-                    int batchEnd = Math.min(batchStart + MAX_PARALLEL, files.size());
-                    List<AmazonManifest.ManifestFile> batch = files.subList(batchStart, batchEnd);
-                    List<Callable<Boolean>> tasks = new ArrayList<>();
-
-                    for (AmazonManifest.ManifestFile file : batch) {
-                        final String dlUrl  = spec.downloadUrl;
-                        final String tkn    = accessToken;
-                        tasks.add(() -> downloadFileWithRetry(
-                                file, dlUrl, tkn, installDir,
-                                downloaded, lastEmit, manifest.totalInstallSize,
-                                lastSpeedMs, lastSpeedBytes, currentSpeedBps,
-                                progress, cancel));
-                    }
-
-                    List<Future<Boolean>> futures = pool.invokeAll(tasks);
-                    for (Future<Boolean> f : futures) {
-                        if (!f.get()) {
-                            log("A file in batch failed — aborting download");
-                            pool.shutdownNow();
-                            deleteMarker(installDir, IN_PROGRESS_MARKER);
-                            return false;
-                        }
-                    }
                 }
-            } finally {
+            } catch (Exception e) {
+                for (String line : fileLog) dbg.append(line).append("\n");
+                dbg.append("ERROR: pool exception=").append(e).append("\n");
+                writeDebug(ctx, dbg);
+                Log.e(TAG, "Download pool error", e);
                 pool.shutdownNow();
+                deleteMarker(installDir, IN_PROGRESS_MARKER);
+                return false;
             }
 
             // Step 5: Cache manifest and mark installed
@@ -172,13 +191,32 @@ public class AmazonDownloadManager {
             new File(installDir, IN_PROGRESS_MARKER).delete();
             new File(installDir, COMPLETE_MARKER).createNewFile();
 
+            dbg.append("INSTALL COMPLETE: ").append(game.title)
+               .append(" → ").append(installDir.getAbsolutePath()).append("\n");
+            writeDebug(ctx, dbg);
             log("Install complete: " + game.title + " → " + installDir.getAbsolutePath());
             return true;
 
         } catch (Exception e) {
+            dbg.append("EXCEPTION: ").append(e).append("\n");
+            writeDebug(ctx, dbg);
             Log.e(TAG, "install failed for: " + game.title, e);
             deleteMarker(installDir, IN_PROGRESS_MARKER);
             return false;
+        }
+    }
+
+    private static void writeDebug(Context ctx, StringBuilder dbg) {
+        try {
+            java.io.File dir = ctx.getExternalFilesDir(null);
+            if (dir == null) dir = ctx.getFilesDir();
+            java.io.File f = new java.io.File(dir, "bh_amazon_debug.txt");
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(f)) {
+                fos.write(dbg.toString().getBytes("UTF-8"));
+            }
+            Log.i(TAG, "Debug written to: " + f.getAbsolutePath());
+        } catch (Exception e) {
+            Log.e(TAG, "writeDebug failed", e);
         }
     }
 

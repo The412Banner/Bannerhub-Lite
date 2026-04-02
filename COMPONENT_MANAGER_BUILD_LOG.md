@@ -2,6 +2,23 @@
 
 ---
 
+### Entry #93 — v0.4.1-pre — Download engine sync from BannerHub (2026-04-02)
+
+#### What changed
+Sync all three DownloadManagers from BannerHub to BH Lite.
+
+**GogDownloadManager.java:** 8-thread parallel download (was sequential), AtomicInteger/AtomicLong for thread-safe progress, speed display with rolling window per thread pool.
+
+**EpicDownloadManager.java:** 8-thread parallel chunk downloads (was 6), `downloadChunk` → `downloadChunkStreaming` (streams CDN → decompresses → writes without holding full compressed+decompressed buffers in RAM), buffer 8KB → 128KB, ByteArrayOutputStream pre-sized from Content-Length header. Also restores `Context ctx` first param (for debug logging; EpicGamesActivity passes `this`).
+
+**AmazonDownloadManager.java:** MAX_PARALLEL 6 → 8.
+
+**Root cause / design notes:**
+- BH Lite had older copies of all three from v0.3.7-era; BannerHub has been improving them since
+- EpicDownloadManager Context param: stripped in previous commit to match old API; restored now that we've synced the new EpicDownloadManager
+
+---
+
 ### Entry #92 — v0.4.1-pre — D-pad nav + Extra Detailed HUD (2026-04-02)
 
 #### What changed
