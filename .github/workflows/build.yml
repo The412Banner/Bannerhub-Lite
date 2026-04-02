@@ -79,8 +79,26 @@ jobs:
               ' android:screenOrientation="sensorLandscape" />\n'
               '    <activity android:name="app.revanced.extension.gamehub.GogGamesActivity"'
               ' android:label="GOG Library" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.AmazonMainActivity"'
+              ' android:label="Amazon Games" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.AmazonLoginActivity"'
+              ' android:label="Amazon Login" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.AmazonGamesActivity"'
+              ' android:label="Amazon Library" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.EpicMainActivity"'
+              ' android:label="Epic Games" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.EpicLoginActivity"'
+              ' android:label="Epic Login" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.EpicGamesActivity"'
+              ' android:label="Epic Library" android:exported="false"'
               ' android:screenOrientation="sensorLandscape" />\n    </application>',
-              'manifest: register ComponentManager + ComponentDownload + GOG activities'
+              'manifest: register ComponentManager + ComponentDownload + GOG + Amazon + Epic activities'
           )
 
           patch(
