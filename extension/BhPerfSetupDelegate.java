@@ -111,9 +111,10 @@ public class BhPerfSetupDelegate extends View {
             if (extraDetailView instanceof CheckBox) {
                 CheckBox cbDetail = (CheckBox) extraDetailView;
                 boolean detailEnabled = prefs.getBoolean("hud_extra_detail", false);
+                boolean hudOn = prefs.getBoolean("winlator_hud", false);
                 cbDetail.setChecked(detailEnabled);
-                cbDetail.setEnabled(hudEnabled);
-                cbDetail.setAlpha(hudEnabled ? 1f : 0.4f);
+                cbDetail.setEnabled(hudOn);
+                cbDetail.setAlpha(hudOn ? 1f : 0.4f);
                 cbDetail.setOnCheckedChangeListener((cb, checked) -> {
                     prefs.edit().putBoolean("hud_extra_detail", checked).apply();
                     Activity activity = (ctx instanceof Activity) ? (Activity) ctx : null;
