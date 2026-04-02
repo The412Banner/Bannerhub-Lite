@@ -7,7 +7,7 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 /**
- * Injects / syncs BhFrameRating (Winlator HUD overlay) into WineActivity's DecorView.
+ * Injects / syncs BhFrameRating (Winlator HUD) and BhDetailedHud into WineActivity's DecorView.
  * Called from WineActivity.onResume() via smali injection in build-quick.yml.
  */
 public final class BhHudInjector {
@@ -18,10 +18,10 @@ public final class BhHudInjector {
 
     /**
      * Call from WineActivity.onResume().
-     * - Reads "winlator_hud" boolean from bh_prefs.
-     * - Finds existing BhFrameRating by tag "bh_frame_rating" in DecorView.
-     * - If not found + HUD enabled: creates and adds it (TOP|RIGHT, WRAP_CONTENT).
-     * - If found: syncs visibility (VISIBLE / GONE) with current pref.
+     * - Reads "winlator_hud" and "hud_extra_detail" booleans from bh_prefs.
+     * - Manages BhFrameRating (tag "bh_frame_rating") and BhDetailedHud (tag "bh_detailed_hud").
+     * - If extra detail is enabled, shows BhDetailedHud and hides BhFrameRating.
+     * - If normal HUD enabled (and not extra detail), shows BhFrameRating.
      */
     public static void injectOrUpdate(Activity activity) {
         if (activity == null) return;
@@ -29,43 +29,62 @@ public final class BhHudInjector {
             android.view.Window window = activity.getWindow();
             if (window == null) return;
 
-            // Use content view (android.R.id.content) — sits above SurfaceView in Z-order
             View contentView = window.getDecorView().findViewById(android.R.id.content);
             if (!(contentView instanceof ViewGroup)) return;
             ViewGroup container = (ViewGroup) contentView;
 
             boolean hudEnabled = activity.getSharedPreferences("bh_prefs", 0)
                     .getBoolean("winlator_hud", false);
+            boolean extraDetail = activity.getSharedPreferences("bh_prefs", 0)
+                    .getBoolean("hud_extra_detail", false);
 
             Log.d(TAG, "BhHudInjector.injectOrUpdate: hudEnabled=" + hudEnabled
-                    + " container=" + container.getClass().getSimpleName());
+                    + " extraDetail=" + extraDetail);
 
-            View existing = container.findViewWithTag("bh_frame_rating");
+            // ── Normal HUD ────────────────────────────────────────────────────
+            View existingNormal = container.findViewWithTag("bh_frame_rating");
+            boolean showNormal = hudEnabled && !extraDetail;
 
-            if (existing == null) {
-                if (!hudEnabled) {
-                    Log.d(TAG, "BhHudInjector: HUD disabled, nothing to do");
-                    return;
+            if (existingNormal == null) {
+                if (showNormal) {
+                    BhFrameRating hud = new BhFrameRating(activity);
+                    hud.setTag("bh_frame_rating");
+                    FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                            android.view.Gravity.TOP | android.view.Gravity.END);
+                    hud.setVisibility(View.VISIBLE);
+                    container.addView(hud, lp);
+                    hud.bringToFront();
+                    Log.d(TAG, "BhHudInjector: normal HUD injected");
                 }
-
-                BhFrameRating hud = new BhFrameRating(activity);
-                hud.setTag("bh_frame_rating");
-
-                // TOP | RIGHT gravity; bringToFront ensures it's above other views
-                FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.WRAP_CONTENT,
-                        FrameLayout.LayoutParams.WRAP_CONTENT,
-                        android.view.Gravity.TOP | android.view.Gravity.END);
-                hud.setVisibility(View.VISIBLE);
-                container.addView(hud, lp);
-                hud.bringToFront();
-                Log.d(TAG, "BhHudInjector: HUD injected into "
-                        + container.getClass().getSimpleName());
             } else {
-                existing.setVisibility(hudEnabled ? View.VISIBLE : View.GONE);
-                if (hudEnabled) existing.bringToFront();
-                Log.d(TAG, "BhHudInjector: HUD visibility=" + hudEnabled);
+                existingNormal.setVisibility(showNormal ? View.VISIBLE : View.GONE);
+                if (showNormal) existingNormal.bringToFront();
             }
+
+            // ── Detailed HUD ──────────────────────────────────────────────────
+            View existingDetail = container.findViewWithTag("bh_detailed_hud");
+            boolean showDetail = hudEnabled && extraDetail;
+
+            if (existingDetail == null) {
+                if (showDetail) {
+                    BhDetailedHud hud = new BhDetailedHud(activity);
+                    hud.setTag("bh_detailed_hud");
+                    FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                            android.view.Gravity.TOP | android.view.Gravity.END);
+                    hud.setVisibility(View.VISIBLE);
+                    container.addView(hud, lp);
+                    hud.bringToFront();
+                    Log.d(TAG, "BhHudInjector: detailed HUD injected");
+                }
+            } else {
+                existingDetail.setVisibility(showDetail ? View.VISIBLE : View.GONE);
+                if (showDetail) existingDetail.bringToFront();
+            }
+
         } catch (Exception e) {
             Log.e(TAG, "BhHudInjector.injectOrUpdate failed", e);
         }

@@ -7,8 +7,47 @@
 
 ---
 
+### [pre] — v0.4.1-pre — D-pad nav, Extra Detail HUD (2026-04-02)
+**Commit:** `TBD`  |  **Tag:** v0.4.1-pre
+#### What changed
+- D-pad navigation gold focus highlights: GOG, Epic, Amazon game cards (list + grid + poster view modes) — port from BannerHub
+- Extra Detailed HUD (BhDetailedHud): CPU%/GPU%/BAT/temps/cores/SWAP/FPS+graph — port from BannerHub
+  - New checkbox "Extra Detailed HUD" in Controls sidebar (below Winlator HUD toggle)
+  - When HUD is off, checkbox is greyed/disabled; enabling HUD enables checkbox
+  - When checked: BhDetailedHud shown (hides normal BhFrameRating); unchecked: normal HUD shown
+  - Draggable, tap-to-toggle horizontal/vertical, persisted position + orientation
+- fix: Amazon and Epic Activities missing from AndroidManifest (ActivityNotFoundException) — added in build.yml Python patch
+#### Files touched
+- extension/GogGamesActivity.java (D-pad nav port)
+- extension/EpicGamesActivity.java (D-pad nav port)
+- extension/AmazonGamesActivity.java (D-pad nav port + manifest fix)
+- extension/BhDetailedHud.java (new — ported from BannerHub, package changed)
+- extension/BhHudInjector.java (rewritten — handles both normal + detailed HUD)
+- extension/BhPerfSetupDelegate.java (Extra Detail checkbox wiring)
+- patches/res/layout/winemu_sidebar_controls_fragment.xml (CheckBox added)
+- .github/workflows/build.yml (Amazon/Epic manifest activities added)
+
+### [stable] — v0.4.0 — Wine Task Manager + Launch tab (2026-03-30)
+**Commit:** `b0f7d2d`  |  **Tag:** v0.4.0  |  **CI:** ✅ run 23759258390
+#### What changed (since v0.3.7)
+- Wine Task Manager sidebar tab (three-bar icon in in-game sidebar)
+- Container Info: CPU cores, RAM, VRam limit, Device, Android
+- Applications tab + Processes tab with PID + Kill button; 3s auto-refresh
+- Launch tab: WINEPREFIX file browser, dosdevices start, yellow ▶ dirs, white .exe/.msi/.bat/.cmd rows, tap to launch via Wine binary
+- New smali (smali_classes12): BhTaskClickListener, BhTaskManagerFragment + inner classes, BhBrowseToRunnable, BhExeLaunchListener, BhFolderListener, BhInitLaunchRunnable
+- New Java ext: BhWineLaunchHelper (findWineBinary, getWinePrefix, listDir, isLaunchable, launchExe)
+- WineActivityDrawerContent patched: getIdentifier() for sidebar_taskmanager, a0() dispatch for BhTaskManagerFragment
+#### Files touched
+- patches/smali_classes12/com/xj/winemu/sidebar/ (12 smali files)
+- patches/smali_classes4/com/xj/winemu/sidebar/WineActivityDrawerContent.smali
+- patches/res/layout/winemu_activitiy_settings_layout.xml
+- patches/res/drawable/sidebar_taskmanager.xml
+- extension/BhWineLaunchHelper.java
+- .github/workflows/build-quick.yml + build.yml
+- README.md
+
 ### [pre] — v0.3.8-pre1 — Wine Task Manager sidebar tab (2026-03-30)
-**Commit:** `b68e654`  |  **Tag:** v0.3.8-pre1
+**Commit:** `b0f7d2d`  |  **Tag:** v0.3.8-pre1  |  **CI:** ✅ run 23759053600
 #### What changed
 - Port of BannerHub's Wine Task Manager to in-game sidebar
 - New sidebar tab with three-bar icon (sidebar_taskmanager)
@@ -17,6 +56,12 @@
 - Kill button, manual refresh, 3s auto-refresh loop
 - smali_classes12 used (classes11 = Java ext; sequential numbering)
 - WineActivityDrawerContent patched: constructor + a0() dispatch
+- Fix: getIdentifier() for sidebar_taskmanager (R$id not extended in base APK)
+- Fix: .catch Throwable in getContainerVramInfo (NoSuchFieldError on WineActivity.u — different obfuscation in BH-Lite 5.1.4 vs BannerHub 5.3.5)
+- Fix: WineActivity.r (not .u) — correct field name for WineActivityData in BH-Lite 5.1.4; VRam now reads correctly from pc_g_setting{gameId} SP
+- Add Launch tab: WINEPREFIX file browser, yellow ▶ dirs, white exe/msi/bat/cmd, tap to launch via Wine binary
+- New smali: BhBrowseToRunnable, BhExeLaunchListener, BhFolderListener, BhInitLaunchRunnable
+- New Java: BhWineLaunchHelper (findWineBinary, getWinePrefix, listDir, isLaunchable, launchExe)
 #### Files touched
 - patches/smali_classes12/com/xj/winemu/sidebar/BhTask*.smali (8 files)
 - patches/smali_classes4/com/xj/winemu/sidebar/WineActivityDrawerContent.smali

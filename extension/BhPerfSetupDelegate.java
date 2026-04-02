@@ -7,6 +7,7 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewParent;
+import android.widget.CheckBox;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
@@ -99,8 +100,25 @@ public class BhPerfSetupDelegate extends View {
                 if (opacityRow != null) {
                     opacityRow.setVisibility(hudEnabled ? View.VISIBLE : View.GONE);
                 }
-                hudSwitch.setOnClickListener(v -> toggleHud(ctx, prefs, v, opacityRow));
+                hudSwitch.setOnClickListener(v -> toggleHud(ctx, prefs, v, opacityRow, parentView));
                 Log.d(TAG, "BhPerfSetupDelegate: HUD click listener set");
+            }
+
+            // ── Extra Detail checkbox ─────────────────────────────────────────
+            int extraDetailId = ctx.getResources().getIdentifier(
+                    "check_hud_extra_detail", "id", ctx.getPackageName());
+            View extraDetailView = parentView.findViewById(extraDetailId);
+            if (extraDetailView instanceof CheckBox) {
+                CheckBox cbDetail = (CheckBox) extraDetailView;
+                boolean detailEnabled = prefs.getBoolean("hud_extra_detail", false);
+                cbDetail.setChecked(detailEnabled);
+                cbDetail.setEnabled(hudEnabled);
+                cbDetail.setAlpha(hudEnabled ? 1f : 0.4f);
+                cbDetail.setOnCheckedChangeListener((cb, checked) -> {
+                    prefs.edit().putBoolean("hud_extra_detail", checked).apply();
+                    Activity activity = (ctx instanceof Activity) ? (Activity) ctx : null;
+                    if (activity != null) BhHudInjector.injectOrUpdate(activity);
+                });
             }
 
             // ── HUD Opacity SeekBar ──────────────────────────────────────────
@@ -130,7 +148,8 @@ public class BhPerfSetupDelegate extends View {
 
     // ── Toggle: Winlator HUD ───────────────────────────────────────────────────
 
-    private static void toggleHud(Context ctx, SharedPreferences prefs, View switchView, View opacityRow) {
+    private static void toggleHud(Context ctx, SharedPreferences prefs, View switchView,
+                                   View opacityRow, View parentView) {
         try {
             boolean newState = !callGetSwitchState(switchView);
             Log.d(TAG, "toggleHud: newState=" + newState + " ctx=" + ctx.getClass().getSimpleName());
@@ -139,6 +158,17 @@ public class BhPerfSetupDelegate extends View {
 
             if (opacityRow != null) {
                 opacityRow.setVisibility(newState ? View.VISIBLE : View.GONE);
+            }
+
+            // Enable/disable Extra Detail checkbox based on HUD state
+            if (parentView != null) {
+                int extraDetailId = ctx.getResources().getIdentifier(
+                        "check_hud_extra_detail", "id", ctx.getPackageName());
+                View cbView = parentView.findViewById(extraDetailId);
+                if (cbView instanceof CheckBox) {
+                    cbView.setEnabled(newState);
+                    cbView.setAlpha(newState ? 1f : 0.4f);
+                }
             }
 
             // ctx IS the host Activity (Fragment context = host WineActivity)

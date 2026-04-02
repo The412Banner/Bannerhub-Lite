@@ -24,6 +24,7 @@ import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -96,7 +97,7 @@ public class EpicGamesActivity extends Activity {
         List<EpicGame> cached = loadCachedGames();
         if (cached != null && !cached.isEmpty()) {
             showGames(cached);
-            setSync(cached.size() + " game(s) — cached  •  tap ↺ to refresh");
+            int cn = cached.size(); setSync(cn + (cn == 1 ? " game" : " games") + " — cached  •  tap ↺ to refresh");
         }
         startSync(cached == null || cached.isEmpty());
     }
@@ -118,9 +119,16 @@ public class EpicGamesActivity extends Activity {
         Button backBtn = new Button(this);
         backBtn.setText("←");
         backBtn.setTextColor(0xFFFFFFFF);
-        backBtn.setBackgroundColor(0xFF333333);
+        GradientDrawable backBtnBg = new GradientDrawable();
+        backBtnBg.setColor(0xFF333333);
+        backBtnBg.setCornerRadius(dp(4));
+        backBtn.setBackground(backBtnBg);
         backBtn.setTextSize(16f);
         backBtn.setPadding(dp(12), 0, dp(12), 0);
+        backBtn.setOnFocusChangeListener((v, hasFocus) -> {
+            backBtnBg.setColor(hasFocus ? 0xFF555555 : 0xFF333333);
+            backBtnBg.setStroke(hasFocus ? dp(2) : 0, hasFocus ? 0xFFFFD700 : 0x00000000);
+        });
         backBtn.setOnClickListener(v -> finish());
         header.addView(backBtn, new LinearLayout.LayoutParams(-2, dp(40)));
 
@@ -135,9 +143,16 @@ public class EpicGamesActivity extends Activity {
         viewToggleBtn = new Button(this);
         viewToggleBtn.setText(viewModeIcon(viewMode));
         viewToggleBtn.setTextColor(0xFFFFFFFF);
-        viewToggleBtn.setBackgroundColor(0xFF333333);
+        GradientDrawable viewToggleBtnBg = new GradientDrawable();
+        viewToggleBtnBg.setColor(0xFF333333);
+        viewToggleBtnBg.setCornerRadius(dp(4));
+        viewToggleBtn.setBackground(viewToggleBtnBg);
         viewToggleBtn.setTextSize(16f);
         viewToggleBtn.setPadding(dp(12), 0, dp(12), 0);
+        viewToggleBtn.setOnFocusChangeListener((v, hasFocus) -> {
+            viewToggleBtnBg.setColor(hasFocus ? 0xFF555555 : 0xFF333333);
+            viewToggleBtnBg.setStroke(hasFocus ? dp(2) : 0, hasFocus ? 0xFFFFD700 : 0x00000000);
+        });
         viewToggleBtn.setOnClickListener(v -> {
             if ("list".equals(viewMode))       viewMode = "grid";
             else if ("grid".equals(viewMode))  viewMode = "poster";
@@ -153,9 +168,16 @@ public class EpicGamesActivity extends Activity {
         refreshBtn = new Button(this);
         refreshBtn.setText("↺");
         refreshBtn.setTextColor(0xFFFFFFFF);
-        refreshBtn.setBackgroundColor(0xFF333333);
+        GradientDrawable refreshBtnBg = new GradientDrawable();
+        refreshBtnBg.setColor(0xFF333333);
+        refreshBtnBg.setCornerRadius(dp(4));
+        refreshBtn.setBackground(refreshBtnBg);
         refreshBtn.setTextSize(16f);
         refreshBtn.setPadding(dp(12), 0, dp(12), 0);
+        refreshBtn.setOnFocusChangeListener((v, hasFocus) -> {
+            refreshBtnBg.setColor(hasFocus ? 0xFF555555 : 0xFF333333);
+            refreshBtnBg.setStroke(hasFocus ? dp(2) : 0, hasFocus ? 0xFFFFD700 : 0x00000000);
+        });
         refreshBtn.setOnClickListener(v -> startSync(true));
         header.addView(refreshBtn, new LinearLayout.LayoutParams(-2, dp(40)));
 
@@ -279,7 +301,7 @@ public class EpicGamesActivity extends Activity {
             final List<EpicGame> finalGames = mainGames;
             uiHandler.post(() -> {
                 showGames(finalGames);
-                setSync(finalGames.size() + " game(s) — tap a card to install");
+                int fn = finalGames.size(); setSync(fn + (fn == 1 ? " game" : " games") + " — tap a card to install");
                 enableRefresh();
             });
         } catch (Exception e) {
@@ -308,7 +330,19 @@ public class EpicGamesActivity extends Activity {
         final List<EpicGame> result = filtered;
         uiHandler.post(() -> {
             gameListLayout.removeAllViews();
-            if ("grid".equals(viewMode)) {
+            if (result.isEmpty()) {
+                gameListLayout.setPadding(dp(8), dp(8), dp(8), dp(8));
+                TextView emptyTV = new TextView(EpicGamesActivity.this);
+                String q2 = query == null ? "" : query.trim();
+                emptyTV.setText(q2.isEmpty() ? "Your Epic library is empty"
+                                             : "No results for \u201c" + q2 + "\u201d");
+                emptyTV.setTextColor(0xFF666666);
+                emptyTV.setTextSize(14f);
+                emptyTV.setGravity(Gravity.CENTER);
+                LinearLayout.LayoutParams emLp = new LinearLayout.LayoutParams(-1, -2);
+                emLp.topMargin = dp(32);
+                gameListLayout.addView(emptyTV, emLp);
+            } else if ("grid".equals(viewMode)) {
                 gameListLayout.setPadding(dp(4), dp(4), dp(4), dp(4));
                 addGamesAsGrid(result, 105, dp(3), dp(6));
             } else if ("poster".equals(viewMode)) {
@@ -339,6 +373,11 @@ public class EpicGamesActivity extends Activity {
         cardBg.setCornerRadius(dp(6));
         card.setBackground(cardBg);
         card.setFocusable(true);
+        card.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        card.setOnFocusChangeListener((v, hasFocus) -> {
+            cardBg.setColor(hasFocus ? 0xFF1B1F2A : COLOR_CARD_BG);
+            cardBg.setStroke(hasFocus ? dp(3) : 0, hasFocus ? 0xFFFFD700 : 0x00000000);
+        });
         LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(-1, -2);
         cardLp.bottomMargin = dp(8);
 
@@ -380,7 +419,22 @@ public class EpicGamesActivity extends Activity {
         titleRow.addView(collapsedCheckTV, new LinearLayout.LayoutParams(-2, -2));
 
         titleRow.addView(new View(this), new LinearLayout.LayoutParams(0, 0, 1f));
-        topRow.addView(titleRow, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        // ── Subtitle (developer) shown while collapsed ─────────────────────────
+        LinearLayout infoCol = new LinearLayout(this);
+        infoCol.setOrientation(LinearLayout.VERTICAL);
+        infoCol.setGravity(Gravity.CENTER_VERTICAL);
+        infoCol.addView(titleRow, new LinearLayout.LayoutParams(-1, -2));
+        if (!game.developer.isEmpty()) {
+            TextView subTV = new TextView(this);
+            subTV.setText(game.developer);
+            subTV.setTextColor(0xFF888888);
+            subTV.setTextSize(11f);
+            subTV.setMaxLines(1);
+            subTV.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            infoCol.addView(subTV, new LinearLayout.LayoutParams(-1, -2));
+        }
+        topRow.addView(infoCol, new LinearLayout.LayoutParams(0, -2, 1f));
 
         TextView arrowTV = new TextView(this);
         arrowTV.setText("▼");
@@ -420,6 +474,8 @@ public class EpicGamesActivity extends Activity {
         progressBar.setMax(100);
         progressBar.setProgress(0);
         progressBar.setVisibility(View.GONE);
+        progressBar.getProgressDrawable().setColorFilter(COLOR_ACCENT,
+                android.graphics.PorterDuff.Mode.SRC_IN);
         LinearLayout.LayoutParams pbLp = new LinearLayout.LayoutParams(-1, dp(6));
         pbLp.topMargin = dp(6);
         expandSection.addView(progressBar, pbLp);
@@ -593,7 +649,21 @@ public class EpicGamesActivity extends Activity {
         tileBg.setCornerRadius(dp(5));
         tile.setBackground(tileBg);
         tile.setClipToOutline(true);
-        tile.setFocusable(true);
+
+        // Wrapper handles focus border via foreground (drawn over tile, not hidden by it)
+        FrameLayout focusWrapper = new FrameLayout(this);
+        GradientDrawable focusBorder = new GradientDrawable();
+        focusBorder.setColor(0x00000000);
+        focusBorder.setCornerRadius(dp(5));
+        focusWrapper.setForeground(focusBorder);
+        focusWrapper.setFocusable(true);
+        focusWrapper.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        focusWrapper.setOnFocusChangeListener((v, hasFocus) -> {
+            tileBg.setColor(hasFocus ? 0xFF1E2330 : 0xFF141820);
+            focusBorder.setStroke(hasFocus ? dp(3) : 0, hasFocus ? 0xFFFFD700 : 0x00000000);
+        });
+        focusWrapper.setOnClickListener(v -> tile.performClick());
+        focusWrapper.setOnLongClickListener(v -> tile.performLongClick());
 
         FrameLayout artFrame = new FrameLayout(this);
 
@@ -744,7 +814,8 @@ public class EpicGamesActivity extends Activity {
             return true;
         });
 
-        return tile;
+        focusWrapper.addView(tile, new FrameLayout.LayoutParams(-1, -1));
+        return focusWrapper;
     }
 
     private LinearLayout.LayoutParams makeGridTileLp(int hMargin) {
@@ -792,6 +863,7 @@ public class EpicGamesActivity extends Activity {
                 // Run download pipeline
                 final String finalToken = token;
                 boolean ok = EpicDownloadManager.install(
+                        EpicGamesActivity.this,
                         manifestJson,
                         finalToken,
                         installDir.getAbsolutePath(),
@@ -1084,7 +1156,9 @@ public class EpicGamesActivity extends Activity {
                 g.version       = j.optString("version",       "");
                 g.isInstalled   = j.optBoolean("isInstalled",  false);
                 g.installPath   = j.optString("installPath",   "");
-                g.installSize   = j.optLong("installSize",     0L);
+                long cachedSize = j.optLong("installSize", 0L);
+                // Sanity-check: discard absurd cached values (> 1 TB = corrupt/stale cache)
+                g.installSize   = (cachedSize > 1_099_511_627_776L) ? 0L : cachedSize;
                 g.canRunOffline = j.optBoolean("canRunOffline", true);
                 games.add(g);
             }
@@ -1117,7 +1191,18 @@ public class EpicGamesActivity extends Activity {
     // ── Utilities ─────────────────────────────────────────────────────────────
 
     private void setSync(String msg) {
-        uiHandler.post(() -> { if (syncText != null) syncText.setText(msg); });
+        uiHandler.post(() -> {
+            if (syncText == null) return;
+            syncText.setText(msg);
+            if (msg.startsWith("Error") || msg.startsWith("Not logged in")
+                    || msg.startsWith("No games")) {
+                syncText.setTextColor(0xFFFF6B6B);
+            } else if (msg.contains("game") && (msg.contains("tap") || msg.contains("cached"))) {
+                syncText.setTextColor(0xFF81C784);
+            } else {
+                syncText.setTextColor(0xFFCCCCCC);
+            }
+        });
     }
 
     private static String viewModeIcon(String mode) {

@@ -2,6 +2,31 @@
 
 ---
 
+### Entry #92 — v0.4.1-pre — D-pad nav + Extra Detailed HUD (2026-04-02)
+
+#### What changed
+Port of D-pad focus highlights and Extra Detailed HUD from BannerHub to BH Lite.
+
+**New Java extension file:**
+- `BhDetailedHud.java` — Full detailed HUD overlay (CPU%/GPU%/BAT W/temps/cores/SWAP/FPS+graph). Package changed from `com.xj.winemu.sidebar` to `app.revanced.extension.gamehub`. Two layout modes: horizontal (default) and vertical (tap to toggle). Draggable, position+orientation persisted in `bh_prefs`.
+
+**Modified Java extension files:**
+- `GogGamesActivity.java` — Replaced with BannerHub version: D-pad focus highlights, gold (#FFC107) stroke `GradientDrawable`, `FOCUS_BLOCK_DESCENDANTS` on card root, `focusWrapper` FrameLayout for grid/poster
+- `EpicGamesActivity.java` — Same D-pad focus port
+- `AmazonGamesActivity.java` — Same D-pad focus port
+- `BhHudInjector.java` — Rewritten: manages BhFrameRating (`bh_frame_rating`) + BhDetailedHud (`bh_detailed_hud`). Reads `hud_extra_detail`: if true shows detailed+hides normal; if false shows normal+hides detailed.
+- `BhPerfSetupDelegate.java` — Extra Detail `CheckBox` wired: `check_hud_extra_detail` ID, reads `hud_extra_detail` pref, enabled/disabled mirrors HUD switch state, calls `BhHudInjector.injectOrUpdate()` on change.
+
+**Modified layout:**
+- `patches/res/layout/winemu_sidebar_controls_fragment.xml` — `CheckBox` (`@+id/check_hud_extra_detail`) added between `switch_winlator_hud` and `hud_opacity_row`. Starts `enabled=false`, `alpha=0.4`.
+
+**Root cause / design notes:**
+- BH Lite game activities were older copies; direct replacement safe (same package, no BH-Lite-specific logic)
+- BhDetailedHud only needed a package swap — all logic identical to BannerHub
+- Checkbox starts disabled because HUD may be off; `toggleHud()` enables it when HUD is switched on
+
+---
+
 ### Entry #91 — v0.3.8-pre1 — Wine Task Manager sidebar tab (2026-03-30)
 
 #### What changed
