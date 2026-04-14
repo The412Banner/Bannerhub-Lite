@@ -2,6 +2,29 @@
 
 ---
 
+### Entry #94 — v0.4.2-pre — Fix Export/Import buttons (Option mask) (2026-04-13)
+
+#### What changed
+Export Config and Import Config buttons in the game hamburger menu were tapped silently with no dialog.
+
+**Root cause:**
+The synthetic `Option.<init>(String;ZIIFunction1;IDefaultConstructorMarker;)V` constructor uses
+a bitmask (p6) to select which parameters use defaults. Bit 0x10 (4th bit) defaults p5 (Function1)
+to null. Our mask was `0x1e` (bits 1–4), which included bit 0x10 → the BhExportLambda/BhImportLambda
+reference was replaced with null in the constructor → `Option.e = null` → tap handler does nothing.
+
+**Fix:**
+Change mask from `0x1e` to `0xe` (bits 1–3 only) in both workflow YAML files. This preserves bits 1–3
+(defaults for Z=false, c=-1, d=-1) while leaving bit 4 unset so the Function1 arg is kept.
+
+#### Files touched
+- `.github/workflows/build-quick.yml` — `const/16 v15, 0x1e` → `const/16 v15, 0xe` (Export + Import)
+- `.github/workflows/build.yml` — same fix
+
+**CI result:** pending
+
+---
+
 ### Entry #93 — v0.4.1-pre — Download engine sync from BannerHub (2026-04-02)
 
 #### What changed

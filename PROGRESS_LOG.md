@@ -7,6 +7,18 @@
 
 ---
 
+### [pre] — v0.4.2-pre — fix Option mask so Export/Import buttons work (2026-04-13)
+**Commit:** `50b103d`  |  **Tag:** v0.4.2-pre  |  **CI:** pending
+#### What changed
+- fix: Option constructor mask was 0x1e (bits 1-4), which set bit 0x10 → nulled the Function1/lambda
+  arg in the synthetic constructor → Export Config / Import Config buttons tapped silently (no dialog)
+- Fix: change mask to 0xe (bits 1-3 only) — lambda is now preserved, dialog shows on tap
+#### Files touched
+- .github/workflows/build-quick.yml (mask 0x1e → 0xe for both Export and Import Option)
+- .github/workflows/build.yml (same fix)
+
+---
+
 ### [pre] — v0.4.1-pre — D-pad nav, Extra Detail HUD, download engine sync (2026-04-02)
 **Commit:** `3feb03b`  |  **Tag:** v0.4.1-pre  |  **CI:** ✅ run 23911184576
 #### What changed
@@ -957,3 +969,37 @@ When a game is added for the first time, no per-game GPU driver key exists in SP
 - extension/BhHudInjector.java (new)
 - extension/BhPerfSetupDelegate.java (HUD toggle added)
 - .github/workflows/build-quick.yml (WineActivity patch)
+
+### [pre] — v0.4.0-pre → v0.4.2-pre — Export/Import Game Configs (2026-04-13)
+**Commits:** `6eb75c4`, `e3db265`, `63b9d15`, `e37a0a0`  |  **Tag:** v0.4.2-pre  |  **CI:** run 24376023906 ✅
+#### What changed
+- **Export/Import Config feature** ported from BannerHub to BH-Lite
+- New extension files: `BhSettingsExporter.java` (INJECTOR_CLS changed to app.revanced.extension.gamehub.ComponentInjectorHelper), `BhGameConfigsActivity.java`
+- `ComponentManagerHelper.java`: added GAME_CONFIGS_MENU_ID=13, "Game Configs" side menu entry, BhGameConfigsActivity launch handler
+- New smali lambdas: `BhExportLambda.smali`, `BhImportLambda.smali` (adapted for BH-Lite: GameDetailEntity path = `com/xj/common/data/gameinfo/`, FragmentActivity via field `a` not method `z()`)
+- Manifest: BhGameConfigsActivity registered in both build.yml and build-quick.yml
+- **VerifyError fix**: moved injection from end-of-method (where v5 was Conflict) to `:cond_8` BEFORE `new-instance v3,StringBuilder` — at this point v3=GameDetailEntity on ALL code paths; `move-object/from16 v4,p0` writes to v4 first (clears Conflict), no v5 access
+- **Configs are cross-compatible with BannerHub** — same SharedPreferences keys (`pc_g_setting{gameId}`), same export folder (`BannerHub/configs/`); configs work on either app
+#### Files touched
+- extension/BhSettingsExporter.java (new)
+- extension/BhGameConfigsActivity.java (new)
+- extension/ComponentManagerHelper.java (GAME_CONFIGS_MENU_ID + handler)
+- patches/smali_classes12/.../BhExportLambda.smali (new)
+- patches/smali_classes12/.../BhImportLambda.smali (new)
+- .github/workflows/build-quick.yml (manifest + injection)
+- .github/workflows/build.yml (manifest + injection)
+
+### [pre] — v0.4.2-pre (retag) — app_source tagging in exported configs (2026-04-14)
+**Commit:** `4c2e640`  |  **Tag:** v0.4.2-pre (retagged)  |  **CI:** run 24376223210 ✅
+#### What changed
+- `BhSettingsExporter.java`: added `meta.put("app_source", "bannerhub_lite")` to every exported config JSON
+- Allows community backend to filter/purge BH-Lite configs separately
+#### Files touched
+- extension/BhSettingsExporter.java
+
+### [pre] — v0.4.2-pre (retag2) — bh_version from PackageInfo (2026-04-14)
+**Commit:** `e24bf39`  |  **Tag:** v0.4.2-pre (retagged)  |  **CI:** ✅
+#### What changed
+- BhSettingsExporter: replaced hardcoded BH_VERSION string with `getPackageManager().getPackageInfo().versionName` — always reflects actual installed version, zero maintenance
+#### Files touched
+- extension/BhSettingsExporter.java
