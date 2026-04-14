@@ -1100,22 +1100,26 @@ jobs:
           )
 
           # ── GameDetailSettingMenu.Y(): inject Export Config + Import Config ──
+          # Inject BEFORE new-instance v3,StringBuilder at :cond_8 where v3=GameDetailEntity on all paths.
+          # v4 is Conflict at :cond_8 merge (bool vs object), but we WRITE it first (move-object/from16 v4,p0)
+          # which clears Conflict and assigns GameDetailSettingMenu type — no VerifyError.
           patch(
               'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/gamedetail/GameDetailSettingMenu.smali',
-              '    invoke-static {v8, v1}, Lcom/xj/common/utils/XjLog;->c(Ljava/lang/String;Ljava/lang/String;)V\n'
+              '    :cond_8\n'
+              '    invoke-interface {v2}, Ljava/util/List;->size()I\n'
               '\n'
-              '    return-object v2\n'
-              '.end method\n'
+              '    move-result v1\n'
               '\n'
-              '.method public final a0(',
-              '    invoke-static {v8, v1}, Lcom/xj/common/utils/XjLog;->c(Ljava/lang/String;Ljava/lang/String;)V\n'
+              '    new-instance v3, Ljava/lang/StringBuilder;\n',
+              '    :cond_8\n'
+              '    invoke-interface {v2}, Ljava/util/List;->size()I\n'
               '\n'
-              '    # BH-Lite: read GameDetailEntity from continuation L$0 (v3 was overwritten by StringBuilder)\n'
+              '    move-result v1\n'
+              '\n'
+              '    # BH-Lite: inject Export/Import Config (v3=GameDetailEntity before StringBuilder overwrites it)\n'
               '    move-object/from16 v4, p0\n'
-              '    iget-object v3, v5, Lcom/xj/landscape/launcher/ui/gamedetail/GameDetailSettingMenu$getPcGamesOptions$1;->L$0:Ljava/lang/Object;\n'
-              '    check-cast v3, Lcom/xj/common/data/gameinfo/GameDetailEntity;\n'
               '\n'
-              '    # BH-Lite: Export Config option\n'
+              '    # Export Config option\n'
               '    new-instance v9, Lcom/xj/common/view/popup/Option;\n'
               '    const-string v10, "Export Config"\n'
               '    const/4 v11, 0x0\n'
@@ -1128,7 +1132,7 @@ jobs:
               '    invoke-direct/range {v9 .. v16}, Lcom/xj/common/view/popup/Option;-><init>(Ljava/lang/String;ZIILkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V\n'
               '    invoke-interface {v2, v9}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
               '\n'
-              '    # BH-Lite: Import Config option\n'
+              '    # Import Config option\n'
               '    new-instance v9, Lcom/xj/common/view/popup/Option;\n'
               '    const-string v10, "Import Config"\n'
               '    const/4 v11, 0x0\n'
@@ -1141,10 +1145,7 @@ jobs:
               '    invoke-direct/range {v9 .. v16}, Lcom/xj/common/view/popup/Option;-><init>(Ljava/lang/String;ZIILkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V\n'
               '    invoke-interface {v2, v9}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
               '\n'
-              '    return-object v2\n'
-              '.end method\n'
-              '\n'
-              '.method public final a0(',
+              '    new-instance v3, Ljava/lang/StringBuilder;\n',
               'GameDetailSettingMenu.Y(): inject Export Config + Import Config options'
           )
 
