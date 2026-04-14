@@ -1,6 +1,6 @@
 # BannerHub Lite
 
-A modified build of **[GameHub Lite 5.1.4](https://github.com/Producdevity/gamehub-lite)** with BannerHub features ported in — GOG, Amazon, and Epic Games Store tabs, Component Manager, in-app component downloader, Wine Task Manager with Launch tab, Winlator HUD overlay, performance toggles, CPU core affinity, VRAM unlock, offline Steam skip, root access management, and more. Built with apktool + compiled Java extension (no source code from GameHub).
+A modified build of **[GameHub Lite 5.1.4](https://github.com/Producdevity/gamehub-lite)** with BannerHub features ported in — GOG, Amazon, and Epic Games Store tabs, Component Manager, in-app component downloader, Export/Import Game Config, Wine Task Manager with Launch tab, Winlator HUD overlay (Normal + Extra Detailed), performance toggles, CPU core affinity, VRAM unlock, offline Steam skip, root access management, and more. Built with apktool + compiled Java extension (no source code from GameHub).
 
 ## AI Disclaimer
 
@@ -482,8 +482,33 @@ If it is greyed out, root has not been granted yet. Go to **Settings → Advance
 
 Your game may be a very old pre-Galaxy title that pre-dates GOG's content system. BannerHub Lite will automatically fall back to the installer download path, which fetches the Windows `.exe` installer directly from GOG's download API.
 
-**Q: Where are GOG games installed?**
+**Q: Where are GOG / Amazon / Epic games installed?**
 
-Inside the app's private storage: `Android/data/<package>/files/gog_games/<title>/`. These files are only accessible via a file manager with root, or if you grant SAF access via BCI.
+Inside the app's private storage: `Android/data/<package>/files/gog_games/<title>/`, `amazon_games/<title>/`, or `epic_games/<title>/` respectively. These files are only accessible via a file manager with root, or if you grant SAF access via BCI. GOG games have a **Copy to Downloads** button in the detail dialog to copy files to `Downloads/GOG Games/<title>/` for access from any file manager.
+
+**Q: Are game configs compatible with BannerHub?**
+
+Yes — configs exported from BannerHub Lite can be imported in BannerHub and vice versa. Both apps use the same SharedPreferences keys and the same export folder (`/sdcard/BannerHub/configs/`). See [Export / Import Game Config](#export--import-game-config) for details.
 
 ---
+
+## Credits
+
+- **GameHub Lite** — [Python](https://github.com) (original GameHub Lite creator) and [Producdevity](https://github.com/Producdevity/gamehub-lite) (current maintainer)
+- **GOG / Amazon / Epic integration** — [The GameNative Team](https://github.com/utkarshdalal/GameNative). The store pipelines, authentication flows, download architecture, and library sync in BannerHub Lite are ported from BannerHub, which is based on their research and implementation.
+- **BannerHub** — all ported features originate from [BannerHub](https://github.com/The412Banner/bannerhub)
+- **Winlator HUD** — [StevenMXZ](https://github.com/StevenMXZ). The Extra Detailed HUD is a continuation and extension of the original Winlator HUD.
+- **Component sources** — [Arihany WCPHub](https://github.com/Arihany/WinlatorWCPHub), [The412Banner Nightlies](https://github.com/The412Banner/Nightlies), Kimchi, StevenMXZ, MaxesTechReview, Whitebelyash
+
+---
+
+## Build Info
+
+- **Base APK:** GameHub Lite 5.1.4 (vanilla, no ReVanced) — stored as a permanent release under the [`base-apk`](../../releases/tag/base-apk) tag
+- **Extension DEX:** All BannerHub Lite Java code compiles to `classes11.dex` — no conflict with GameHub Lite's `classes.dex` through `classes10.dex`
+- **Signing:** AOSP testkey (v1 + v2 + v3) via apksigner — same key across all variants and all releases
+- **Variants:** 9 package variants built per release — see [Installation](#installation) for the full list
+
+---
+
+<sub>☕ [Support on Ko-fi](https://ko-fi.com/the412banner)</sub>
