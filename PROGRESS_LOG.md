@@ -7,6 +7,20 @@
 
 ---
 
+### [stable] — v1.0.0 — First major stable release (2026-04-14)
+**Commit:** `1032e74`  |  **Tag:** v1.0.0
+**CI:** run 24378415338 ✅
+#### What changed
+- build.yml: Normal variant → banner.hub.lite; Normal(GHL) → gamehub.lite added; BHApi variants removed; Genshin package fixed to com.miHoYo.GenshinImpact
+- build-bhapi.yml deleted
+- README.md: variant table updated to 9 APKs, BHApi references removed
+#### Files touched
+- .github/workflows/build.yml
+- .github/workflows/build-bhapi.yml (deleted)
+- README.md
+
+---
+
 ### [pre] — v0.4.2-pre — fix Option mask so Export/Import buttons work (2026-04-13)
 **Commit:** `50b103d`  |  **Tag:** v0.4.2-pre  |  **CI:** pending
 #### What changed
