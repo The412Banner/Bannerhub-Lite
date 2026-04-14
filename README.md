@@ -21,6 +21,7 @@ Before any stable release is published, all changes are manually debugged and te
   - [Component Manager](#component-manager)
   - [Online Component Downloader](#online-component-downloader)
   - [BCI Launcher Button](#bci-launcher-button)
+  - [Export / Import Game Config](#export--import-game-config)
   - [Wine Task Manager](#wine-task-manager)
   - [Winlator HUD Overlay](#winlator-hud-overlay)
   - [Performance Sidebar Toggles](#performance-sidebar-toggles)
@@ -31,6 +32,7 @@ Before any stable release is published, all changes are manually debugged and te
   - [Offline Steam Launch](#offline-steam-launch)
   - [Launch Fix (Hardware Whitelist Bypass)](#launch-fix-hardware-whitelist-bypass)
   - [Settings: Advanced Tab](#settings-advanced-tab)
+  - [Controller Navigation](#controller-navigation)
   - [UI Tweaks](#ui-tweaks)
 - [How It Works](#how-it-works)
 - [FAQ](#faq)
@@ -51,12 +53,16 @@ Both projects add the same core set of features on top of different GameHub base
 | **GPU System Driver default** | Yes | No |
 | **Launch fix (hardware whitelist bypass)** | Yes | No |
 | **Component description in game settings picker** | Not yet | Yes |
+| **Community Game Configs browser** | Not yet | Yes |
+| **Konkr Style HUD** | Not yet | Yes |
 | **Sustained Perf toggle behavior** | `setSustainedPerformanceMode` + CPU governor (root) | CPU governor only (root) |
 | **GOG Games tab** | Yes | Yes |
 | **Amazon Games tab** | Yes | Yes |
 | **Epic Games Store tab** | Yes | Yes |
+| **Export / Import Game Config** | Yes | Yes |
 | **Wine Task Manager (Apps/Procs/Launch)** | Yes | Yes |
-| **Winlator HUD overlay** | Yes | Yes |
+| **Winlator HUD (Normal + Extra Detailed)** | Yes | Yes |
+| **Controller D-pad navigation** | Yes | Yes |
 | **Component Manager** | Yes | Yes |
 | **Online Component Downloader** | Yes (6 repos) | Yes (6 repos) |
 | **CPU Core Affinity** | Yes | Yes |
@@ -225,6 +231,28 @@ Tapping a launchable file shows a **"Launching: filename"** toast, then runs it 
 
 ---
 
+### Export / Import Game Config
+
+PC game settings include **Export Config** and **Import Config** options accessible from the game's "…" settings menu (My Games → long-press a game → settings).
+
+#### Export Config
+
+Saves all per-game Wine settings (DXVK version, VKD3D version, Box64 version, GPU driver, VRAM limit, CPU affinity, and all other per-game settings) to a JSON file at `/sdcard/BannerHub/configs/<gamename>-<devicename>.json`.
+
+The JSON includes device model, SOC, settings count, component list, and `app_source="bannerhub_lite"` for community backend filtering.
+
+#### Import Config
+
+Lists `.json` files saved in `/sdcard/BannerHub/configs/`. Selecting a file applies all settings from that config to the current game. A SOC mismatch warning is shown if the config was created on a different GPU — you can still apply it.
+
+#### Cross-Compatibility with BannerHub
+
+Configs exported from BannerHub Lite are fully compatible with **[BannerHub](https://github.com/The412Banner/bannerhub)**, and vice versa.
+
+Both apps store per-game settings under the same SharedPreferences keys (`pc_g_setting<gameId>`) and export to the same folder (`/sdcard/BannerHub/configs/`). The export format is identical — the app that created the config has no effect on whether it can be imported. The `app_source` field is only used by the community config site for filtering and is ignored during import.
+
+---
+
 ### Component Manager
 
 Accessible via the left side menu → **Components**.
@@ -290,31 +318,29 @@ A shortcut button in GameHub's **top-right toolbar** opens [BannersComponentInje
 
 ### Winlator HUD Overlay
 
-An in-game heads-up display overlay controlled from the **Controls sidebar tab**.
+An in-game heads-up display overlay controlled from the **Controls sidebar tab**. Two modes are available — enable **Winlator HUD** first, then optionally enable **Extra Detailed** for the expanded view.
 
-#### Toggle
+#### Normal HUD
 
-Enable **Winlator HUD** in the Controls sidebar. The overlay appears in the top-right corner of the screen and persists while a game is running.
+Enable **Winlator HUD** in the Controls sidebar. The overlay appears in the top-right corner and persists while a game is running.
+
+Displays per second: GPU%, CPU%, RAM%, battery wattage, battery temperature, FPS, and a rolling FPS graph.
+
+#### Extra Detailed HUD
+
+Enable both **Winlator HUD** and **Extra Detailed** in the Controls sidebar. Replaces the Normal HUD with a richer two-row layout (horizontal) or a full per-metric vertical list (tap to toggle).
+
+**Horizontal layout — Row 1:** TIME | CPU% / CPU°C | C0 | C2 | C4 | C6 | BAT W / BAT°C
+
+**Horizontal layout — Row 2:** API | GPU% / GPU°C | C1 | C3 | C5 | C7 | RAM% | FPS graph (spans both rows)
+
+**Vertical layout:** API, TIME, BAT W, BAT°C, CPU%, CPU°C, GPU%, GPU°C, GPU MHz, per-core C0–C7, RAM%, SWAP used/total, FPS graph
+
+Drag to reposition. Position and orientation persist across sessions. *Extra Detailed* is automatically greyed out when the HUD toggle is off.
 
 #### Opacity Slider
 
-When the HUD toggle is on, an **HUD Opacity (0–100%)** slider appears directly below it. Drag it to adjust the background transparency of the overlay live — no restart needed. The value is saved and restored on next session.
-
-#### Display
-
-The overlay shows the following metrics, updated every second:
-
-| Metric | Source |
-|--------|--------|
-| **API** | Battery current draw (mA) |
-| **GPU%** | `/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage` |
-| **CPU%** | `/proc/stat` (all-core average) |
-| **RAM%** | `ActivityManager.getMemoryInfo()` |
-| **BAT** | Battery watts draw (hidden while charging) |
-| **TMP** | Battery temperature (`/sys/class/power_supply/battery/temp`) |
-| **FPS** | `HUDUpdater.g()` — same averaged frame-list source as the native HUD |
-
-A rolling **FPS graph** is shown at the far right.
+Drag the **HUD Opacity (0–100%)** slider to adjust background transparency live. The value is saved and restored on next session.
 
 ---
 
@@ -400,6 +426,18 @@ GameHub Lite performs an HTTP device-check at launch time. On many devices this 
 | Setting | What it does |
 |---------|-------------|
 | **Grant Root Access** | Shows a warning dialog explaining what root is used for. On confirmation, runs `su -c id` on a background thread — your root manager will show its own prompt. The result is stored in `bh_prefs`. Tapping again while root is already granted shows a **Revoke** option |
+
+---
+
+### Controller Navigation
+
+All three game store activities (GOG, Epic, Amazon) support full D-pad / gamepad controller navigation.
+
+- **Game cards (list view)** — navigate up/down with D-pad; focused card shows a gold border and slightly lighter background; press A to expand/collapse
+- **Game tiles (grid view)** — navigate in all four directions; focused tile shows a gold border overlay; press A to expand/select
+- **Header buttons** (back, view toggle, refresh) — focusable with a gold border on focus; press A to activate
+
+Focus highlight uses gold (#FFD700) consistently across all stores and view modes.
 
 ---
 
