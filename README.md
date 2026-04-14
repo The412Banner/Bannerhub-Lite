@@ -76,21 +76,19 @@ Both projects add the same core set of features on top of different GameHub base
 
 ### Choosing your APK
 
-16 APK variants are built — pick the one matching the package name of your existing GameHub Lite installation. Each package comes in two flavours:
-
-- **Regular** — connects to the real GameHub API (Steam library, recommendations, etc.)
-- **BHApi** — connects to the [bannerhub-api](https://github.com/The412Banner/bannerhub-api) worker (self-hosted; useful if the real API is unavailable)
+9 APK variants are built — pick the one matching the package name of your existing GameHub Lite installation.
 
 | APK | Package | App label |
 |-----|---------|-----------|
-| Normal / Normal-BHApi | `gamehub.lite` | BannerHub Lite |
-| PuBG / PuBG-BHApi | `com.tencent.ig` | BannerHub Lite PuBG |
-| AnTuTu / AnTuTu-BHApi | `com.antutu.ABenchMark` | BannerHub Lite AnTuTu |
-| alt-AnTuTu / alt-AnTuTu-BHApi | `com.antutu.benchmark.full` | BannerHub Lite AnTuTu |
-| PuBG-CrossFire / PuBG-CrossFire-BHApi | `com.tencent.tmgp.cf` | BannerHub Lite PuBG CrossFire |
-| Ludashi / Ludashi-BHApi | `com.ludashi.aibench` | BannerHub Lite Ludashi |
-| Genshin / Genshin-BHApi | `com.mihoyo.genshinimpact` | BannerHub Lite Genshin |
-| Original / Original-BHApi | `com.xiaoji.egggame` | BannerHub Lite |
+| Normal | `banner.hub.lite` | BannerHub Lite |
+| Normal(GHL) | `gamehub.lite` | BannerHub Lite |
+| PuBG | `com.tencent.ig` | BannerHub Lite PuBG |
+| AnTuTu | `com.antutu.ABenchMark` | BannerHub Lite AnTuTu |
+| alt-AnTuTu | `com.antutu.benchmark.full` | BannerHub Lite AnTuTu |
+| PuBG-CrossFire | `com.tencent.tmgp.cf` | BannerHub Lite PuBG CrossFire |
+| Ludashi | `com.ludashi.aibench` | BannerHub Lite Ludashi |
+| Genshin | `com.miHoYo.GenshinImpact` | BannerHub Lite Genshin |
+| Original | `com.xiaoji.egggame` | BannerHub Lite |
 
 ### Steps
 
@@ -415,10 +413,10 @@ GameHub Lite performs an HTTP device-check at launch time. On many devices this 
 ## How It Works
 
 1. The original GameHub Lite 5.1.4 APK (vanilla, no ReVanced) is stored as a permanent release asset under the [`base-apk`](../../releases/tag/base-apk) tag.
-2. CI downloads the base APK, decompiles it with apktool, overlays the `patches/` directory, and builds all 16 package variants (8 regular + 8 BHApi).
+2. CI downloads the base APK, decompiles it with apktool, overlays the `patches/` directory, and builds all 9 package variants.
 3. All new BannerHub Lite code is written in Java, compiled via `javac` + `d8` to `classes11.dex`. GameHub Lite 5.1.4 uses `classes.dex` through `classes10.dex` — `classes11` has no conflict.
 4. The rebuilt APK is zipaligned and signed with AOSP testkey (v1 + v2 + v3).
-5. The CI matrix uploads all 16 variant APKs to the GitHub Release.
+5. The CI matrix uploads all 9 variant APKs to the GitHub Release.
 
 No external dex is injected into the base classes — the extension code is self-contained in `classes11.dex`.
 
