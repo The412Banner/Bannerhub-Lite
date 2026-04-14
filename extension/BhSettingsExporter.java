@@ -48,7 +48,15 @@ public class BhSettingsExporter {
     private static final String WORKER_BASE  =
             "https://bannerhub-configs-worker.the412banner.workers.dev";
 
-    static final String BH_VERSION = "2.9.3";
+    private static String getAppVersion(Context ctx) {
+        try {
+            return ctx.getPackageManager()
+                      .getPackageInfo(ctx.getPackageName(), 0)
+                      .versionName;
+        } catch (Exception e) {
+            return "unknown";
+        }
+    }
 
     // ─── Export entry point ──────────────────────────────────────────────────
 
@@ -106,7 +114,7 @@ public class BhSettingsExporter {
             meta.put("app_source",       "bannerhub_lite");
             meta.put("device",           Build.MANUFACTURER + " " + Build.MODEL);
             meta.put("soc",              detectSoc(ctx));
-            meta.put("bh_version",       BH_VERSION);
+            meta.put("bh_version",       getAppVersion(ctx));
             meta.put("upload_token",     uploadToken);
             meta.put("settings_count",   settings.length());
             meta.put("components_count", components.length());
