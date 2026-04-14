@@ -103,6 +103,7 @@ public class BhSettingsExporter {
 
             // Meta block — parsed and shown in BhGameConfigsActivity detail view
             JSONObject meta = new JSONObject();
+            meta.put("app_source",       "bannerhub_lite");
             meta.put("device",           Build.MANUFACTURER + " " + Build.MODEL);
             meta.put("soc",              detectSoc(ctx));
             meta.put("bh_version",       BH_VERSION);
