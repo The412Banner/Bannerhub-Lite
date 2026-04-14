@@ -97,8 +97,13 @@ jobs:
               ' android:screenOrientation="sensorLandscape" />\n'
               '    <activity android:name="app.revanced.extension.gamehub.EpicGamesActivity"'
               ' android:label="Epic Library" android:exported="false"'
-              ' android:screenOrientation="sensorLandscape" />\n    </application>',
-              'manifest: register ComponentManager + ComponentDownload + GOG + Amazon + Epic activities'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.BhGameConfigsActivity"'
+              ' android:label="Game Configs" android:exported="false"'
+              ' android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize"'
+              ' android:screenOrientation="sensorLandscape"'
+              ' android:windowSoftInputMode="adjustResize" />\n    </application>',
+              'manifest: register ComponentManager + ComponentDownload + GOG + Amazon + Epic + GameConfigs activities'
           )
 
           patch(
@@ -1072,6 +1077,55 @@ jobs:
                   '    iput-boolean v0, p0, Lcom/xj/landscape/launcher/ui/main/LandscapeLauncherMainActivity;->i:Z\n'
               ),
               'LandscapeLauncherMainActivity.onResume(): GOG pending launch check'
+          )
+
+          # ── N. GameDetailSettingMenu.Y(): inject Export Config + Import Config ──
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/gamedetail/GameDetailSettingMenu.smali',
+              '    invoke-static {v8, v1}, Lcom/xj/common/utils/XjLog;->c(Ljava/lang/String;Ljava/lang/String;)V\n'
+              '\n'
+              '    return-object v2\n'
+              '.end method\n'
+              '\n'
+              '.method public final a0(',
+              '    invoke-static {v8, v1}, Lcom/xj/common/utils/XjLog;->c(Ljava/lang/String;Ljava/lang/String;)V\n'
+              '\n'
+              '    # BH-Lite: read GameDetailEntity from continuation L$0 (v3 was overwritten by StringBuilder)\n'
+              '    move-object/from16 v4, p0\n'
+              '    iget-object v3, v5, Lcom/xj/landscape/launcher/ui/gamedetail/GameDetailSettingMenu$getPcGamesOptions$1;->L$0:Ljava/lang/Object;\n'
+              '    check-cast v3, Lcom/xj/common/data/gameinfo/GameDetailEntity;\n'
+              '\n'
+              '    # BH-Lite: Export Config option\n'
+              '    new-instance v9, Lcom/xj/common/view/popup/Option;\n'
+              '    const-string v10, "Export Config"\n'
+              '    const/4 v11, 0x0\n'
+              '    const/4 v12, 0x0\n'
+              '    const/4 v13, 0x0\n'
+              '    new-instance v14, Lcom/xj/landscape/launcher/ui/gamedetail/BhExportLambda;\n'
+              '    invoke-direct {v14, v4, v3}, Lcom/xj/landscape/launcher/ui/gamedetail/BhExportLambda;-><init>(Lcom/xj/landscape/launcher/ui/gamedetail/GameDetailSettingMenu;Lcom/xj/common/data/gameinfo/GameDetailEntity;)V\n'
+              '    const/16 v15, 0x1e\n'
+              '    const/16 v16, 0x0\n'
+              '    invoke-direct/range {v9 .. v16}, Lcom/xj/common/view/popup/Option;-><init>(Ljava/lang/String;ZIILkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V\n'
+              '    invoke-interface {v2, v9}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+              '\n'
+              '    # BH-Lite: Import Config option\n'
+              '    new-instance v9, Lcom/xj/common/view/popup/Option;\n'
+              '    const-string v10, "Import Config"\n'
+              '    const/4 v11, 0x0\n'
+              '    const/4 v12, 0x0\n'
+              '    const/4 v13, 0x0\n'
+              '    new-instance v14, Lcom/xj/landscape/launcher/ui/gamedetail/BhImportLambda;\n'
+              '    invoke-direct {v14, v4, v3}, Lcom/xj/landscape/launcher/ui/gamedetail/BhImportLambda;-><init>(Lcom/xj/landscape/launcher/ui/gamedetail/GameDetailSettingMenu;Lcom/xj/common/data/gameinfo/GameDetailEntity;)V\n'
+              '    const/16 v15, 0x1e\n'
+              '    const/16 v16, 0x0\n'
+              '    invoke-direct/range {v9 .. v16}, Lcom/xj/common/view/popup/Option;-><init>(Ljava/lang/String;ZIILkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V\n'
+              '    invoke-interface {v2, v9}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+              '\n'
+              '    return-object v2\n'
+              '.end method\n'
+              '\n'
+              '.method public final a0(',
+              'GameDetailSettingMenu.Y(): inject Export Config + Import Config options'
           )
 
           print("\nAll patches applied successfully.")

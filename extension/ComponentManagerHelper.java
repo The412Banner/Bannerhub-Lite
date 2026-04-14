@@ -22,10 +22,11 @@ import java.util.List;
 public final class ComponentManagerHelper {
 
     private static final String TAG = "BannerHub";
-    private static final int COMPONENTS_MENU_ID = 9;
-    private static final int GOG_MENU_ID = 10;
-    private static final int AMAZON_MENU_ID = 11;
-    private static final int EPIC_MENU_ID = 12;
+    private static final int COMPONENTS_MENU_ID   = 9;
+    private static final int GOG_MENU_ID           = 10;
+    private static final int AMAZON_MENU_ID        = 11;
+    private static final int EPIC_MENU_ID          = 12;
+    private static final int GAME_CONFIGS_MENU_ID  = 13;
 
     private ComponentManagerHelper() {}
 
@@ -77,6 +78,12 @@ public final class ComponentManagerHelper {
             //noinspection unchecked
             items.add(epicItem);
             Log.d(TAG, "addComponentsMenuItem: Epic item added (id=" + EPIC_MENU_ID + ")");
+
+            Object configsItem = ctor.newInstance(
+                    GAME_CONFIGS_MENU_ID, iconRes, "Game Configs", null, 0x8, null);
+            //noinspection unchecked
+            items.add(configsItem);
+            Log.d(TAG, "addComponentsMenuItem: Game Configs item added (id=" + GAME_CONFIGS_MENU_ID + ")");
         } catch (Exception e) {
             Log.e(TAG, "addComponentsMenuItem failed", e);
         }
@@ -116,6 +123,14 @@ public final class ComponentManagerHelper {
             if (id == EPIC_MENU_ID) {
                 dialog.getClass().getMethod("dismiss").invoke(dialog);
                 Intent intent = new Intent(activity, EpicMainActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                activity.startActivity(intent);
+                return true;
+            }
+
+            if (id == GAME_CONFIGS_MENU_ID) {
+                dialog.getClass().getMethod("dismiss").invoke(dialog);
+                Intent intent = new Intent(activity, BhGameConfigsActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 activity.startActivity(intent);
                 return true;
