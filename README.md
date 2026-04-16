@@ -36,6 +36,7 @@ Before any stable release is published, all changes are manually debugged and te
   - [UI Tweaks](#ui-tweaks)
 - [How It Works](#how-it-works)
 - [FAQ](#faq)
+- [Implementation Reports](#implementation-reports)
 - [Credits](#credits)
 - [Build Info](#build-info)
 
@@ -489,6 +490,20 @@ Inside the app's private storage: `Android/data/<package>/files/gog_games/<title
 **Q: Are game configs compatible with BannerHub?**
 
 Yes — configs exported from BannerHub Lite can be imported in BannerHub and vice versa. Both apps use the same SharedPreferences keys and the same export folder (`/sdcard/BannerHub/configs/`). See [Export / Import Game Config](#export--import-game-config) for details.
+
+---
+
+## Implementation Reports
+
+Detailed technical breakdowns of each store integration — API endpoints, auth flows, data models, download pipelines, and known gotchas. Reports live in the [BannerHub](https://github.com/The412Banner/BannerHub) repo since the implementations originate there and are ported to BannerHub Lite.
+
+| Report | Description |
+|--------|-------------|
+| [GOG_IMPLEMENTATION.md](https://github.com/The412Banner/BannerHub/blob/main/game-store-reports/GOG_IMPLEMENTATION.md) | GOG API, OAuth2 auth, Gen1/Gen2 depot manifests, download pipeline, cloud saves, DLC, update checker |
+| [EPIC_IMPLEMENTATION.md](https://github.com/The412Banner/BannerHub/blob/main/game-store-reports/EPIC_IMPLEMENTATION.md) | Epic Games Store API, OAuth2 auth, chunked manifest download, CDN selection, cloud saves, free games, DLC |
+| [AMAZON_IMPLEMENTATION.md](https://github.com/The412Banner/BannerHub/blob/main/game-store-reports/AMAZON_IMPLEMENTATION.md) | Amazon Games API, PKCE auth, manifest.proto protobuf, XZ/LZMA decode, FuelPump env vars, SDK DLLs |
+| [STEAM_IMPLEMENTATION.md](https://github.com/The412Banner/BannerHub/blob/main/game-store-reports/STEAM_IMPLEMENTATION.md) | JavaSteam integration, PICS library sync, DepotDownloader, credential + QR auth, depot key caches, critical gotchas |
+| [STORE_FEATURES_REPORT.md](https://github.com/The412Banner/BannerHub/blob/main/game-store-reports/STORE_FEATURES_REPORT.md) | Cross-store feature comparison matrix |
 
 ---
 
