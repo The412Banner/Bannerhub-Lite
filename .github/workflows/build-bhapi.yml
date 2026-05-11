@@ -2,11 +2,6 @@ name: Build BHApi APKs
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version label for APK filenames and release (e.g. v0.3.6)'
-        required: false
-        default: ''
 
 jobs:
 
@@ -41,12 +36,8 @@ jobs:
 
       - name: Patch versionName
         run: |
-          VERSION="${{ github.event.inputs.version }}"
-          if [ -z "$VERSION" ]; then
-            VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "bhapi")
-          fi
-          VERSION="${VERSION#v}"
-          sed -i "s/^  versionName: .*/  versionName: '$VERSION'/" apktool_out/apktool.yml
+          TAG="${GITHUB_REF_NAME#v}"
+          sed -i "s/^  versionName: .*/  versionName: '$TAG'/" apktool_out/apktool.yml
           grep versionName apktool_out/apktool.yml
 
       - name: Apply all patches
@@ -83,8 +74,31 @@ jobs:
               ' android:screenOrientation="sensorLandscape" />\n'
               '    <activity android:name="app.revanced.extension.gamehub.GogGamesActivity"'
               ' android:label="GOG Library" android:exported="false"'
-              ' android:screenOrientation="sensorLandscape" />\n    </application>',
-              'manifest: register ComponentManager + ComponentDownload + GOG activities'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.AmazonMainActivity"'
+              ' android:label="Amazon Games" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.AmazonLoginActivity"'
+              ' android:label="Amazon Login" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.AmazonGamesActivity"'
+              ' android:label="Amazon Library" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.EpicMainActivity"'
+              ' android:label="Epic Games" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.EpicLoginActivity"'
+              ' android:label="Epic Login" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.EpicGamesActivity"'
+              ' android:label="Epic Library" android:exported="false"'
+              ' android:screenOrientation="sensorLandscape" />\n'
+              '    <activity android:name="app.revanced.extension.gamehub.BhGameConfigsActivity"'
+              ' android:label="Game Configs" android:exported="false"'
+              ' android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize"'
+              ' android:screenOrientation="sensorLandscape"'
+              ' android:windowSoftInputMode="adjustResize" />\n    </application>',
+              'manifest: register ComponentManager + ComponentDownload + GOG + Amazon + Epic + GameConfigs activities'
           )
 
           patch(
@@ -109,8 +123,10 @@ jobs:
               '    <item type="id" name="iv_bci_launcher" />\n'
               '    <item type="id" name="switch_sustained_perf" />\n'
               '    <item type="id" name="switch_max_adreno_clocks" />\n'
+              '    <item type="id" name="switch_winlator_hud" />\n'
+              '    <item type="id" name="sidebar_taskmanager" />\n'
               '</resources>',
-              'ids.xml: add BCI + perf switch IDs'
+              'ids.xml: add BCI + perf switch IDs + HUD switch + sidebar_taskmanager'
           )
 
           # ── 4. HomeLeftMenuDialog.Z0(): inject Components menu item ──────────
@@ -791,7 +807,11 @@ jobs:
               'PcGameSettingDataHelper.x(): default new games to System Driver'
           )
 
-          # Patch 16: WinEmuDownloadManager.H() — skip GPU download when System Driver selected
+          # Patch 16: WinEmuDownloadManager.H() / checkUserPreferComponent — skip GPU download when System Driver selected
+          # When H0() is null (no preference) or H0().getId() == -1 (System Driver), jump to :cond_f (skip).
+          # Mirrors the identical check for STEAMCLIENT (P0()/id==-1). Without this, "System Driver" is
+          # passed as the preferred name to downloadUserSelectAfterRecommend, EmuComponents.n() can't find
+          # it, falls back to recommended download, and Turnip is queued/downloaded repeatedly → crash.
           patch(
               'apktool_out/smali_classes4/com/xj/winemu/download/WinEmuDownloadManager.smali',
               (
@@ -839,7 +859,13 @@ jobs:
               'WinEmuDownloadManager.H(): skip GPU download when System Driver selected'
           )
 
-          # Patch 17: GameConfigDownloadAction$checkIsDownloaded$2 — return TRUE for unrecognised fileTypes
+          # Patch 17: GameConfigDownloadAction$checkIsDownloaded$2 — return TRUE for unrecognised fileTypes (GPU driver)
+          # The else branch (fileType != 2/3/4) originally jumped to :goto_4 (v4=0 → FALSE = "not downloaded").
+          # GPU driver entities downloaded via getDeps() have a fileType not handled by the 2/3/4 switch, so
+          # checkIsDownloaded always returned FALSE even after a successful md5-verified download.
+          # checkNextStartTask then saw the key already in the completed-downloads map (f) and fired the
+          # "more than once, interrupt" abort.  Jumping to :goto_1 instead sets v4=v5=1 → TRUE = "done",
+          # so checkAllComplete sees the item complete and proceeds to launch normally.
           patch(
               'apktool_out/smali_classes4/com/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2.smali',
               (
@@ -860,7 +886,14 @@ jobs:
               'GameConfigDownloadAction$checkIsDownloaded$2: return TRUE for unrecognised fileType (GPU driver fix)'
           )
 
-          # Patch 18: checkIsDownloaded$2 — skip EmuComponents.q() for GPU-type entities
+          # Patch 18: checkIsDownloaded$2 — skip EmuComponents.q() for GPU-type entities (fileType==4)
+          # With a custom GPU driver selected, downloadUserSelectAfterRecommend may setFileType(4) on
+          # the entity before adding it to the download set.  For fileType==4, checkIsDownloaded calls
+          # EmuComponents.q() — but GPU drivers are never registered in EmuComponents after download
+          # (they live in xj_downloads), so q() always says "needs install" → returns FALSE →
+          # checkNextStartTask fires the "more than once" abort even after a successful download.
+          # Fix: check entity.getType() == ComponentType.GPU before the q() call; if GPU, jump to
+          # :goto_1 (v4=1 → TRUE = done) and skip q() entirely.
           patch(
               'apktool_out/smali_classes4/com/xj/winemu/download/action/GameConfigDownloadAction$checkIsDownloaded$2.smali',
               (
@@ -985,6 +1018,9 @@ jobs:
           )
 
           # Patch 21: SettingBtnHolder.w() — handle click for contentType=0x64
+          # Injected EARLY (right after getContentType move-result) while p2 is still a View reference.
+          # Cannot inject at :cond_5 because by then p2 has been overwritten with an int (HID_TIPS const).
+          # Also avoids type-merge conflict at :goto_0 by returning directly rather than jumping to it.
           patch(
               'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/setting/holder/SettingBtnHolder.smali',
               '    move-result p0\n'
@@ -1038,6 +1074,56 @@ jobs:
               'LandscapeLauncherMainActivity.onResume(): GOG pending launch check'
           )
 
+          # ── N. GameDetailSettingMenu.Y(): inject Export Config + Import Config ──
+          # Inject BEFORE new-instance v3,StringBuilder at :cond_8 where v3=GameDetailEntity on all paths.
+          # v4 is Conflict at :cond_8 merge (bool vs object), but we WRITE it first (move-object/from16 v4,p0)
+          # which clears Conflict and assigns GameDetailSettingMenu type — no VerifyError.
+          patch(
+              'apktool_out/smali_classes5/com/xj/landscape/launcher/ui/gamedetail/GameDetailSettingMenu.smali',
+              '    :cond_8\n'
+              '    invoke-interface {v2}, Ljava/util/List;->size()I\n'
+              '\n'
+              '    move-result v1\n'
+              '\n'
+              '    new-instance v3, Ljava/lang/StringBuilder;\n',
+              '    :cond_8\n'
+              '    invoke-interface {v2}, Ljava/util/List;->size()I\n'
+              '\n'
+              '    move-result v1\n'
+              '\n'
+              '    # BH-Lite: inject Export/Import Config (v3=GameDetailEntity before StringBuilder overwrites it)\n'
+              '    move-object/from16 v4, p0\n'
+              '\n'
+              '    # Export Config option\n'
+              '    new-instance v9, Lcom/xj/common/view/popup/Option;\n'
+              '    const-string v10, "Export Config"\n'
+              '    const/4 v11, 0x0\n'
+              '    const/4 v12, 0x0\n'
+              '    const/4 v13, 0x0\n'
+              '    new-instance v14, Lcom/xj/landscape/launcher/ui/gamedetail/BhExportLambda;\n'
+              '    invoke-direct {v14, v4, v3}, Lcom/xj/landscape/launcher/ui/gamedetail/BhExportLambda;-><init>(Lcom/xj/landscape/launcher/ui/gamedetail/GameDetailSettingMenu;Lcom/xj/common/data/gameinfo/GameDetailEntity;)V\n'
+              '    const/16 v15, 0xe\n'
+              '    const/16 v16, 0x0\n'
+              '    invoke-direct/range {v9 .. v16}, Lcom/xj/common/view/popup/Option;-><init>(Ljava/lang/String;ZIILkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V\n'
+              '    invoke-interface {v2, v9}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+              '\n'
+              '    # Import Config option\n'
+              '    new-instance v9, Lcom/xj/common/view/popup/Option;\n'
+              '    const-string v10, "Import Config"\n'
+              '    const/4 v11, 0x0\n'
+              '    const/4 v12, 0x0\n'
+              '    const/4 v13, 0x0\n'
+              '    new-instance v14, Lcom/xj/landscape/launcher/ui/gamedetail/BhImportLambda;\n'
+              '    invoke-direct {v14, v4, v3}, Lcom/xj/landscape/launcher/ui/gamedetail/BhImportLambda;-><init>(Lcom/xj/landscape/launcher/ui/gamedetail/GameDetailSettingMenu;Lcom/xj/common/data/gameinfo/GameDetailEntity;)V\n'
+              '    const/16 v15, 0xe\n'
+              '    const/16 v16, 0x0\n'
+              '    invoke-direct/range {v9 .. v16}, Lcom/xj/common/view/popup/Option;-><init>(Ljava/lang/String;ZIILkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V\n'
+              '    invoke-interface {v2, v9}, Ljava/util/List;->add(Ljava/lang/Object;)Z\n'
+              '\n'
+              '    new-instance v3, Ljava/lang/StringBuilder;\n',
+              'GameDetailSettingMenu.Y(): inject Export Config + Import Config options'
+          )
+
           print("\nAll patches applied successfully.")
           PYEOF
 
@@ -1051,13 +1137,14 @@ jobs:
 
       - name: Remove problematic res entries
         run: |
+          # Remove firebase_common_keep / firebase_crashlytics_keep (break aapt2)
           sed -i '/firebase_common_keep\|firebase_crashlytics_keep/d' apktool_out/res/values/public.xml || true
 
       - name: Patch BannerHub API URL
         run: |
           sed -i 's|gamehub-lite-api\.emuready\.workers\.dev|bannerhub-api.the412banner.workers.dev|g' \
             apktool_out/smali_classes4/com/xj/common/http/EggGameHttpConfig.smali
-          echo "Patched API URL to bannerhub-api.the412banner.workers.dev"
+          grep -c "bannerhub-api\.the412banner\.workers\.dev" apktool_out/smali_classes4/com/xj/common/http/EggGameHttpConfig.smali
 
       - name: Upload patched source
         uses: actions/upload-artifact@v4
@@ -1104,6 +1191,7 @@ jobs:
           if [ "$PKG" != "gamehub.lite" ]; then
             sed -i "s/gamehub\.lite/$PKG/g" apktool_out/AndroidManifest.xml
           fi
+          # Replace @string/app_name reference with literal label
           sed -i 's/android:label="@string\/app_name"/android:label="'"$LABEL"'"/' apktool_out/AndroidManifest.xml
 
       - name: Rebuild APK
@@ -1130,6 +1218,7 @@ jobs:
             $(find ext_classes -name "*.class")
           echo "Extension dex: $(du -sh ext_dex/classes.dex | cut -f1)"
 
+          # Inject as classes11.dex (5.1.4 uses classes.dex through classes10.dex)
           cp ext_dex/classes.dex classes11.dex
           zip -j rebuilt-unsigned.apk classes11.dex
           echo "Injected classes11.dex"
@@ -1143,11 +1232,7 @@ jobs:
         id: sign
         run: |
           BUILD_TOOLS=$(ls ${ANDROID_SDK_ROOT}/build-tools | tail -1)
-          VERSION="${{ github.event.inputs.version }}"
-          if [ -z "$VERSION" ]; then
-            VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "bhapi")
-          fi
-          APK_NAME="Bannerhub-Lite-${VERSION}-${{ matrix.variant }}.apk"
+          APK_NAME="Bannerhub-Lite-${GITHUB_REF_NAME}-${{ matrix.variant }}.apk"
           ${ANDROID_SDK_ROOT}/build-tools/${BUILD_TOOLS}/apksigner sign \
             --key testkey.pk8 \
             --cert testkey.x509.pem \
