@@ -1147,6 +1147,49 @@ jobs:
             apktool_out/smali_classes4/com/xj/common/http/EggGameHttpConfig.smali
           grep -c "bannerhub-api\.the412banner\.workers\.dev" apktool_out/smali_classes4/com/xj/common/http/EggGameHttpConfig.smali
 
+      - name: Suppress HID-model launch dialog
+        # The dialog (dialog_hid_model_popup, "Touch game" / "No reminders") is
+        # backported infra from GH 5.3.5 and ships broken in 5.1.4 — close X is
+        # transparent, "No reminders" checkbox is unfocusable. EmuReady's
+        # worker 404s devices/getUnknownDevices so the lambda's try/catch
+        # silently swallows the call and the dialog never shows. BannerHub-API
+        # proxies that endpoint to upstream which returns valid JSON, so the
+        # lambda proceeds and calls IMappingServiceImpl.b() which shows the
+        # dialog unconditionally. Rewriting b() to no-op (invoke callback with
+        # Boolean.TRUE then return) bypasses the dialog. The callback chain
+        # ends in i(Z) which returns Unit and ignores the boolean, so no
+        # behavior is lost.
+        run: |
+          python3 - <<'PYEOF'
+          import re, sys
+          path = "apktool_out/smali_classes5/com/xj/mapping/IMappingServiceImpl.smali"
+          with open(path, "r", encoding="utf-8") as f:
+              src = f.read()
+          pattern = re.compile(
+              r'(\.method public b\(ZLcom/xj/common/entity/StartInfoModel;Lkotlin/jvm/functions/Function1;\)V\n)'
+              r'.*?'
+              r'(\.end method\n)',
+              re.DOTALL,
+          )
+          replacement = (
+              r'\1'
+              '    .locals 1\n\n'
+              '    if-eqz p3, :cond_0\n\n'
+              '    sget-object v0, Ljava/lang/Boolean;->TRUE:Ljava/lang/Boolean;\n\n'
+              '    invoke-interface {p3, v0}, Lkotlin/jvm/functions/Function1;->invoke(Ljava/lang/Object;)Ljava/lang/Object;\n\n'
+              '    :cond_0\n'
+              '    return-void\n'
+              r'\2'
+          )
+          new_src, n = pattern.subn(replacement, src, count=1)
+          if n != 1:
+              print(f"ERROR: expected 1 replacement in {path}, made {n}", file=sys.stderr)
+              sys.exit(1)
+          with open(path, "w", encoding="utf-8") as f:
+              f.write(new_src)
+          print(f"OK: rewrote IMappingServiceImpl.b() to no-op in {path}")
+          PYEOF
+
       - name: Upload patched source
         uses: actions/upload-artifact@v4
         with:
