@@ -37,7 +37,8 @@ jobs:
       - name: Patch versionName
         run: |
           TAG="${GITHUB_REF_NAME#v}"
-          sed -i "s/^  versionName: .*/  versionName: '$TAG'/" apktool_out/apktool.yml
+          # Use | as sed delimiter so branch names with / don't break the substitution
+          sed -i "s|^  versionName: .*|  versionName: '$TAG'|" apktool_out/apktool.yml
           grep versionName apktool_out/apktool.yml
 
       - name: Apply all patches
