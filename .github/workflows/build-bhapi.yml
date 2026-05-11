@@ -1233,7 +1233,9 @@ jobs:
         id: sign
         run: |
           BUILD_TOOLS=$(ls ${ANDROID_SDK_ROOT}/build-tools | tail -1)
-          APK_NAME="Bannerhub-Lite-${GITHUB_REF_NAME}-${{ matrix.variant }}.apk"
+          # Sanitize ref name for use in filenames (branch names can contain /)
+          SAFE_REF="${GITHUB_REF_NAME//\//-}"
+          APK_NAME="Bannerhub-Lite-${SAFE_REF}-${{ matrix.variant }}.apk"
           ${ANDROID_SDK_ROOT}/build-tools/${BUILD_TOOLS}/apksigner sign \
             --key testkey.pk8 \
             --cert testkey.x509.pem \
