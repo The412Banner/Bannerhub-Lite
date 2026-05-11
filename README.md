@@ -1,4 +1,6 @@
 # BannerHub Lite
+[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/n8S4G2WZQ4)
+
 
 A modified build of **[GameHub Lite 5.1.4](https://github.com/Producdevity/gamehub-lite)** with BannerHub features ported in — GOG, Amazon, and Epic Games Store tabs, Component Manager, in-app component downloader, Export/Import Game Config, Wine Task Manager with Launch tab, Winlator HUD overlay (Normal + Extra Detailed), performance toggles, CPU core affinity, VRAM unlock, offline Steam skip, root access management, and more. Built with apktool + compiled Java extension (no source code from GameHub).
 
@@ -527,3 +529,8 @@ Detailed technical breakdowns of each store integration — API endpoints, auth 
 ---
 
 <sub>☕ [Support on Ko-fi](https://ko-fi.com/the412banner)</sub>
+
+
+## Community
+
+Join our Discord: https://discord.gg/n8S4G2WZQ4
