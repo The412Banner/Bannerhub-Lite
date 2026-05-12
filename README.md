@@ -15,6 +15,7 @@ Before any stable release is published, all changes are manually debugged and te
 ## Table of Contents
 
 - [BannerHub Lite vs BannerHub](#bannerhub-lite-vs-bannerhub)
+- [Backend API](#backend-api)
 - [Installation](#installation)
 - [Features](#features)
   - [GOG Games Tab](#gog-games-tab)
@@ -78,6 +79,18 @@ Both projects add the same core set of features on top of different GameHub base
 **Choose BannerHub Lite** if you are running GameHub Lite 5.1.4 (the most common community build) and want a smaller, vanilla base without a ReVanced dependency.
 
 **Choose BannerHub** if you are running GameHub 5.3.5 ReVanced and want the latest codebase features.
+
+---
+
+## Backend API
+
+Starting in **v1.0.1**, all variants ship pointed at the **BannerHub API** (`https://bannerhub-api.the412banner.workers.dev/`) instead of the EmuReady worker. Effects:
+
+- **Firmware:** the firmware update prompt now serves **imagefs 1.3.7** (matches what BannerHub 3.7.x already gets on its 6.0 path)
+- **Components:** the in-app component browser is fed by the BannerHub Components release on this org, so the catalog tracks BannerHub's curated drivers/wine builds
+- **HID-mode launch dialog suppressed:** GameHub Lite 5.1.4 backports a touch/HID picker dialog from 5.3.5 that ships with a transparent close button and an unfocusable checkbox. EmuReady's worker 404s the upstream notice endpoint so the dialog never appeared; BannerHub API serves valid data, which would normally trigger it. The smali method that shows the dialog is rewritten to a no-op so launches go straight through.
+
+The legacy EmuReady-flavored build remains available via manual `Build APK` workflow_dispatch for anyone who needs it.
 
 ---
 

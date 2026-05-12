@@ -7,6 +7,25 @@
 
 ---
 
+### [stable] — v1.0.1 — All variants on BannerHub API (2026-05-11)
+**Tag:** v1.0.1  |  **Trigger:** tag push → build-bhapi.yml
+#### What changed
+- build-bhapi.yml: expanded matrix from 1 variant (Normal-BHApi) to all 9; added tag-push trigger (v* excluding -pre/-beta); added release job that creates GH Release with all 9 APKs + release_notes.txt body. APK naming now matches build.yml's pattern (no `-BHApi` suffix since every variant is BHApi-flavored now).
+- build.yml: removed tag-push trigger (workflow_dispatch only). Release job guarded with `if: startsWith(github.ref, 'refs/tags/v')`. Now serves as the manual EmuReady-flavored fallback.
+- README.md: added "Backend API" section explaining the v1.0.1 switch + the HID-dialog fix.
+- release_notes.txt: written for the v1.0.1 GH Release body.
+- Same package names as v1.0.0 → installs over existing variants.
+#### Why
+Every variant now points at `https://bannerhub-api.the412banner.workers.dev/`, the in-app firmware update prompt offers imagefs 1.3.7 (matches the 6.0 path), and the broken backported HID-model launch dialog is suppressed via smali rewrite of `IMappingServiceImpl.b()`.
+#### Files touched
+- .github/workflows/build-bhapi.yml
+- .github/workflows/build.yml
+- README.md
+- release_notes.txt (new)
+- PROGRESS_LOG.md
+
+---
+
 ### [stable] — v1.0.0 — First major stable release (2026-04-14)
 **Commit:** `1032e74`  |  **Tag:** v1.0.0
 **CI:** run 24378415338 ✅

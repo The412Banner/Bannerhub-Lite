@@ -1,12 +1,10 @@
 name: Build APK
 
+# Tag-triggered stable releases now run through build-bhapi.yml (BannerHub
+# API path). This workflow remains as a manual fallback that produces
+# EmuReady-pointed APKs on demand only.
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - 'v*'
-      - '!v*-pre*'
-      - '!v*-beta*'
 
 jobs:
 
@@ -1279,15 +1277,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # Only create a GH Release on real tag pushes — but this workflow is now
+    # workflow_dispatch only, so this job effectively never runs. Release path
+    # for stables lives in build-bhapi.yml. Kept here as a guard in case the
+    # tag trigger is ever re-added.
+    if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Get tag name
         id: tag
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            echo "name=manual-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
-          fi
+        run: echo "name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Download all APK artifacts
         uses: actions/download-artifact@v4

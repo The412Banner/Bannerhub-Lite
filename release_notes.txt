@@ -1,0 +1,31 @@
+## BannerHub Lite v1.0.1
+
+First stable on the BannerHub API.
+
+### What changed since v1.0.0
+
+- **BannerHub API switch** — all 9 variants now point at `https://bannerhub-api.the412banner.workers.dev/` instead of the EmuReady worker. Components, firmware, and the in-app catalog are all served from the BannerHub Components release on this org.
+- **Firmware bumped to 1.3.7** — the in-app firmware update prompt will offer `imagefs_137.zst` (171.9 MB). 5.x clients (BHL) and 6.0 clients (BannerHub 3.7.x) now receive the same firmware.
+- **HID-mode launch dialog fix** — GameHub Lite 5.1.4 backports a touch/HID picker dialog from 5.3.5 that ships broken in 5.1.4 (transparent close button, unfocusable checkbox, no way to dismiss with controller). EmuReady's worker happened to 404 the underlying notice endpoint so the dialog never appeared; with BannerHub API the dialog would otherwise appear and block launches. The smali method that shows it (`IMappingServiceImpl.b()`) is rewritten to a no-op so games launch directly.
+
+### Upgrade
+
+Same package names as v1.0.0 — install over the existing variant; no uninstall needed.
+
+### Variants
+
+| APK | Package | App label |
+|-----|---------|-----------|
+| Normal | `banner.hub.lite` | BannerHub Lite |
+| Normal(GHL) | `gamehub.lite` | BannerHub Lite |
+| PuBG | `com.tencent.ig` | BannerHub Lite PuBG |
+| AnTuTu | `com.antutu.ABenchMark` | BannerHub Lite AnTuTu |
+| alt-AnTuTu | `com.antutu.benchmark.full` | BannerHub Lite AnTuTu |
+| PuBG-CrossFire | `com.tencent.tmgp.cf` | BannerHub Lite PuBG CrossFire |
+| Ludashi | `com.ludashi.aibench` | BannerHub Lite Ludashi |
+| Genshin | `com.miHoYo.GenshinImpact` | BannerHub Lite Genshin |
+| Original | `com.xiaoji.egggame` | BannerHub Lite |
+
+### Legacy EmuReady builds
+
+The `Build APK` workflow remains available via manual workflow_dispatch for anyone who still needs an EmuReady-flavored APK.
