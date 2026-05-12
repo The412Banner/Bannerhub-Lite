@@ -1415,6 +1415,13 @@ jobs:
         id: tag
         run: echo "name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
+      # Required so body_path: release_notes.txt resolves — without this step
+      # the workspace is empty and softprops/action-gh-release silently falls
+      # back to an empty body (v1.0.1 and v1.0.2 both hit this and had to be
+      # patched after the fact with `gh release edit --notes-file`).
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download all APK artifacts
         uses: actions/download-artifact@v4
         with:
