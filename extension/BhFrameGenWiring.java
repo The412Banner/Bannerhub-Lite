@@ -1,0 +1,71 @@
+package com.xj.winemu.sidebar;
+
+import android.content.Context;
+import android.view.View;
+
+import androidx.fragment.app.Fragment;
+
+import java.lang.reflect.Method;
+
+/**
+ * Wires the Frame Generation switch + gear button added to the in-game
+ * sidebar (winemu_sidebar_controls_fragment.xml) to BhFrameGenWriter +
+ * BhFrameGenDialog.
+ *
+ * Called from SidebarControlsFragment.onResume() via a smali patch that
+ * invokes Fragment.getView() and passes the resulting View here.
+ *
+ * SidebarSwitchItemView is a custom Kotlin view (com.xj.winemu.view.*) that
+ * renders the switch as an ImageView, not a real CompoundButton — so we drive
+ * it through its public setSwitch(boolean) method via reflection.
+ */
+public class BhFrameGenWiring {
+
+    private static View viewById(View root, String idName) {
+        Context ctx = root.getContext();
+        int id = ctx.getResources().getIdentifier(idName, "id", ctx.getPackageName());
+        if (id == 0) return null;
+        return root.findViewById(id);
+    }
+
+    /** Smali-friendly wrapper: pulls the Fragment's root view (may be null
+     *  before view creation) and dispatches to bind(View). */
+    public static void bindFromFragment(Fragment frag) {
+        if (frag == null) return;
+        View v = frag.getView();
+        if (v != null) bind(v);
+    }
+
+    /** Bind switch + gear button. Idempotent — onResume can call repeatedly. */
+    public static void bind(final View root) {
+        if (root == null) return;
+        final Context ctx = root.getContext();
+
+        final View gearButton = viewById(root, "btn_frame_gen_settings");
+        if (gearButton != null) {
+            gearButton.setVisibility(View.VISIBLE);
+            gearButton.setOnClickListener(v -> BhFrameGenDialog.show(ctx));
+        }
+
+        final View switchView = viewById(root, "switch_frame_gen");
+        if (switchView != null) {
+            BhFrameGenSettings settings = BhFrameGenSettings.load(ctx);
+            invokeSetSwitch(switchView, settings.enabled);
+            switchView.setOnClickListener(v -> {
+                BhFrameGenSettings s = BhFrameGenSettings.load(ctx);
+                boolean newState = !s.enabled;
+                s.enabled = newState;
+                invokeSetSwitch(v, newState);
+                BhFrameGenWriter.writeEnabled(BhFrameGenWriter.resolveControlPath(ctx), newState);
+                s.save(ctx);
+            });
+        }
+    }
+
+    private static void invokeSetSwitch(View view, boolean value) {
+        try {
+            Method m = view.getClass().getMethod("setSwitch", boolean.class);
+            m.invoke(view, value);
+        } catch (Throwable ignored) {}
+    }
+}

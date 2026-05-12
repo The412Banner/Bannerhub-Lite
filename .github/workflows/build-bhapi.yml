@@ -1,12 +1,11 @@
 name: Build BHApi APKs
 
+# NOTE: on the feature/framegen-menu branch this is trimmed to a single
+# variant (Normal -> banner.hub.lite) and the release job is removed for
+# fast test iterations. Do NOT merge this trim back to main — main keeps
+# the full 9-variant matrix + release job for stable tag pushes.
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - 'v*'
-      - '!v*-pre*'
-      - '!v*-beta*'
 
 jobs:
 
@@ -131,8 +130,21 @@ jobs:
               '    <item type="id" name="switch_max_adreno_clocks" />\n'
               '    <item type="id" name="switch_winlator_hud" />\n'
               '    <item type="id" name="sidebar_taskmanager" />\n'
+              '    <item type="id" name="frame_gen_container" />\n'
+              '    <item type="id" name="switch_frame_gen" />\n'
+              '    <item type="id" name="btn_frame_gen_settings" />\n'
               '</resources>',
-              'ids.xml: add BCI + perf switch IDs + HUD switch + sidebar_taskmanager'
+              'ids.xml: add BCI + perf switch IDs + HUD switch + sidebar_taskmanager + frame_gen ids'
+          )
+
+          # ── 3a. strings.xml: add frame generation strings ─────────────────────
+          patch(
+              'apktool_out/res/values/strings.xml',
+              '</resources>',
+              '    <string name="bh_framegen_title">Frame Generation</string>\n'
+              '    <string name="bh_framegen_settings_open">Open frame generation settings</string>\n'
+              '</resources>',
+              'strings.xml: frame generation strings'
           )
 
           # ── 4. HomeLeftMenuDialog.Z0(): inject Components menu item ──────────
@@ -1195,6 +1207,69 @@ jobs:
           print(f"OK: rewrote IMappingServiceImpl.b() to no-op in {path}")
           PYEOF
 
+      - name: Wire frame-gen menu + launch hook
+        # Two single-line invoke-static insertions:
+        #   - SidebarControlsFragment.onResume() -> BhFrameGenWiring.bindFromFragment(p0)
+        #   - WineActivity.onCreate(Bundle)      -> BhFrameGenWriter.applyFromPrefs(p0)
+        # Both targets live in smali_classes4; our extensions land in classes11
+        # (same dex tree the existing BHL extensions use).
+        run: |
+          python3 - <<'PYEOF'
+          import re, sys
+
+          # SidebarControlsFragment.onResume(): insert right after invoke-super
+          frag_path = "apktool_out/smali_classes4/com/xj/winemu/sidebar/SidebarControlsFragment.smali"
+          anchor_frag = (
+              ".method public onResume()V\n"
+              "    .locals 7\n\n"
+              "    invoke-super {p0}, Lcom/xj/base/base/fragment/LazyFragment;->onResume()V\n"
+          )
+          inj_frag = anchor_frag + (
+              "\n    invoke-static {p0}, "
+              "Lcom/xj/winemu/sidebar/BhFrameGenWiring;"
+              "->bindFromFragment(Landroidx/fragment/app/Fragment;)V\n"
+          )
+          with open(frag_path, "r", encoding="utf-8") as f:
+              src = f.read()
+          if anchor_frag not in src:
+              print(f"ERROR: onResume anchor not found in {frag_path}", file=sys.stderr)
+              sys.exit(1)
+          if "BhFrameGenWiring" in src:
+              print(f"OK (idempotent): {frag_path} already wired")
+          else:
+              src = src.replace(anchor_frag, inj_frag, 1)
+              with open(frag_path, "w", encoding="utf-8") as f:
+                  f.write(src)
+              print(f"OK: injected BhFrameGenWiring.bindFromFragment into {frag_path}")
+
+          # WineActivity.onCreate(Bundle): insert right after invoke-super
+          wa_path = "apktool_out/smali_classes4/com/xj/winemu/WineActivity.smali"
+          anchor_wa = (
+              ".method public onCreate(Landroid/os/Bundle;)V\n"
+              "    .locals 12\n\n"
+              "    invoke-super {p0, p1}, "
+              "Lcom/xj/common/view/focus/focus/app/FocusableAppCompatActivity;"
+              "->onCreate(Landroid/os/Bundle;)V\n"
+          )
+          inj_wa = anchor_wa + (
+              "\n    invoke-static {p0}, "
+              "Lcom/xj/winemu/sidebar/BhFrameGenWriter;"
+              "->applyFromPrefs(Landroid/content/Context;)V\n"
+          )
+          with open(wa_path, "r", encoding="utf-8") as f:
+              src = f.read()
+          if anchor_wa not in src:
+              print(f"ERROR: onCreate anchor not found in {wa_path}", file=sys.stderr)
+              sys.exit(1)
+          if "BhFrameGenWriter" in src:
+              print(f"OK (idempotent): {wa_path} already wired")
+          else:
+              src = src.replace(anchor_wa, inj_wa, 1)
+              with open(wa_path, "w", encoding="utf-8") as f:
+                  f.write(src)
+              print(f"OK: injected BhFrameGenWriter.applyFromPrefs into {wa_path}")
+          PYEOF
+
       - name: Upload patched source
         uses: actions/upload-artifact@v4
         with:
@@ -1212,30 +1287,6 @@ jobs:
         include:
           - variant: Normal
             package: banner.hub.lite
-            label: "BannerHub Lite"
-          - variant: Normal(GHL)
-            package: gamehub.lite
-            label: "BannerHub Lite"
-          - variant: PuBG
-            package: com.tencent.ig
-            label: "BannerHub Lite PuBG"
-          - variant: AnTuTu
-            package: com.antutu.ABenchMark
-            label: "BannerHub Lite AnTuTu"
-          - variant: alt-AnTuTu
-            package: com.antutu.benchmark.full
-            label: "BannerHub Lite AnTuTu"
-          - variant: PuBG-CrossFire
-            package: com.tencent.tmgp.cf
-            label: "BannerHub Lite PuBG CrossFire"
-          - variant: Ludashi
-            package: com.ludashi.aibench
-            label: "BannerHub Lite Ludashi"
-          - variant: Genshin
-            package: com.miHoYo.GenshinImpact
-            label: "BannerHub Lite Genshin"
-          - variant: Original
-            package: com.xiaoji.egggame
             label: "BannerHub Lite"
 
     steps:
