@@ -4,6 +4,10 @@ First stable on the BannerHub API.
 
 > ⚠️ **URGENT — read before first launch.** If you see **"Failed to initialize the simulator"** when launching a game, your firmware is still on the old version. Open **Settings → Components → Firmware** and **manually update / install firmware 1.3.7**, then launch the game again. The auto-update prompt may not fire on every install, so do this manually if the error appears.
 
+### Known issues
+
+- **Proton 11 hangs on "Initializing…" when launching Steam games with a Steam client.** The launch never proceeds past the initializing screen. Workaround: use a different Wine/Proton component for Steam-client launches until this is resolved.
+
 ### What changed since v1.0.0
 
 - **BannerHub API switch** — all 9 variants now point at `https://bannerhub-api.the412banner.workers.dev/` instead of the EmuReady worker. Components, firmware, and the in-app catalog are all served from the BannerHub Components release on this org.
