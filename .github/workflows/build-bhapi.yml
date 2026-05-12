@@ -1227,7 +1227,7 @@ jobs:
           inj_frag = anchor_frag + (
               "\n    invoke-static {p0}, "
               "Lcom/xj/winemu/sidebar/BhFrameGenWiring;"
-              "->bindFromFragment(Landroidx/fragment/app/Fragment;)V\n"
+              "->bindFromFragment(Ljava/lang/Object;)V\n"
           )
           with open(frag_path, "r", encoding="utf-8") as f:
               src = f.read()

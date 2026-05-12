@@ -3,8 +3,6 @@ package com.xj.winemu.sidebar;
 import android.content.Context;
 import android.view.View;
 
-import androidx.fragment.app.Fragment;
-
 import java.lang.reflect.Method;
 
 /**
@@ -28,12 +26,16 @@ public class BhFrameGenWiring {
         return root.findViewById(id);
     }
 
-    /** Smali-friendly wrapper: pulls the Fragment's root view (may be null
-     *  before view creation) and dispatches to bind(View). */
-    public static void bindFromFragment(Fragment frag) {
+    /** Smali-friendly wrapper: invoked from SidebarControlsFragment.onResume()
+     *  with `this`. Resolves Fragment.getView() reflectively so this extension
+     *  doesn't need androidx on its compile classpath. */
+    public static void bindFromFragment(Object frag) {
         if (frag == null) return;
-        View v = frag.getView();
-        if (v != null) bind(v);
+        try {
+            Method getView = frag.getClass().getMethod("getView");
+            Object v = getView.invoke(frag);
+            if (v instanceof View) bind((View) v);
+        } catch (Throwable ignored) {}
     }
 
     /** Bind switch + gear button. Idempotent — onResume can call repeatedly. */
