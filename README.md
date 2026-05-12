@@ -2,7 +2,7 @@
 [![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/n8S4G2WZQ4)
 
 
-A modified build of **[GameHub Lite 5.1.4](https://github.com/Producdevity/gamehub-lite)** with BannerHub features ported in — GOG, Amazon, and Epic Games Store tabs, Component Manager, in-app component downloader, Export/Import Game Config, Wine Task Manager with Launch tab, Winlator HUD overlay (Normal + Extra Detailed), performance toggles, CPU core affinity, VRAM unlock, offline Steam skip, root access management, and more. Built with apktool + compiled Java extension (no source code from GameHub).
+A modified build of **[GameHub Lite 5.1.4](https://github.com/Producdevity/gamehub-lite)** with BannerHub features ported in — GOG, Amazon, and Epic Games Store tabs, Component Manager, in-app component downloader, Export/Import Game Config, Wine Task Manager with Launch tab, Winlator HUD overlay (Normal + Extra Detailed), **AI Frame Generation menu** (v1.0.2+), performance toggles, CPU core affinity, VRAM unlock, offline Steam skip, root access management, and more. Built with apktool + compiled Java extension (no source code from GameHub).
 
 ## AI Disclaimer
 
@@ -27,6 +27,7 @@ Before any stable release is published, all changes are manually debugged and te
   - [Export / Import Game Config](#export--import-game-config)
   - [Wine Task Manager](#wine-task-manager)
   - [Winlator HUD Overlay](#winlator-hud-overlay)
+  - [AI Frame Generation](#ai-frame-generation)
   - [Performance Sidebar Toggles](#performance-sidebar-toggles)
   - [RTS Touch Controls](#rts-touch-controls)
   - [VRAM Limit Unlock](#vram-limit-unlock)
@@ -66,6 +67,7 @@ Both projects add the same core set of features on top of different GameHub base
 | **Export / Import Game Config** | Yes | Yes |
 | **Wine Task Manager (Apps/Procs/Launch)** | Yes | Yes |
 | **Winlator HUD (Normal + Extra Detailed)** | Yes | Yes |
+| **AI Frame Generation menu** | Yes (v1.0.2+) | Yes (v3.7.x+) |
 | **Controller D-pad navigation** | Yes | Yes |
 | **Component Manager** | Yes | Yes |
 | **Online Component Downloader** | Yes (6 repos) | Yes (6 repos) |
@@ -86,8 +88,8 @@ Both projects add the same core set of features on top of different GameHub base
 
 Starting in **v1.0.1**, all variants ship pointed at the **BannerHub API** (`https://bannerhub-api.the412banner.workers.dev/`) instead of the EmuReady worker. Effects:
 
-- **Firmware:** the firmware update prompt now serves **imagefs 1.3.7** (matches what BannerHub 3.7.x already gets on its 6.0 path)
-- **Components:** the in-app component browser is fed by the BannerHub Components release on this org, so the catalog tracks BannerHub's curated drivers/wine builds
+- **Firmware:** the BannerHub API now serves **imagefs 1.3.7** to every BHL install on every code path (Add-Game and Firmware-upgrade check). v1.0.1 shipped with a stale `executeScript` row that still advertised the old 1.3.3 imagefs to Add-Game; that was fixed server-side on 2026-05-12 (`bannerhub-api@45c3d2f`), so every BHL APK — including v1.0.0 and v1.0.1 installs — now gets 1.3.7 on first-game-add automatically, no client update required.
+- **Components:** the in-app component browser is fed by the BannerHub Components release on this org, so the catalog tracks BannerHub's curated drivers/wine builds.
 - **HID-mode launch dialog suppressed:** GameHub Lite 5.1.4 backports a touch/HID picker dialog from 5.3.5 that ships with a transparent close button and an unfocusable checkbox. EmuReady's worker 404s the upstream notice endpoint so the dialog never appeared; BannerHub API serves valid data, which would normally trigger it. The smali method that shows the dialog is rewritten to a no-op so launches go straight through.
 
 The legacy EmuReady-flavored build remains available via manual `Build APK` workflow_dispatch for anyone who needs it.
@@ -360,6 +362,55 @@ Drag the **HUD Opacity (0–100%)** slider to adjust background transparency liv
 
 ---
 
+### AI Frame Generation
+
+Added in **v1.0.2**. Ports BannerHub 3.7.x's AI frame-interpolation menu — a runtime motion-smoothing pipeline that doubles, triples, or quadruples the on-screen frame rate by synthesizing intermediate frames between rendered ones.
+
+Located in the in-game **Controls sidebar tab**, directly below the Winlator HUD row. Two widgets:
+
+- **Switch** — enables / disables frame generation for the current and future game sessions
+- **⚙ gear button** — opens the **Frame Generation Settings** dialog
+
+#### Settings Dialog
+
+| Control | What it sets |
+|---------|-------------|
+| **Enable** switch (top of dialog) | Mirrors the sidebar switch; the same persisted flag |
+| **Preset** radios | 6 quality/cost presets — picking one auto-loads its `flowScale` and AI model values into the controls below; you can still override them manually |
+| **flowScale** slider | 0.20 → 1.00 — the optical-flow scale factor passed to `libGameScopeVK`. Lower = cheaper + softer motion; higher = sharper but more GPU cost |
+| **Multiplier** radios | **2× / 3× / 4×** — the integer frame-multiplication factor. 2× generates one synthetic frame per real frame, 4× generates three |
+| **FPS limit** input | Caps the source render rate (engine FPS) so frame-gen has thermal headroom for the additional generated frames |
+
+#### Presets
+
+| Preset | AI model | flowScale | Use case |
+|--------|----------|-----------|----------|
+| **ECO** | Standard | 0.2 | Lowest overhead, suitable for lower-end devices or battery-sensitive play |
+| **FLOW** | Standard | 0.4 | Low-overhead smoothness boost for most lightweight games |
+| **BAL** (default) | Standard | 0.6 | Recommended — balances smoothness, power usage, and stability |
+| **BOOST** | Standard | 0.8 | Stronger motion smoothing for users who prefer extra fluidity |
+| **CLEAR** | Clear | 0.6 | Prioritizes a steadier, cleaner image with fewer motion artifacts |
+| **MAX** | Clear | 0.8 | Highest quality preset with the highest power and performance cost |
+
+The two AI models — **Standard** (model 0) and **Clear** (model 1) — trade artifact suppression against compute cost; Clear runs a heavier optical-flow path that reduces ghosting on busy scenes.
+
+#### How it works
+
+Settings are persisted to `bh_framegen` SharedPreferences. On every game launch, BannerHub Lite writes them into the firmware's 10-byte mmap control file at `<imageFs>/etc/gamescope.control` (LE byte layout: FPS limit at 0–1, enabled flag at 2, flowScale float at 4–7, AI model at 8, multiplier at 9). `libGameScopeVK.so` — the Vulkan layer that lives in `imagefs.zst` and intercepts the swap chain — reads this file every frame and dispatches the frame-interpolation compute shaders accordingly.
+
+On first launch, BannerHub Lite also writes the Vulkan ICD JSON manifest under the **current package name** (`/data/data/<pkg>/files/usr/share/vulkan/icd.d/`). This is required because the firmware ships an ICD JSON hardcoded to `/data/data/com.winemu/...`, which doesn't match any BHL variant package. Rewriting it at launch makes frame-gen work uniformly across `banner.hub.lite`, `gamehub.lite`, `com.tencent.ig`, and every other variant package.
+
+#### Requirements
+
+- **Firmware 1.3.6 or newer** — the `libGameScopeVK.so` layer that runs the AI compute pipeline first shipped in imagefs 1.3.6. As of `bannerhub-api@45c3d2f` (2026-05-12), every BHL install gets 1.3.7 on first-game-add, so this requirement is satisfied automatically.
+- **Adreno GPU recommended** — the optical-flow path is dispatched against Mesa Turnip on Adreno chip 6/7/8. Non-Adreno devices may still see the option but frame-gen quality and performance vary by driver.
+
+#### Verified results (BannerHub 3.7.x reference data)
+
+On the same AYANEO Pocket FIT hardware where this menu was first shipped (BannerHub 3.7.x, 2026-05-08): 42 FPS source → 75–80 FPS displayed at 2× multiplier — roughly **1.8–1.9× effective frame rate** at default BAL preset. Your mileage depends on game, GPU thermal headroom, and chosen preset.
+
+---
+
 ### Performance Sidebar Toggles
 
 Located in the in-game **Controls sidebar tab**. Both toggles persist their state in `bh_prefs` and re-apply when the sidebar opens.
@@ -505,6 +556,14 @@ Inside the app's private storage: `Android/data/<package>/files/gog_games/<title
 **Q: Are game configs compatible with BannerHub?**
 
 Yes — configs exported from BannerHub Lite can be imported in BannerHub and vice versa. Both apps use the same SharedPreferences keys and the same export folder (`/sdcard/BannerHub/configs/`). See [Export / Import Game Config](#export--import-game-config) for details.
+
+**Q: I don't see the AI Frame Generation row in the Controls sidebar — what's wrong?**
+
+The row was added in **v1.0.2**. If you are running v1.0.1 or earlier, install the v1.0.2+ APK over your current variant (same package names; no uninstall needed). If you are already on v1.0.2 and don't see it, the in-game sidebar may have cached the old layout — fully close and re-open the game.
+
+**Q: AI Frame Generation says it can't find libGameScopeVK — what does that mean?**
+
+The Vulkan frame-gen layer ships inside the firmware (`imagefs.zst`) and requires version **1.3.6 or newer**. After the 2026-05-12 server-side fix (`bannerhub-api@45c3d2f`), every BHL install pulls firmware 1.3.7 automatically on first-game-add. If you have an older container created before that fix, open **Settings → Components → Firmware** and update manually.
 
 ---
 

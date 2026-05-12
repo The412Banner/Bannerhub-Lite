@@ -11,9 +11,9 @@ Adds the BannerHub AI Frame Generation menu to BHL, plus fixes the firmware-on-f
 ### What changed since v1.0.1
 
 - **AI Frame Generation menu (ported from BannerHub 3.7.x)** — adds a new "Frame Generation" row to the in-game sidebar Controls tab (just below the Winlator HUD row) with a switch + gear button. Tapping the gear opens a settings dialog with:
-  - Preset slider (6 presets: Off / Quality / Balanced / Performance / Ultra Performance / Custom)
+  - 6 presets: **ECO / FLOW / BAL (default) / BOOST / CLEAR / MAX** — picking one auto-loads its `flowScale` and AI model values; ECO/FLOW/BAL/BOOST use the Standard model (cheaper), CLEAR/MAX use the Clear model (heavier optical-flow path with less ghosting)
   - Multiplier picker (2x / 3x / 4x — the underlying `gamescope.control` mmap protocol)
-  - Custom `flowScale` (0.25–1.00) when Custom preset is selected
+  - `flowScale` slider (0.20–1.00) — overrides the preset's flowScale
   - FPS limit input (caps the source FPS so framegen has thermal headroom)
   - Settings live in `bh_framegen` SharedPreferences, applied at `WineActivity.onCreate` via a one-line smali hook into `BhFrameGenWriter.applyFromPrefs(Context)`.
 - **Per-package ICD JSON** — `BhFrameGenWriter.ensureIcdJsonForCurrentPackage()` writes the `libGameScopeVK` ICD manifest at launch using `ctx.getPackageName()`, so framegen works for every BHL variant package (banner.hub.lite, gamehub.lite, com.tencent.ig, etc.) without per-variant patching.
