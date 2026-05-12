@@ -1,11 +1,12 @@
 name: Build BHApi APKs
 
-# NOTE: on the feature/framegen-menu branch this is trimmed to a single
-# variant (Normal -> banner.hub.lite) and the release job is removed for
-# fast test iterations. Do NOT merge this trim back to main — main keeps
-# the full 9-variant matrix + release job for stable tag pushes.
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+      - '!v*-pre*'
+      - '!v*-beta*'
 
 jobs:
 
@@ -1287,6 +1288,30 @@ jobs:
         include:
           - variant: Normal
             package: banner.hub.lite
+            label: "BannerHub Lite"
+          - variant: Normal(GHL)
+            package: gamehub.lite
+            label: "BannerHub Lite"
+          - variant: PuBG
+            package: com.tencent.ig
+            label: "BannerHub Lite PuBG"
+          - variant: AnTuTu
+            package: com.antutu.ABenchMark
+            label: "BannerHub Lite AnTuTu"
+          - variant: alt-AnTuTu
+            package: com.antutu.benchmark.full
+            label: "BannerHub Lite AnTuTu"
+          - variant: PuBG-CrossFire
+            package: com.tencent.tmgp.cf
+            label: "BannerHub Lite PuBG CrossFire"
+          - variant: Ludashi
+            package: com.ludashi.aibench
+            label: "BannerHub Lite Ludashi"
+          - variant: Genshin
+            package: com.miHoYo.GenshinImpact
+            label: "BannerHub Lite Genshin"
+          - variant: Original
+            package: com.xiaoji.egggame
             label: "BannerHub Lite"
 
     steps:

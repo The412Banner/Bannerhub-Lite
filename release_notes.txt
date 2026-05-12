@@ -1,22 +1,31 @@
-## BannerHub Lite v1.0.1
+## BannerHub Lite v1.0.2
 
-First stable on the BannerHub API.
+Adds the BannerHub AI Frame Generation menu to BHL, plus fixes the firmware-on-first-game-add path so the URGENT warning from v1.0.1 should no longer be needed.
 
-> ⚠️ **URGENT — read before first launch.** If you see **"Failed to initialize the simulator"** when launching a game, your firmware is still on the old version. Open **Settings → Components → Firmware** and **manually update / install firmware 1.3.7**, then launch the game again. The auto-update prompt may not fire on every install, so do this manually if the error appears.
+> 🆕 **Firmware fix is server-side.** The "Failed to initialize the simulator" / "firmware still on 1.3.3" issue from v1.0.1 was a stale row in the BannerHub API's `executeScript` endpoint — the Add-Game path was advertising the old `imagefs.zst` (1.3.3) even though the upgrade-check endpoint was on 1.3.7. Fixed in `bannerhub-api@45c3d2f` (2026-05-12) so every BHL APK, including older v1.0.0/v1.0.1 installs, now gets imagefs 1.3.7 on first-game-add without any client change.
 
 ### Known issues
 
-- **Proton 11 hangs on "Initializing…" when launching Steam games with a Steam client.** The launch never proceeds past the initializing screen. Workaround: use a different Wine/Proton component for Steam-client launches until this is resolved.
+- **Proton 11 hangs on "Initializing…" when launching Steam games with a Steam client.** Carried over from v1.0.1 — the launch never proceeds past the initializing screen. Workaround: use a different Wine/Proton component for Steam-client launches until this is resolved.
 
-### What changed since v1.0.0
+### What changed since v1.0.1
 
-- **BannerHub API switch** — all 9 variants now point at `https://bannerhub-api.the412banner.workers.dev/` instead of the EmuReady worker. Components, firmware, and the in-app catalog are all served from the BannerHub Components release on this org.
-- **Firmware bumped to 1.3.7** — the in-app firmware update prompt will offer `imagefs_137.zst` (171.9 MB). 5.x clients (BHL) and 6.0 clients (BannerHub 3.7.x) now receive the same firmware.
-- **HID-mode launch dialog fix** — GameHub Lite 5.1.4 backports a touch/HID picker dialog from 5.3.5 that ships broken in 5.1.4 (transparent close button, unfocusable checkbox, no way to dismiss with controller). EmuReady's worker happened to 404 the underlying notice endpoint so the dialog never appeared; with BannerHub API the dialog would otherwise appear and block launches. The smali method that shows it (`IMappingServiceImpl.b()`) is rewritten to a no-op so games launch directly.
+- **AI Frame Generation menu (ported from BannerHub 3.7.x)** — adds a new "Frame Generation" row to the in-game sidebar Controls tab (just below the Winlator HUD row) with a switch + gear button. Tapping the gear opens a settings dialog with:
+  - Preset slider (6 presets: Off / Quality / Balanced / Performance / Ultra Performance / Custom)
+  - Multiplier picker (2x / 3x / 4x — the underlying `gamescope.control` mmap protocol)
+  - Custom `flowScale` (0.25–1.00) when Custom preset is selected
+  - FPS limit input (caps the source FPS so framegen has thermal headroom)
+  - Settings live in `bh_framegen` SharedPreferences, applied at `WineActivity.onCreate` via a one-line smali hook into `BhFrameGenWriter.applyFromPrefs(Context)`.
+- **Per-package ICD JSON** — `BhFrameGenWriter.ensureIcdJsonForCurrentPackage()` writes the `libGameScopeVK` ICD manifest at launch using `ctx.getPackageName()`, so framegen works for every BHL variant package (banner.hub.lite, gamehub.lite, com.tencent.ig, etc.) without per-variant patching.
+- **Reflection-based fragment binding** — the smali hook into `SidebarControlsFragment.onResume()` passes `Object` (not a typed Fragment) so the extension Java code doesn't pull androidx onto the apktool compile classpath. Wiring resolves `getView()` reflectively at runtime.
+
+### Server-side fix shipped alongside this build
+
+- `bannerhub-api@45c3d2f` (2026-05-12): bumped `simulator/executeScript/{generic,qualcomm}{,_steam}` imagefs row from 1.3.3 → 1.3.7. The c8d7f21 commit (2026-05-11) bumped `data/imagefs.json` + `simulator/v2/getImagefsDetail` but missed the four executeScript variants, leaving the Add-Game path on the old 1.3.3 binary for ~22 hours. Verified live: BHL Add-Game now returns `imagefs_137.zst` md5 `82e98261…`.
 
 ### Upgrade
 
-Same package names as v1.0.0 — install over the existing variant; no uninstall needed.
+Same package names as v1.0.1 — install over the existing variant; no uninstall needed. The new sidebar row appears on next game launch.
 
 ### Variants
 

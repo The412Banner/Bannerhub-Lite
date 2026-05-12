@@ -7,6 +7,38 @@
 
 ---
 
+### [stable] — v1.0.2 — AI Frame Generation menu + executeScript imagefs fix (2026-05-12)
+**Tag:** v1.0.2  |  **Trigger:** tag push → build-bhapi.yml
+#### What changed
+- Frame Generation menu ported from BannerHub 3.7.x's `feature/framegen-menu` @ `7af2a70`:
+  - `extension/BhFrameGenSettings.java` — 6 presets + bh_framegen SharedPreferences
+  - `extension/BhFrameGenWriter.java` — `gamescope.control` mmap writer + `ensureIcdJsonForCurrentPackage()` (per-package ICD)
+  - `extension/BhFrameGenDialog.java` — programmatic dialog UI
+  - `extension/BhFrameGenWiring.java` — reflection-based fragment binder (avoids androidx classpath dep)
+  - `patches/res/layout/winemu_sidebar_controls_fragment.xml` — adds frame_gen_container row
+  - build-bhapi.yml: adds frame_gen_container/switch_frame_gen/btn_frame_gen_settings to ids.xml; adds bh_framegen_title/bh_framegen_settings_open to strings.xml; two new smali hook steps that inject `BhFrameGenWiring.bindFromFragment(p0)` into `SidebarControlsFragment.onResume()` and `BhFrameGenWriter.applyFromPrefs(p0)` into `WineActivity.onCreate(Bundle)`.
+- Workflow trim that lived on `feature/framegen-menu` (single-variant matrix + dispatch-only trigger) was reverted on merge to main so the release job runs across all 9 variants on tag push.
+- release_notes.txt rewritten for v1.0.2.
+#### Why
+1. AI Frame Generation parity with BannerHub 3.7.x — same dialog, same presets, same mmap protocol; works on any BHL variant package thanks to per-package ICD JSON.
+2. Server-side fix: `bannerhub-api@45c3d2f` bumped the `executeScript` imagefs row from 1.3.3 → 1.3.7. The c8d7f21 commit (2026-05-11) only bumped 2 of 6 imagefs metadata files, so BHL Add-Game kept downloading the old `imagefs.zst` (1.3.3) despite getImagefsDetail correctly serving 1.3.7. Verified live: Add-Game now returns `imagefs_137.zst` md5 `82e98261…`. No client code change required for the fix — applies to every BHL APK in existence.
+#### Known issues carried from v1.0.1
+- Proton 11 + Steam-client launches hang on "Initializing…" (no resolution yet).
+#### Files touched
+- extension/BhFrameGenSettings.java (new)
+- extension/BhFrameGenWriter.java (new)
+- extension/BhFrameGenDialog.java (new)
+- extension/BhFrameGenWiring.java (new)
+- patches/res/layout/winemu_sidebar_controls_fragment.xml
+- .github/workflows/build-bhapi.yml (ids/strings additions, two new smali patch steps, trim revert)
+- release_notes.txt
+- PROGRESS_LOG.md
+- MEMORY.md (this repo's memory entry in claude-user memory)
+#### Companion server-side change
+- `bannerhub-api@45c3d2f` — branch `feature/framegen-menu`, FF-merged to master + main 2026-05-12. Pages built 15s, Worker verified returning 1.3.7 on `executeScript`.
+
+---
+
 ### [stable] — v1.0.1 — All variants on BannerHub API (2026-05-11)
 **Tag:** v1.0.1  |  **Trigger:** tag push → build-bhapi.yml
 #### What changed
