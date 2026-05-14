@@ -1068,3 +1068,9 @@ When a game is added for the first time, no per-game GPU driver key exists in SP
 - BhSettingsExporter: replaced hardcoded BH_VERSION string with `getPackageManager().getPackageInfo().versionName` — always reflects actual installed version, zero maintenance
 #### Files touched
 - extension/BhSettingsExporter.java
+
+
+### [docs] — Discord + Downloads badges block (2026-05-14)
+**Commit:** `18d1378`
+
+Replaced the single flat Discord badge with the standardized 4-element header block: Discord + total Downloads + Latest Release badges (centered, `for-the-badge` style) + `📥 Latest stable: v1.0.2` link. Matches BannerHub and bannerhub-revanced layouts (same day). No code changes.
