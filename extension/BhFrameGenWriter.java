@@ -21,7 +21,7 @@ import java.nio.charset.StandardCharsets;
  *   3:   NativeRenderingMode         — owned by host launcher, NOT touched here
  *   4-7: float flowScale (clamped 0.2..1.0)
  *   8:   AI model byte (0=standard, 1=clear)
- *   9:   AI multiplier byte (clamped 2..4)
+ *   9:   AI multiplier byte (always 2x)
  */
 public class BhFrameGenWriter {
 
@@ -64,7 +64,7 @@ public class BhFrameGenWriter {
                 buf.put(2, (byte) (s.enabled ? 1 : 0));
                 buf.putFloat(4, clampFloat(s.flowScale, 0.2f, 1.0f));
                 buf.put(8, (byte) (s.model & 0x01));
-                buf.put(9, (byte) clampInt(s.multiplier, 2, 4));
+                buf.put(9, (byte) 2);  // multiplier always 2x
                 buf.force();
             }
         } catch (Exception ignored) {}
@@ -75,10 +75,6 @@ public class BhFrameGenWriter {
         writeByteAt(controlPath, 2, (byte) (enabled ? 1 : 0));
     }
 
-    /** Write only the multiplier byte (byte 9). */
-    public static void writeMultiplier(String controlPath, int multiplier) {
-        writeByteAt(controlPath, 9, (byte) clampInt(multiplier, 2, 4));
-    }
 
     /** Write only the AI model byte (byte 8). */
     public static void writeModel(String controlPath, int model) {

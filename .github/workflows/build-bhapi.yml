@@ -1269,6 +1269,31 @@ jobs:
               with open(wa_path, "w", encoding="utf-8") as f:
                   f.write(src)
               print(f"OK: injected BhFrameGenWriter.applyFromPrefs into {wa_path}")
+
+          # WineActivity.onResume(): re-apply FrameGen settings on every resume
+          anchor_resume = (
+              ".method public onResume()V\n"
+              "    .locals 1\n\n"
+              "    invoke-super {p0}, "
+              "Landroidx/fragment/app/FragmentActivity;"
+              "->onResume()V\n"
+          )
+          inj_resume = anchor_resume + (
+              "\n    invoke-static {p0}, "
+              "Lcom/xj/winemu/sidebar/BhFrameGenWriter;"
+              "->applyFromPrefs(Landroid/content/Context;)V\n"
+          )
+          with open(wa_path, "r", encoding="utf-8") as f:
+              src = f.read()
+          if anchor_resume not in src:
+              print(f"WARN: onResume anchor not found in {wa_path} — skipping", file=sys.stderr)
+          elif "BhFrameGenWriter" in src and "onResume" in src.split("BhFrameGenWriter")[1][:300]:
+              print(f"OK (idempotent): WineActivity.onResume already wired")
+          else:
+              src = src.replace(anchor_resume, inj_resume, 1)
+              with open(wa_path, "w", encoding="utf-8") as f:
+                  f.write(src)
+              print(f"OK: injected BhFrameGenWriter.applyFromPrefs into WineActivity.onResume")
           PYEOF
 
       - name: Upload patched source

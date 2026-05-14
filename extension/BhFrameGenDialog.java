@@ -14,11 +14,8 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
-import android.widget.Switch;
 import android.widget.TextView;
 
 /**
@@ -52,11 +49,13 @@ public class BhFrameGenDialog extends Dialog {
         Window w = getWindow();
         if (w != null) {
             w.requestFeature(Window.FEATURE_NO_TITLE);
-            w.setBackgroundDrawable(new ColorDrawable(Color.parseColor("#cc000000")));
             WindowManager.LayoutParams lp = w.getAttributes();
             lp.width = WindowManager.LayoutParams.MATCH_PARENT;
             lp.height = WindowManager.LayoutParams.MATCH_PARENT;
+            lp.dimAmount = 0.6f;
+            lp.flags |= WindowManager.LayoutParams.FLAG_DIM_BEHIND;
             w.setAttributes(lp);
+            w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         }
         setContentView(buildContentView());
     }
@@ -76,6 +75,8 @@ public class BhFrameGenDialog extends Dialog {
                 dp(320), ViewGroup.LayoutParams.WRAP_CONTENT);
         panelLp.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
         panelLp.rightMargin = dp(24);
+        panelLp.bottomMargin = dp(16);
+        panelLp.topMargin = dp(16);
         panel.setLayoutParams(panelLp);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.parseColor("#ff1f1f24"));
@@ -111,24 +112,7 @@ public class BhFrameGenDialog extends Dialog {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         scroll.addView(body);
 
-        // ── Section 1: Enable toggle ─────────────────────────────────────
-        Switch swEnable = new Switch(ctx);
-        swEnable.setText("Enable frame generation");
-        swEnable.setTextColor(Color.WHITE);
-        swEnable.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
-        swEnable.setLayoutParams(rowLp());
-        swEnable.setChecked(settings.enabled);
-        swEnable.setOnCheckedChangeListener((b, isChecked) -> {
-            settings.enabled = isChecked;
-            BhFrameGenWriter.writeEnabled(controlPath, isChecked);
-            settings.save(getContext());
-            updatePresetDescription();
-        });
-        body.addView(swEnable);
-
-        body.addView(divider());
-
-        // ── Section 2: Preset slider ─────────────────────────────────────
+        // ── Section 1: Preset slider ─────────────────────────────────────
         TextView presetHeader = new TextView(ctx);
         presetHeader.setText("Preset");
         presetHeader.setTextColor(Color.WHITE);
@@ -191,44 +175,7 @@ public class BhFrameGenDialog extends Dialog {
 
         body.addView(divider());
 
-        // ── Section 3: Multiplier picker ─────────────────────────────────
-        TextView mulHeader = new TextView(ctx);
-        mulHeader.setText("Frame multiplier");
-        mulHeader.setTextColor(Color.WHITE);
-        mulHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
-        mulHeader.setLayoutParams(headerLp());
-        body.addView(mulHeader);
-
-        RadioGroup rgMult = new RadioGroup(ctx);
-        rgMult.setOrientation(RadioGroup.HORIZONTAL);
-        rgMult.setLayoutParams(rowLp());
-        RadioButton[] btns = new RadioButton[3];
-        int[] mults = new int[]{2, 3, 4};
-        for (int i = 0; i < mults.length; i++) {
-            RadioButton rb = new RadioButton(ctx);
-            rb.setText(mults[i] + "×");
-            rb.setTextColor(Color.WHITE);
-            rb.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
-            rb.setId(0x1bf60000 + mults[i]);
-            LinearLayout.LayoutParams rbLp = new LinearLayout.LayoutParams(0,
-                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            rb.setLayoutParams(rbLp);
-            btns[i] = rb;
-            rgMult.addView(rb);
-        }
-        rgMult.check(0x1bf60000 + clampMultiplier(settings.multiplier));
-        rgMult.setOnCheckedChangeListener((g, checkedId) -> {
-            int m = checkedId - 0x1bf60000;
-            if (m < 2 || m > 4) m = 2;
-            settings.multiplier = m;
-            BhFrameGenWriter.writeMultiplier(controlPath, m);
-            settings.save(getContext());
-        });
-        body.addView(rgMult);
-
-        body.addView(divider());
-
-        // ── Section 4: flowScale slider ─────────────────────────────────
+        // ── Section 3: flowScale slider ─────────────────────────────────
         LinearLayout flowHeaderRow = new LinearLayout(ctx);
         flowHeaderRow.setOrientation(LinearLayout.HORIZONTAL);
         flowHeaderRow.setLayoutParams(rowLp());
@@ -268,21 +215,6 @@ public class BhFrameGenDialog extends Dialog {
         });
         body.addView(sbFlowScale);
 
-        // ── Close button ─────────────────────────────────────────────────
-        TextView btnClose = new TextView(ctx);
-        btnClose.setText("Close");
-        btnClose.setTextColor(Color.parseColor("#fff0f0f0"));
-        btnClose.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
-        btnClose.setGravity(Gravity.CENTER);
-        btnClose.setBackgroundColor(Color.parseColor("#ff3b82f6"));
-        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(30));
-        btnLp.topMargin = dp(10);
-        btnLp.leftMargin = dp(40);
-        btnLp.rightMargin = dp(40);
-        btnClose.setLayoutParams(btnLp);
-        btnClose.setOnClickListener(v -> dismiss());
-        panel.addView(btnClose);
 
         // First-time UI sync
         updatePresetLabel();
@@ -331,11 +263,6 @@ public class BhFrameGenDialog extends Dialog {
         return (int) (v * density + 0.5f);
     }
 
-    private static int clampMultiplier(int m) {
-        if (m < 2) return 2;
-        if (m > 4) return 4;
-        return m;
-    }
 
     private static int flowScaleToProgress(float flowScale) {
         int p = Math.round((flowScale - 0.2f) * 100f);
