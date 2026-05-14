@@ -60,10 +60,10 @@ public class BhFrameGenDialog extends Dialog {
         setContentView(buildContentView());
     }
 
+    // Outer dim layer
     private View buildContentView() {
         Context ctx = getContext();
 
-        // Outer dim layer
         FrameLayout root = new FrameLayout(ctx);
         root.setLayoutParams(new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -175,7 +175,7 @@ public class BhFrameGenDialog extends Dialog {
 
         body.addView(divider());
 
-        // ── Section 3: flowScale slider ─────────────────────────────────
+        // ── Section 2: flowScale slider ─────────────────────────────────
         LinearLayout flowHeaderRow = new LinearLayout(ctx);
         flowHeaderRow.setOrientation(LinearLayout.HORIZONTAL);
         flowHeaderRow.setLayoutParams(rowLp());
@@ -198,7 +198,7 @@ public class BhFrameGenDialog extends Dialog {
         body.addView(flowHeaderRow);
 
         sbFlowScale = new SeekBar(ctx);
-        sbFlowScale.setMax(80); // 0.20 to 1.00 in 0.01 steps
+        sbFlowScale.setMax(80);
         sbFlowScale.setProgress(flowScaleToProgress(settings.flowScale));
         sbFlowScale.setLayoutParams(seekBarLp());
         sbFlowScale.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -215,10 +215,25 @@ public class BhFrameGenDialog extends Dialog {
         });
         body.addView(sbFlowScale);
 
-
         // First-time UI sync
         updatePresetLabel();
         updatePresetDescription();
+
+        // ── Close button ─────────────────────────────────────────────────
+        TextView btnClose = new TextView(ctx);
+        btnClose.setText("Close");
+        btnClose.setTextColor(Color.parseColor("#fff0f0f0"));
+        btnClose.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        btnClose.setGravity(Gravity.CENTER);
+        btnClose.setBackgroundColor(Color.parseColor("#ff3b82f6"));
+        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(30));
+        btnLp.topMargin = dp(10);
+        btnLp.leftMargin = dp(40);
+        btnLp.rightMargin = dp(40);
+        btnClose.setLayoutParams(btnLp);
+        btnClose.setOnClickListener(v -> dismiss());
+        panel.addView(btnClose);
 
         return root;
     }
@@ -263,7 +278,6 @@ public class BhFrameGenDialog extends Dialog {
         return (int) (v * density + 0.5f);
     }
 
-
     private static int flowScaleToProgress(float flowScale) {
         int p = Math.round((flowScale - 0.2f) * 100f);
         if (p < 0) p = 0;
@@ -286,17 +300,15 @@ public class BhFrameGenDialog extends Dialog {
 
     private void updatePresetDescription() {
         if (tvPresetDesc == null) return;
-        if (!settings.enabled) {
-            tvPresetDesc.setText("Disabled. Frame rate and power usage will not be changed.");
-        } else {
-            tvPresetDesc.setText(settings.preset.description);
-        }
+        tvPresetDesc.setText(settings.preset.description);
     }
 
     /** Convenience launcher for the smali wiring patch. */
     public static void show(Context ctx) {
         try {
-            new BhFrameGenDialog(ctx).show();
+            BhFrameGenDialog d = new BhFrameGenDialog(ctx);
+            d.setCancelable(false);
+            d.show();
         } catch (Exception ignored) {}
     }
 }
