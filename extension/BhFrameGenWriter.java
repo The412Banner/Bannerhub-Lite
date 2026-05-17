@@ -3,12 +3,10 @@ package com.xj.winemu.sidebar;
 import android.content.Context;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.RandomAccessFile;
 import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
 
 /**
  * Writes AI Frame Generation settings to the 10-byte mmap file at
@@ -26,13 +24,12 @@ import java.nio.charset.StandardCharsets;
 public class BhFrameGenWriter {
 
     /** Apply persisted settings to the gamescope.control file. Call right before the
-     *  Wine container reads the file (e.g. just before launch). Also rewrites the
-     *  Vulkan ICD JSON so libGameScopeVK.so resolves under the actually-installed
-     *  package (upstream firmware ships a hardcoded /data/data/com.winemu/... path). */
+     *  Wine container reads the file (e.g. just before launch). Delegates Vulkan ICD
+     *  management to {@link BhVulkanIcdWriter}. */
     public static void applyFromPrefs(Context ctx) {
         BhFrameGenSettings s = BhFrameGenSettings.load(ctx);
         write(resolveControlPath(ctx), s);
-        ensureIcdJsonForCurrentPackage(ctx);
+        BhVulkanIcdWriter.ensureIcdJson(ctx);
     }
 
     /** Apply settings without requiring a Context from the caller — looks up the app
@@ -92,63 +89,13 @@ public class BhFrameGenWriter {
         } catch (Exception ignored) {}
     }
 
-    /** Resolve the gamescope.control path for the running BannerHub install. */
+    /** Resolve the gamescope.control path for the running OfflineHub install. */
     public static String resolveControlPath(Context ctx) {
         String pkg = ctx.getPackageName();
         return "/data/data/" + pkg + "/files/usr/etc/gamescope.control";
     }
 
-    /** Resolve the GameScopeVK_icd.json path for the running BannerHub install. */
-    public static String resolveIcdJsonPath(Context ctx) {
-        String pkg = ctx.getPackageName();
-        return "/data/data/" + pkg
-                + "/files/usr/home/steamuser/.config/vulkan/icd.d/GameScopeVK_icd.json";
-    }
-
-    /** Resolve the libGameScopeVK.so path for the running BannerHub install. */
-    public static String resolveIcdLibraryPath(Context ctx) {
-        String pkg = ctx.getPackageName();
-        return "/data/data/" + pkg + "/files/usr/lib/libGameScopeVK.so";
-    }
-
-    /** Rewrite the Vulkan ICD JSON so library_path points at libGameScopeVK.so under
-     *  the running package. Upstream firmware ships /data/data/com.winemu/... which
-     *  doesn't exist on real installs (BannerHub forks use varying package IDs).
-     *  Idempotent: only writes if contents differ. */
-    public static void ensureIcdJsonForCurrentPackage(Context ctx) {
-        try {
-            String libPath = resolveIcdLibraryPath(ctx);
-            File so = new File(libPath);
-            if (!so.exists()) return;
-            String desired =
-                    "{\n"
-                  + "  \"file_format_version\": \"1.0.0\",\n"
-                  + "  \"ICD\": {\n"
-                  + "    \"library_path\": \"" + libPath + "\",\n"
-                  + "    \"api_version\": \"1.3.216\"\n"
-                  + "  }\n"
-                  + "}\n";
-            File icd = new File(resolveIcdJsonPath(ctx));
-            File parent = icd.getParentFile();
-            if (parent != null) parent.mkdirs();
-            if (icd.exists() && icd.length() == desired.getBytes(StandardCharsets.UTF_8).length) {
-                byte[] cur = new byte[(int) icd.length()];
-                try (java.io.FileInputStream fis = new java.io.FileInputStream(icd)) {
-                    int read = 0, n;
-                    while (read < cur.length
-                            && (n = fis.read(cur, read, cur.length - read)) > 0) {
-                        read += n;
-                    }
-                }
-                if (new String(cur, StandardCharsets.UTF_8).equals(desired)) return;
-            }
-            try (FileOutputStream fos = new FileOutputStream(icd)) {
-                fos.write(desired.getBytes(StandardCharsets.UTF_8));
-            }
-        } catch (Exception ignored) {}
-    }
-
-    private static void writeByteAt(String controlPath, int offset, byte value) {
+        private static void writeByteAt(String controlPath, int offset, byte value) {
         try (RandomAccessFile raf = new RandomAccessFile(controlPath, "rw")) {
             if (raf.length() < 10) raf.setLength(10);
             MappedByteBuffer buf = raf.getChannel().map(FileChannel.MapMode.READ_WRITE, 0, 10);

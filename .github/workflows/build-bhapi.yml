@@ -134,8 +134,9 @@ jobs:
               '    <item type="id" name="frame_gen_container" />\n'
               '    <item type="id" name="switch_frame_gen" />\n'
               '    <item type="id" name="btn_frame_gen_settings" />\n'
+              '    <item type="id" name="gamescope_driver_item" />\n'
               '</resources>',
-              'ids.xml: add BCI + perf switch IDs + HUD switch + sidebar_taskmanager + frame_gen ids'
+              'ids.xml: add BCI + perf switch IDs + HUD switch + sidebar_taskmanager + frame_gen + gamescope_driver ids'
           )
 
           # ── 3a. strings.xml: add frame generation strings ─────────────────────
@@ -1143,6 +1144,31 @@ jobs:
               'GameDetailSettingMenu.Y(): inject Export Config + Import Config options'
           )
 
+          # ── bh_gamescope_driver string + public.xml + R$string ────────────────
+          patch(
+              'apktool_out/res/values/strings.xml',
+              '</resources>',
+              '    <string name="bh_gamescope_driver">GameScope Driver</string>\n'
+              '</resources>',
+              'strings.xml: add bh_gamescope_driver'
+          )
+
+          patch(
+              'apktool_out/res/values/public.xml',
+              '</resources>',
+              '    <public type="string" name="bh_gamescope_driver" id="0x7f130dbc" />\n'
+              '</resources>',
+              'public.xml: reserve ID 0x7f130dbc for bh_gamescope_driver'
+          )
+
+          patch(
+              'apktool_out/smali_classes5/com/xj/language/R$string.smali',
+              '.field public static final zb2:I = 0x7f130da6\n',
+              '.field public static final zb2:I = 0x7f130da6\n'
+              '.field public static final bh_gamescope_driver:I = 0x7f130dbc\n',
+              'R$string.smali: add bh_gamescope_driver field'
+          )
+
           print("\nAll patches applied successfully.")
           PYEOF
 
@@ -1210,7 +1236,8 @@ jobs:
 
       - name: Wire frame-gen menu + launch hook
         # Two single-line invoke-static insertions:
-        #   - SidebarControlsFragment.onResume() -> BhFrameGenWiring.bindFromFragment(p0)
+        #   - SidebarPerformanceFragment.onResume() -> BhFrameGenWiring.bindFromFragment(p0)
+        #   - SidebarPerformanceFragment.onResume() -> BhVulkanDriverWiring.bindFromFragment(p0)
         #   - WineActivity.onCreate(Bundle)      -> BhFrameGenWriter.applyFromPrefs(p0)
         # Both targets live in smali_classes4; our extensions land in classes11
         # (same dex tree the existing BHL extensions use).
@@ -1218,30 +1245,31 @@ jobs:
           python3 - <<'PYEOF'
           import re, sys
 
-          # SidebarControlsFragment.onResume(): insert right after invoke-super
-          frag_path = "apktool_out/smali_classes4/com/xj/winemu/sidebar/SidebarControlsFragment.smali"
-          anchor_frag = (
-              ".method public onResume()V\n"
-              "    .locals 7\n\n"
-              "    invoke-super {p0}, Lcom/xj/base/base/fragment/LazyFragment;->onResume()V\n"
-          )
-          inj_frag = anchor_frag + (
-              "\n    invoke-static {p0}, "
+          # SidebarPerformanceFragment: inject onResume() with BhFrameGenWiring + BhVulkanDriverWiring
+          frag_path = "apktool_out/smali_classes4/com/xj/winemu/sidebar/SidebarPerformanceFragment.smali"
+          onresume_method = (
+              "\n.method public onResume()V\n"
+              "    .locals 0\n\n"
+              "    invoke-super {p0}, "
+              "Lcom/xj/common/view/focus/focus/app/FocusableFragment;->onResume()V\n\n"
+              "    invoke-static {p0}, "
               "Lcom/xj/winemu/sidebar/BhFrameGenWiring;"
-              "->bindFromFragment(Ljava/lang/Object;)V\n"
+              "->bindFromFragment(Ljava/lang/Object;)V\n\n"
+              "    invoke-static {p0}, "
+              "Lcom/xj/winemu/sidebar/BhVulkanDriverWiring;"
+              "->bindFromFragment(Ljava/lang/Object;)V\n\n"
+              "    return-void\n"
+              ".end method\n"
           )
           with open(frag_path, "r", encoding="utf-8") as f:
               src = f.read()
-          if anchor_frag not in src:
-              print(f"ERROR: onResume anchor not found in {frag_path}", file=sys.stderr)
-              sys.exit(1)
-          if "BhFrameGenWiring" in src:
+          if "BhFrameGenWiring" in src and "BhVulkanDriverWiring" in src:
               print(f"OK (idempotent): {frag_path} already wired")
           else:
-              src = src.replace(anchor_frag, inj_frag, 1)
+              src = src + onresume_method
               with open(frag_path, "w", encoding="utf-8") as f:
                   f.write(src)
-              print(f"OK: injected BhFrameGenWiring.bindFromFragment into {frag_path}")
+              print(f"OK: injected onResume + BhFrameGenWiring + BhVulkanDriverWiring into {frag_path}")
 
           # WineActivity.onCreate(Bundle): insert right after invoke-super
           wa_path = "apktool_out/smali_classes4/com/xj/winemu/WineActivity.smali"
@@ -1269,31 +1297,6 @@ jobs:
               with open(wa_path, "w", encoding="utf-8") as f:
                   f.write(src)
               print(f"OK: injected BhFrameGenWriter.applyFromPrefs into {wa_path}")
-
-          # WineActivity.onResume(): re-apply FrameGen settings on every resume
-          anchor_resume = (
-              ".method public onResume()V\n"
-              "    .locals 1\n\n"
-              "    invoke-super {p0}, "
-              "Landroidx/fragment/app/FragmentActivity;"
-              "->onResume()V\n"
-          )
-          inj_resume = anchor_resume + (
-              "\n    invoke-static {p0}, "
-              "Lcom/xj/winemu/sidebar/BhFrameGenWriter;"
-              "->applyFromPrefs(Landroid/content/Context;)V\n"
-          )
-          with open(wa_path, "r", encoding="utf-8") as f:
-              src = f.read()
-          if anchor_resume not in src:
-              print(f"WARN: onResume anchor not found in {wa_path} — skipping", file=sys.stderr)
-          elif "BhFrameGenWriter" in src and "onResume" in src.split("BhFrameGenWriter")[1][:300]:
-              print(f"OK (idempotent): WineActivity.onResume already wired")
-          else:
-              src = src.replace(anchor_resume, inj_resume, 1)
-              with open(wa_path, "w", encoding="utf-8") as f:
-                  f.write(src)
-              print(f"OK: injected BhFrameGenWriter.applyFromPrefs into WineActivity.onResume")
           PYEOF
 
       - name: Upload patched source

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.xj.common.view.focus.focus.view.FocusableLinearLayout
+    android:orientation="vertical"
+    android:tag="layout/winemu_sidebar_hub_type_fragment_0"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <TextView
+        android:textSize="@dimen/sp_16"
+        android:textStyle="bold"
+        android:textColor="#ff787a80"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/dp_24"
+        android:text="@string/winemu_sidebar_performance"
+        android:layout_marginStart="@dimen/dp_16" />
+    <com.xj.common.view.focus.focus.view.FocusableNestedScrollView
+        android:id="@id/performance_nsv"
+        android:scrollbars="none"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content">
+        <com.xj.common.view.focus.focus.view.FocusableLinearLayout
+            android:orientation="vertical"
+            android:id="@id/performance_fl"
+            android:paddingBottom="@dimen/dp_18"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="@dimen/dp_16">
+            <com.xj.winemu.view.CollapseMenuSettingView
+                android:id="@id/nativeRendering"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content" />
+            <com.xj.winemu.view.SidebarSwitchItemView
+                android:id="@id/switch_frame_rate_limit"
+                android:layout_width="fill_parent"
+                android:layout_height="@dimen/dp_56"
+                android:layout_marginTop="@dimen/dp_12"
+                app:switch_title="@string/winemu_frame_limit_enable" />
+            <com.xj.common.view.focus.focus.view.FocusableLinearLayout
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content">
+                <com.xj.winemu.view.SidebarProgressItemView
+                    android:id="@id/frame_rate_limit_progress"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    app:side_max="120"
+                    app:side_min="30"
+                    app:side_step="5"
+                    app:side_title="@string/winemu_frame_limit" />
+            </com.xj.common.view.focus.focus.view.FocusableLinearLayout>
+            <com.xj.winemu.view.SidebarSwitchItemView
+                android:id="@id/hdr_switch"
+                android:layout_width="fill_parent"
+                android:layout_height="@dimen/dp_56"
+                app:switch_title="HDR" />
+            <com.xj.winemu.view.SidebarSwitchItemView
+                android:id="@id/crt_switch"
+                android:layout_width="fill_parent"
+                android:layout_height="@dimen/dp_56"
+                app:switch_title="@string/winemu_crt_display_effect" />
+            <!-- OfflineHub Lite: AI Frame Generation -->
+            <LinearLayout android:orientation="horizontal" android:id="@id/frame_gen_container" android:layout_width="fill_parent" android:layout_height="@dimen/dp_56" android:gravity="center_vertical">
+                <com.xj.winemu.view.SidebarSwitchItemView android:id="@id/switch_frame_gen" android:layout_width="0dp" android:layout_height="@dimen/dp_56" android:layout_weight="1" app:switch_title="@string/bh_framegen_title" />
+                <ImageButton android:id="@id/btn_frame_gen_settings" android:visibility="gone" android:layout_width="@dimen/dp_40" android:layout_height="@dimen/dp_40" android:layout_marginEnd="@dimen/dp_8" android:background="?android:attr/selectableItemBackgroundBorderless" android:src="@drawable/winemu_ic_setting_focus_white" android:contentDescription="@string/bh_framegen_settings_open" />
+            </LinearLayout>
+            <com.xj.winemu.view.SidebarSwitchItemView
+                android:id="@id/super_resolution_switch"
+                android:layout_width="fill_parent"
+                android:layout_height="@dimen/dp_56"
+                app:switch_title="@string/winemu_super_resolution" />
+            <com.xj.common.view.focus.focus.view.FocusableLinearLayout
+                android:orientation="vertical"
+                android:id="@id/calliper_progress_fl"
+                android:paddingBottom="@dimen/dp_8"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content">
+                <com.hjq.shape.view.ShapeTextView
+                    android:textSize="@dimen/sp_14"
+                    android:id="@id/calliper_progress_tv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/dp_8"
+                    android:text="@string/winemu_clarity"
+                    android:layout_marginStart="@dimen/dp_12"
+                    app:shape_textColor="#ff888e99"
+                    app:shape_textSelectedColor="#fff0f0f0" />
+                <com.xj.common.view.CalliperProgress
+                    android:id="@id/calliper_progress"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/dp_11"
+                    android:layout_marginStart="@dimen/dp_12"
+                    android:layout_marginEnd="@dimen/dp_24" />
+            </com.xj.common.view.focus.focus.view.FocusableLinearLayout>
+            <com.xj.winemu.view.SidebarSwitchItemView
+                android:id="@id/hud_switch"
+                android:layout_width="fill_parent"
+                android:layout_height="@dimen/dp_56"
+                app:switch_title="@string/winemu_hud_display" />
+            <com.xj.common.view.focus.focus.view.FocusableRecyclerView
+                android:id="@id/hud_options_rv"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content" />
+            <com.xj.winemu.view.SidebarSwitchItemView
+                android:id="@id/switch_dual_battery_mode"
+                android:layout_width="fill_parent"
+                android:layout_height="@dimen/dp_56"
+                app:switch_title="@string/winemu_sidebar_dual_battery_mode" />
+            <com.xj.common.view.focus.focus.view.FocusableLinearLayout
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/dp_8">
+                <com.xj.winemu.view.SidebarProgressItemView
+                    android:id="@id/hud_bg_transparency"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content"
+                    app:side_max="100"
+                    app:side_min="0"
+                    app:side_progress="50"
+                    app:side_step="10"
+                    app:side_title="@string/winemu_sidebar_hud_bg_transparency" />
+            </com.xj.common.view.focus.focus.view.FocusableLinearLayout>
+            <!-- OfflineHub Lite: GameScope Driver selector -->
+            <com.xj.winemu.view.SidebarClickItemView
+                android:id="@id/gamescope_driver_item"
+                android:layout_width="fill_parent"
+                android:layout_height="@dimen/dp_56"
+                app:click_title="GameScope Driver" />
+        </com.xj.common.view.focus.focus.view.FocusableLinearLayout>
+    </com.xj.common.view.focus.focus.view.FocusableNestedScrollView>
+</com.xj.common.view.focus.focus.view.FocusableLinearLayout>
