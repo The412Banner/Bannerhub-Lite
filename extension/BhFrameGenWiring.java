@@ -13,6 +13,9 @@ import java.lang.reflect.Method;
  * Called from SidebarControlsFragment.onResume() via a smali patch that
  * invokes Fragment.getView() and passes the resulting View here.
  *
+ * Gear button visibility follows the same pattern as RTS touch controls:
+ * hidden by default in XML, shown only when the switch is ON.
+ *
  * SidebarSwitchItemView is a custom Kotlin view (com.xj.winemu.view.*) that
  * renders the switch as an ImageView, not a real CompoundButton — so we drive
  * it through its public setSwitch(boolean) method via reflection.
@@ -38,21 +41,28 @@ public class BhFrameGenWiring {
         } catch (Throwable ignored) {}
     }
 
-    /** Bind switch + gear button. Idempotent — onResume can call repeatedly. */
+    /** Bind switch + gear button. Idempotent — onResume can call repeatedly.
+     *  Gear visibility mirrors RTS pattern: gone by default, visible only when ON. */
     public static void bind(final View root) {
         if (root == null) return;
         final Context ctx = root.getContext();
 
         final View gearButton = viewById(root, "btn_frame_gen_settings");
-        if (gearButton != null) {
-            gearButton.setVisibility(View.VISIBLE);
-            gearButton.setOnClickListener(v -> BhFrameGenDialog.show(ctx));
-        }
-
         final View switchView = viewById(root, "switch_frame_gen");
+
         if (switchView != null) {
             BhFrameGenSettings settings = BhFrameGenSettings.load(ctx);
+
+            // Sync switch state
             invokeSetSwitch(switchView, settings.enabled);
+
+            // Sync gear visibility based on current state (RTS pattern)
+            if (gearButton != null) {
+                gearButton.setVisibility(settings.enabled ? View.VISIBLE : View.GONE);
+                gearButton.setOnClickListener(v -> BhFrameGenDialog.show(ctx));
+            }
+
+            // Click handler — toggle state and update gear visibility
             switchView.setOnClickListener(v -> {
                 BhFrameGenSettings s = BhFrameGenSettings.load(ctx);
                 boolean newState = !s.enabled;
@@ -60,6 +70,10 @@ public class BhFrameGenWiring {
                 invokeSetSwitch(v, newState);
                 BhFrameGenWriter.writeEnabled(BhFrameGenWriter.resolveControlPath(ctx), newState);
                 s.save(ctx);
+                // Show/hide gear exactly as RTS does
+                if (gearButton != null) {
+                    gearButton.setVisibility(newState ? View.VISIBLE : View.GONE);
+                }
             });
         }
     }

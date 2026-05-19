@@ -17,19 +17,9 @@
                 <com.xj.winemu.view.SidebarSwitchItemView android:id="@id/switch_rts_touch_controls" android:layout_width="0.0dip" android:layout_height="@dimen/dp_56" android:layout_weight="1.0" app:switch_title="@string/winemu_sidebar_rts_touch_controls" />
                 <ImageButton android:id="@id/btn_rts_gesture_settings" android:background="?android:selectableItemBackgroundBorderless" android:visibility="gone" android:layout_width="@dimen/dp_40" android:layout_height="@dimen/dp_40" android:src="@drawable/ic_settings" android:contentDescription="@string/rts_gesture_settings" android:layout_marginEnd="@dimen/dp_8" />
             </LinearLayout>
-            <!-- BannerHub Lite: Performance Toggles -->
+            <!-- OfflineHub Lite: Performance Toggles -->
             <com.xj.winemu.view.SidebarSwitchItemView android:id="@id/switch_sustained_perf" android:layout_width="fill_parent" android:layout_height="@dimen/dp_56" app:switch_title="Sustained Performance (Root+)" />
             <com.xj.winemu.view.SidebarSwitchItemView android:id="@id/switch_max_adreno_clocks" android:layout_width="fill_parent" android:layout_height="@dimen/dp_56" app:switch_title="Max Adreno Clocks (Root)" />
-            <com.xj.winemu.view.SidebarSwitchItemView android:id="@id/switch_winlator_hud" android:layout_width="fill_parent" android:layout_height="@dimen/dp_56" app:switch_title="Winlator HUD" />
-            <LinearLayout android:orientation="horizontal" android:id="@id/frame_gen_container" android:layout_width="fill_parent" android:layout_height="@dimen/dp_56" android:gravity="center_vertical">
-                <com.xj.winemu.view.SidebarSwitchItemView android:id="@id/switch_frame_gen" android:layout_width="0dp" android:layout_height="@dimen/dp_56" android:layout_weight="1" app:switch_title="@string/bh_framegen_title" />
-                <ImageButton android:id="@id/btn_frame_gen_settings" android:layout_width="@dimen/dp_40" android:layout_height="@dimen/dp_40" android:layout_marginEnd="@dimen/dp_8" android:background="?android:attr/selectableItemBackgroundBorderless" android:src="@drawable/winemu_ic_setting_focus_white" android:contentDescription="@string/bh_framegen_settings_open" />
-            </LinearLayout>
-            <CheckBox android:id="@+id/check_hud_extra_detail" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="Extra Detailed HUD" android:textColor="#FFFFFFFF" android:textSize="13sp" android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingTop="4dp" android:paddingBottom="4dp" android:enabled="false" android:alpha="0.4" />
-            <LinearLayout android:id="@+id/hud_opacity_row" android:layout_width="fill_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone" android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingTop="4dp" android:paddingBottom="8dp">
-                <TextView android:id="@+id/hud_opacity_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="HUD Opacity: 80%" android:textColor="#FFFFFFFF" android:textSize="12sp" />
-                <SeekBar android:id="@+id/hud_opacity_seekbar" android:layout_width="fill_parent" android:layout_height="wrap_content" android:max="100" android:progress="80" />
-            </LinearLayout>
             <app.revanced.extension.gamehub.BhPerfSetupDelegate android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
         </com.xj.common.view.focus.focus.view.FocusableLinearLayout>
     </com.xj.common.view.focus.focus.view.FocusableNestedScrollView>

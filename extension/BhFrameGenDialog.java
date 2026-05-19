@@ -14,11 +14,8 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
-import android.widget.Switch;
 import android.widget.TextView;
 
 /**
@@ -52,19 +49,21 @@ public class BhFrameGenDialog extends Dialog {
         Window w = getWindow();
         if (w != null) {
             w.requestFeature(Window.FEATURE_NO_TITLE);
-            w.setBackgroundDrawable(new ColorDrawable(Color.parseColor("#cc000000")));
             WindowManager.LayoutParams lp = w.getAttributes();
             lp.width = WindowManager.LayoutParams.MATCH_PARENT;
             lp.height = WindowManager.LayoutParams.MATCH_PARENT;
+            lp.dimAmount = 0.6f;
+            lp.flags |= WindowManager.LayoutParams.FLAG_DIM_BEHIND;
             w.setAttributes(lp);
+            w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         }
         setContentView(buildContentView());
     }
 
+    // Outer dim layer
     private View buildContentView() {
         Context ctx = getContext();
 
-        // Outer dim layer
         FrameLayout root = new FrameLayout(ctx);
         root.setLayoutParams(new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -76,6 +75,8 @@ public class BhFrameGenDialog extends Dialog {
                 dp(320), ViewGroup.LayoutParams.WRAP_CONTENT);
         panelLp.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
         panelLp.rightMargin = dp(24);
+        panelLp.bottomMargin = dp(16);
+        panelLp.topMargin = dp(16);
         panel.setLayoutParams(panelLp);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.parseColor("#ff1f1f24"));
@@ -111,24 +112,7 @@ public class BhFrameGenDialog extends Dialog {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         scroll.addView(body);
 
-        // ── Section 1: Enable toggle ─────────────────────────────────────
-        Switch swEnable = new Switch(ctx);
-        swEnable.setText("Enable frame generation");
-        swEnable.setTextColor(Color.WHITE);
-        swEnable.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
-        swEnable.setLayoutParams(rowLp());
-        swEnable.setChecked(settings.enabled);
-        swEnable.setOnCheckedChangeListener((b, isChecked) -> {
-            settings.enabled = isChecked;
-            BhFrameGenWriter.writeEnabled(controlPath, isChecked);
-            settings.save(getContext());
-            updatePresetDescription();
-        });
-        body.addView(swEnable);
-
-        body.addView(divider());
-
-        // ── Section 2: Preset slider ─────────────────────────────────────
+        // ── Section 1: Preset slider ─────────────────────────────────────
         TextView presetHeader = new TextView(ctx);
         presetHeader.setText("Preset");
         presetHeader.setTextColor(Color.WHITE);
@@ -191,44 +175,7 @@ public class BhFrameGenDialog extends Dialog {
 
         body.addView(divider());
 
-        // ── Section 3: Multiplier picker ─────────────────────────────────
-        TextView mulHeader = new TextView(ctx);
-        mulHeader.setText("Frame multiplier");
-        mulHeader.setTextColor(Color.WHITE);
-        mulHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
-        mulHeader.setLayoutParams(headerLp());
-        body.addView(mulHeader);
-
-        RadioGroup rgMult = new RadioGroup(ctx);
-        rgMult.setOrientation(RadioGroup.HORIZONTAL);
-        rgMult.setLayoutParams(rowLp());
-        RadioButton[] btns = new RadioButton[3];
-        int[] mults = new int[]{2, 3, 4};
-        for (int i = 0; i < mults.length; i++) {
-            RadioButton rb = new RadioButton(ctx);
-            rb.setText(mults[i] + "×");
-            rb.setTextColor(Color.WHITE);
-            rb.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
-            rb.setId(0x1bf60000 + mults[i]);
-            LinearLayout.LayoutParams rbLp = new LinearLayout.LayoutParams(0,
-                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            rb.setLayoutParams(rbLp);
-            btns[i] = rb;
-            rgMult.addView(rb);
-        }
-        rgMult.check(0x1bf60000 + clampMultiplier(settings.multiplier));
-        rgMult.setOnCheckedChangeListener((g, checkedId) -> {
-            int m = checkedId - 0x1bf60000;
-            if (m < 2 || m > 4) m = 2;
-            settings.multiplier = m;
-            BhFrameGenWriter.writeMultiplier(controlPath, m);
-            settings.save(getContext());
-        });
-        body.addView(rgMult);
-
-        body.addView(divider());
-
-        // ── Section 4: flowScale slider ─────────────────────────────────
+        // ── Section 2: flowScale slider ─────────────────────────────────
         LinearLayout flowHeaderRow = new LinearLayout(ctx);
         flowHeaderRow.setOrientation(LinearLayout.HORIZONTAL);
         flowHeaderRow.setLayoutParams(rowLp());
@@ -251,7 +198,7 @@ public class BhFrameGenDialog extends Dialog {
         body.addView(flowHeaderRow);
 
         sbFlowScale = new SeekBar(ctx);
-        sbFlowScale.setMax(80); // 0.20 to 1.00 in 0.01 steps
+        sbFlowScale.setMax(80);
         sbFlowScale.setProgress(flowScaleToProgress(settings.flowScale));
         sbFlowScale.setLayoutParams(seekBarLp());
         sbFlowScale.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -268,6 +215,10 @@ public class BhFrameGenDialog extends Dialog {
         });
         body.addView(sbFlowScale);
 
+        // First-time UI sync
+        updatePresetLabel();
+        updatePresetDescription();
+
         // ── Close button ─────────────────────────────────────────────────
         TextView btnClose = new TextView(ctx);
         btnClose.setText("Close");
@@ -283,10 +234,6 @@ public class BhFrameGenDialog extends Dialog {
         btnClose.setLayoutParams(btnLp);
         btnClose.setOnClickListener(v -> dismiss());
         panel.addView(btnClose);
-
-        // First-time UI sync
-        updatePresetLabel();
-        updatePresetDescription();
 
         return root;
     }
@@ -331,12 +278,6 @@ public class BhFrameGenDialog extends Dialog {
         return (int) (v * density + 0.5f);
     }
 
-    private static int clampMultiplier(int m) {
-        if (m < 2) return 2;
-        if (m > 4) return 4;
-        return m;
-    }
-
     private static int flowScaleToProgress(float flowScale) {
         int p = Math.round((flowScale - 0.2f) * 100f);
         if (p < 0) p = 0;
@@ -359,17 +300,15 @@ public class BhFrameGenDialog extends Dialog {
 
     private void updatePresetDescription() {
         if (tvPresetDesc == null) return;
-        if (!settings.enabled) {
-            tvPresetDesc.setText("Disabled. Frame rate and power usage will not be changed.");
-        } else {
-            tvPresetDesc.setText(settings.preset.description);
-        }
+        tvPresetDesc.setText(settings.preset.description);
     }
 
     /** Convenience launcher for the smali wiring patch. */
     public static void show(Context ctx) {
         try {
-            new BhFrameGenDialog(ctx).show();
+            BhFrameGenDialog d = new BhFrameGenDialog(ctx);
+            d.setCancelable(false);
+            d.show();
         } catch (Exception ignored) {}
     }
 }

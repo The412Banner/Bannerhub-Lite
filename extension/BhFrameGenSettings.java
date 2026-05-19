@@ -39,7 +39,6 @@ public class BhFrameGenSettings {
 
     public boolean enabled = false;
     public Preset preset = Preset.BAL;
-    public int multiplier = 2;          // byte 9, clamped 2..4
     public float flowScale = 0.6f;      // bytes 4-7, clamped 0.2..1.0
     public int model = 0;               // byte 8, 0..1
 
@@ -49,7 +48,6 @@ public class BhFrameGenSettings {
         s.enabled = sp.getBoolean("enabled", false);
         try { s.preset = Preset.valueOf(sp.getString("preset", "BAL")); }
         catch (Exception e) { s.preset = Preset.BAL; }
-        s.multiplier = sp.getInt("multiplier", 2);
         s.flowScale = sp.getFloat("flowScale", s.preset.flowScale);
         s.model = sp.getInt("model", s.preset.model);
         return s;
@@ -59,7 +57,6 @@ public class BhFrameGenSettings {
         SharedPreferences.Editor ed = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
         ed.putBoolean("enabled", enabled);
         ed.putString("preset", preset.name());
-        ed.putInt("multiplier", multiplier);
         ed.putFloat("flowScale", flowScale);
         ed.putInt("model", model);
         ed.apply();
