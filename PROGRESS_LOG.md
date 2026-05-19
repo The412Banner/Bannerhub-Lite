@@ -7,6 +7,42 @@
 
 ---
 
+### [merged-to-main, no release yet] — PR #6 + PR #5: FrameGen → Performance tab + GameScope V2 driver picker (2026-05-19)
+**Merge commit:** `2539473` (`gh pr merge 6 --merge`)  |  **PR #5:** auto-merged via #6
+#### What changed
+Test branch `test/pr6-framegen-perftab-gsv2` was forked off `origin/main` (`d6d5b0a`, 3 docs commits past v1.0.2 tag `bed9dfb`), merged contributor PR #6 (head `78c4fd9` from `teldommm:addSpoof`, +618/−180), built green on run [26128694649](https://github.com/The412Banner/Bannerhub-Lite/actions/runs/26128694649) (all 9 variants + prepare; release job skipped — branch dispatch, no tag), then `gh pr merge 6 --merge` landed it on main.
+- **PR #5 portion** (commits `4d74a26` + `28f55d7`):
+  - `WineActivity.onResume()` smali hook in `build-bhapi.yml` so `BhFrameGenWriter.applyFromPrefs(Context)` is re-applied on every resume, not just `onCreate` — fixes settings not sticking after game suspension.
+  - Gear button (`btn_frame_gen_settings`) now gated by switch state: VISIBLE when FrameGen ON, GONE when OFF (matches `btn_rts_gesture_settings` pattern in `SidebarControlsFragment`).
+  - "Blue close button" added to dialog — menu only closes via explicit Close button (no tap-outside dismiss).
+- **PR #6 portion** (commit `78c4fd9`):
+  - FrameGen row **moves out of Controls sidebar tab → new Performance/HubType tab** via new layout `patches/res/layout/winemu_sidebar_hub_type_fragment.xml` (+132 lines). 11 lines deleted from `winemu_sidebar_controls_fragment.xml`.
+  - GameScope V2 driver picker — 3 new extension Java classes: `BhVulkanDriverWiring.java` (+45), `BhVulkanIcdWriter.java` (+126), `GpuDriverSelectHelper.java` (+224). Writes per-package Vulkan ICD manifest for the GameScope V2 driver path so games can pick it from a dropdown without per-variant patching.
+  - `BhFrameGenDialog.java`: −78/+17 (rewrites — moves to Performance-tab layout context).
+  - `BhFrameGenWriter.java`: −64/+7 (slimmed — driver-writing logic split out to the new BhVulkanIcdWriter).
+#### Why
+1. FrameGen was already in v1.0.2 but the onResume gap meant resuming a game silently dropped the framegen overlay (settings showed enabled but bytes weren't rewritten). PR #5 was the targeted fix.
+2. teldommm proposed moving FrameGen to a dedicated Performance tab and bundling a GameScope V2 driver selector — better discoverability and parity with where these controls live in BannerHub 3.7.x. PR #6 supersedes #5 (#5's commits are part of #6's branch).
+#### Verification
+- Test-branch CI green: prepare + all 9 variant builds (Normal, Normal(GHL), PuBG, AnTuTu, alt-AnTuTu, PuBG-CrossFire, Ludashi, Genshin, Original). Release job skipped as designed.
+- Both PR #5 and PR #6 now MERGED on GitHub.
+- Test branch `test/pr6-framegen-perftab-gsv2` still on origin for reference.
+#### Files touched
+- .github/workflows/build-bhapi.yml (+46/−18 — onResume smali hook + new hooks for Performance tab wiring)
+- extension/BhFrameGenDialog.java (rewrite)
+- extension/BhFrameGenSettings.java (−3)
+- extension/BhFrameGenWiring.java (+20/−6)
+- extension/BhFrameGenWriter.java (slimmed)
+- extension/BhVulkanDriverWiring.java (new)
+- extension/BhVulkanIcdWriter.java (new)
+- extension/GpuDriverSelectHelper.java (new)
+- patches/res/layout/winemu_sidebar_controls_fragment.xml (FrameGen row removed)
+- patches/res/layout/winemu_sidebar_hub_type_fragment.xml (new — Performance tab)
+#### Status
+Merged to main; **no GH Release cut yet**. Next stable will be v1.0.3 (carries onResume fix + Performance tab + GameScope V2 driver picker).
+
+---
+
 ### [stable] — v1.0.2 — AI Frame Generation menu + executeScript imagefs fix (2026-05-12)
 **Tag:** v1.0.2  |  **Trigger:** tag push → build-bhapi.yml
 #### What changed
