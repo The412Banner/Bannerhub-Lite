@@ -1110,3 +1110,45 @@ When a game is added for the first time, no per-game GPU driver key exists in SP
 **Commit:** `18d1378`
 
 Replaced the single flat Discord badge with the standardized 4-element header block: Discord + total Downloads + Latest Release badges (centered, `for-the-badge` style) + `📥 Latest stable: v1.0.2` link. Matches BannerHub and bannerhub-revanced layouts (same day). No code changes.
+
+
+### [server-side fix] — Proton 9/10 x64 "Container installation failed" (2026-05-21)
+**API commit:** `The412Banner/bannerhub-api@7c73883` — no BHL APK change.
+
+User report: launching any game with **Proton 9 x86_64** or **Proton 10 x86_64** as the compatibility layer surfaced a "Container installation failed" toast and aborted. Arm64x layers worked fine. Long-standing issue per user reports, suspected tied to the v1.0.1 API switch from EmuReady → BannerHub.
+
+#### Root cause
+
+Live logcat repro on `com.xiaoji.egggame` (Original variant) v1.0.2 + Pocket FIT showed:
+
+```
+E runFailure: err = com.drake.net.exception.ConvertException:
+  https://.../Components/751b2ec403b86ddd7357206f7a85b301.tzst …(null:89)
+```
+
+That URL is the `sub_data.sub_download_url` for the `proton10.0-x64-1` entry (id 10) in `bannerhub-api/data/containers.json`. `curl -I` confirmed **404** on the asset. The engine fetches this ~4MB supplementary tzst during container init; failure propagates via Drake.NET → `PcEmuSetupDialog.checkWineAndContainer$3$1.invokeSuspend` → toast `winemu_container_installation_failed`.
+
+Three entries were broken; pattern was a copy-paste mistake where `sub_file_name` was correct but `sub_download_url` + `sub_file_md5` pointed at hashes that don't exist in the `Components` Release:
+
+| id | name | broken hash | fix |
+|----|------|-------------|-----|
+| 10 | proton10.0-x64-1 | `751b2ec…` (404) | → `ac15e5a378…` (matches top `file_md5`, real 4.08 MB tzst) |
+| 4  | proton9.0-x64-3 | URL OK; `sub_file_md5=6f41b9c…` (404) | → `83b3a2a16f…` (URL filename hash) |
+| 9  | proton9.0-arm64x-3 | `ae9d3f0…` (404) | → `2ff6952b6e…` (matches top `file_md5`, real 3.98 MB tzst) |
+
+Untouched baseline that already worked: `proton10.0-arm64x-2` (id 2). Its `sub_file_md5` mismatches its URL hash — proves the engine does NOT verify md5; only the URL must resolve.
+
+#### Why it hit BHL Original specifically
+
+It didn't, in scope. The same `simulator/v2/getContainerList` static file is served to all three apps:
+- BHL 1.0.2 + BannerHub 3.7.5: snake-case pass-through.
+- bannerhub-revanced v1.5.1-604 (6.0.4 base): worker's `/v6/` handler at `bannerhub-worker.js:985` reads the same file and only mirrors `is_steam` → `isSteam`; `sub_data` passes through verbatim.
+
+So the fix landed across BHL + BannerHub + v6 simultaneously. User device-confirmed BHL Original Proton 10 x64 launches end-to-end after GH-Pages propagation.
+
+#### Reusable lesson — sub_data semantics
+
+- `sub_data.sub_download_url` is REQUIRED — engine fails the whole launch on its 404.
+- Naming convention: `<top file_md5>.tzst` (matches `sub_file_name`).
+- `sub_file_md5` is not verified — but safest set to the URL filename hash.
+- Build validator `checkMissingFiles` (`dist/index.js:51`) only validates **component XML** entries; container `sub_data` URLs ship unchecked. Adding `sub_data` to `getAllOriginalInfo()` would catch this class of regression at build time. Filed as follow-up.
